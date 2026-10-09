@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Control de Muestreo — Planta Revemin</title>
 <style>
-  :root{--gris:#5F5E5A;--gris-suave:#DCDCD8;--rojo:#9B1C1C}
+  :root{--gris:#5F5E5A;--gris-suave:#DCDCD8;--rojo:#9B1C1C;--alerta:#C0202E;--aviso:#B8860B}
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
@@ -18,7 +18,7 @@
   body[data-tema="azul"]{
     --t-fondo:#F4F9FE;--t-banda:transparent;--t-caja-bg:#ffffff;
     --t-borde:2px solid #185FA5;--t-borde-top:2px solid #185FA5;--t-borde-left:2px solid #185FA5;
-    --t-cons-bg:#9FE1CB;--t-cons-borde:2px solid #0F6E56;--t-acento:#185FA5;--t-hover:#E6F1FB;
+    --t-cons-bg:#D3E3F7;--t-cons-borde:2px solid #185FA5;--t-acento:#185FA5;--t-hover:#EAF2FC;
   }
   body[data-tema="vino"]{
     --t-fondo:#FDF7EC;--t-banda:#F7C1C1;--t-caja-bg:#ffffff;
@@ -91,8 +91,47 @@
   .btn-primario:hover{filter:brightness(1.06)}
   .zona-tabla{flex:1; overflow:auto; padding:0 20px 40px}
   .rotulo{text-align:center; font-weight:bold; font-size:clamp(15px,2vw,19px); line-height:1.3; margin:22px 0 4px}
+  .resumen-patio{max-width:100%}
+  .rotulo-graf small{font-size:inherit; margin-top:2px}
+  .graf-ancho{overflow-x:auto; padding:10px}
+  .resumen-patio table{font-size:13px}
+  .tabla-resumen{max-width:560px; margin:12px 0 26px}
+  .carpetas{display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 4px}
+  .carpetas-mes{margin:8px 0 4px; padding-left:18px; border-left:3px solid var(--t-acento)}
+  .carpeta-anio{font-weight:bold}
+  .carpeta{
+    border:1px solid var(--t-acento); background:#fff; color:#000;
+    font-size:13px; padding:8px 13px; cursor:pointer;
+  }
+  .carpeta:hover{background:var(--t-hover)}
+  .carpeta[aria-pressed="true"]{background:var(--t-cons-bg); font-weight:bold}
   .barra-accion{display:flex; justify-content:flex-end; margin:8px 0 -4px}
   .rotulo small{display:block; font-size:clamp(13px,1.6vw,16px); font-weight:bold}
+
+  /* ---- panel de pilas pendientes por tenor (muestreo en patio) ---- */
+  .panel-pend{border:2px solid var(--t-acento); background:#fff; margin:18px 0 4px; display:block}
+  .panel-pend-cab{display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:var(--t-cons-bg); border-bottom:2px solid var(--t-acento); padding:10px 14px}
+  .panel-pend-cab b{font-size:14px}
+  .panel-pend-cab small{display:block; font-size:12px; font-weight:bold}
+  .panel-pend-caja{padding:14px 16px 18px}
+  .panel-pend table.tabla-pend{margin-top:4px; font-size:12px; max-width:900px}
+  .panel-pend .patio th,.panel-pend .patio td{padding:6px 8px; font-size:12px}
+  .panel-pend .ok{padding:6px 2px 10px; font-size:13px; color:#0F6E56; font-weight:bold}
+  .cifras{display:flex; gap:10px; flex-wrap:wrap; margin:0 0 12px}
+  .cifra{border:1px solid var(--gris-suave); padding:7px 12px; min-width:92px; text-align:center}
+  .cifra b{display:block; font-size:18px}
+  .cifra span{font-size:11px; color:var(--gris)}
+  .cifra.mal{border:2px solid var(--alerta); background:#FDECEC}
+  .cifra.mal b{color:var(--alerta)}
+  .fila-falta td{background:#FDECEC}
+  .fila-falta:hover td{background:#FADFDF}
+  .fila-parcial td{background:#FDF6E3}
+  .fila-parcial:hover td{background:#FAEFD2}
+  .marca{display:inline-block; font-size:11px; font-weight:bold; padding:2px 7px; white-space:nowrap}
+  .marca.mal{background:var(--alerta); color:#fff}
+  .marca.medio{background:var(--aviso); color:#fff}
+  .barra-prom{display:block; height:9px; background:var(--t-acento); min-width:2px}
 
   table{border-collapse:collapse; width:100%; font-size:13px; margin-top:14px}
   thead th{position:sticky; top:0; background:var(--t-cons-bg); border-bottom:2px solid var(--t-acento); text-align:left; padding:10px; font-size:12px; white-space:nowrap}
@@ -136,6 +175,17 @@
   .campo input,.campo select,.campo textarea{border:1px solid var(--gris-suave); padding:8px 9px; font-size:14px; font-family:inherit; background:#fff; color:#000; width:100%}
   .campo input:focus,.campo select:focus,.campo textarea:focus{border-color:var(--t-acento); outline:none}
   .campo textarea{resize:vertical; min-height:60px}
+  .opcion-export{display:flex; align-items:flex-start; gap:12px; border:2px solid var(--gris-suave);
+    padding:12px 14px; margin-bottom:10px; cursor:pointer; background:#fff}
+  .opcion-export:hover{background:var(--t-hover)}
+  .opcion-export input[type=radio]{width:18px !important; height:18px; flex:0 0 18px; margin:1px 0 0;
+    accent-color:var(--t-acento); cursor:pointer}
+  .opcion-export span{display:block}
+  .opcion-export b{display:block; font-size:14px; color:#000}
+  .opcion-export small{display:block; font-size:12px; color:var(--gris); margin-top:2px}
+  .opcion-export.activa{border-color:var(--t-acento); background:var(--t-cons-bg)}
+  #export-proc{width:100%; margin:-2px 0 4px}
+  #export-proc:disabled{background:#F2F2F0; color:var(--gris); border-color:var(--gris-suave); cursor:not-allowed}
   .subtitulo{margin:22px 0 8px; font-weight:bold; font-size:13px; display:flex; align-items:center; gap:12px}
   .tabla-form{border-collapse:collapse; width:100%; font-size:13px}
   .tabla-form th{background:var(--t-hover); border:1px solid var(--gris-suave); padding:7px; font-size:12px}
@@ -237,12 +287,43 @@
   <div class="pie" id="pie"></div>
 </section>
 
+<div class="telon" id="telon-export">
+  <div class="panel" style="max-width:540px">
+    <header id="export-titulo">Exportar a Excel</header>
+    <div class="cuerpo">
+      <p style="margin:0 0 14px; font-size:13px">Elija qué desea exportar del mes abierto:</p>
+
+      <label class="opcion-export" id="op-todo">
+        <input type="radio" name="alcance" value="todo" checked>
+        <span>
+          <b>Archivo completo</b>
+          <small>Un libro con la hoja de cada una de las seis procedencias</small>
+        </span>
+      </label>
+
+      <label class="opcion-export" id="op-una">
+        <input type="radio" name="alcance" value="una">
+        <span>
+          <b>Una sola procedencia</b>
+          <small>Un libro con una sola hoja</small>
+        </span>
+      </label>
+      <select class="control" id="export-proc"></select>
+    </div>
+    <footer>
+      <button type="button" class="btn" id="export-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-primario" id="export-aceptar">Exportar</button>
+    </footer>
+  </div>
+</div>
+
 <div class="telon" id="telon">
   <form class="panel" id="formulario" autocomplete="off">
     <header id="form-titulo">Registrar</header>
     <div class="cuerpo" id="form-cuerpo"></div>
     <footer>
       <button type="button" class="btn" id="btn-cancelar">Cancelar</button>
+      <button type="button" class="btn" id="btn-misma-orden" style="display:none">Guardar y agregar otra pila de esta orden</button>
       <button type="submit" class="btn btn-primario" id="btn-guardar">Guardar</button>
     </footer>
   </form>
@@ -388,7 +469,7 @@ const COLS_PATIO = [
   {id:'obs', etiqueta:'OBSERVACION'}
 ];
 
-const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', datos:[], filtro:'', editando:null};
+const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, panelAbierto:true};
 
 const $ = s => document.querySelector(s);
 const clavePatio = p => 'revemin_patio_' + p;
@@ -462,6 +543,13 @@ function armarOrden(proc, fecha, correlativo){
   const c = String(correlativo ?? '').trim();
   return `${prefijoProc(proc)}-${mesDe(fecha)}-${c ? c.padStart(3,'0') : 'yyy'}`;
 }
+function claveOrden(g){
+  const partes = String(g.orden || '').split('-');
+  const mes  = partes.length >= 3 ? partes[partes.length - 2] : (g.fecha || '').slice(5,7);
+  const corr = partes.length >= 3 ? partes[partes.length - 1] : (g.correlativo || '');
+  return String(mes).padStart(2,'0') + String(corr).padStart(5,'0') + String(g.pila || '');
+}
+
 function correlativoDe(g){
   if(g.correlativo) return String(g.correlativo);
   const p = String(g.orden||'').split('-').pop();
@@ -499,6 +587,18 @@ async function leer(clave){
   const local = leerLocal(clave);
   if(local){ CACHE[clave] = local; return local; }
   return CACHE[clave] || [];
+}
+
+let PROCESO_BORRADO = false;
+
+async function leerProceso(){
+  let d = await leer(CLAVE_PROCESO);
+  if(!d.length && !PROCESO_BORRADO){
+    d = SEED_PROCESO.slice();
+    CACHE[CLAVE_PROCESO] = d;
+    await escribir(CLAVE_PROCESO, d);
+  }
+  return d;
 }
 
 async function escribir(clave, datos){
@@ -558,8 +658,10 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
+const VERSION = '06/10/2026-5';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
-  $('#pie').textContent = texto + (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
+  $('#pie').textContent = texto + ' · versión ' + VERSION +
+    (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
 }
 
 /* ---------- navegación ---------- */
@@ -626,13 +728,23 @@ async function abrir(nombre){
               : nombre === 'proceso' ? CLAVE_PROCESO
               : nombre === 'carbon' ? CLAVE_CARBON
               : (MODULOS[nombre] || {}).clave;
-  if(clave) escucharClave(clave, datos =>{ ESTADO.datos = datos; pintar(); avisar('Datos actualizados desde otro equipo'); });
+  if(clave) escucharClave(clave, datos =>{
+    ESTADO.datos = datos; pintar();
+    if(nombre === 'patio') refrescarPanel();
+    avisar('Datos actualizados desde otro equipo');
+  });
+}
+
+// el panel recorre las seis procedencias: se calcula aparte para no demorar el primer pintado
+function refrescarPanel(){
+  calcularPanel().then(()=>{ if(ESTADO.modulo === 'patio') pintar(); }).catch(()=>{});
 }
 
 async function cargarDatos(){
   const n = ESTADO.modulo;
   if(n === 'patio'){
     ESTADO.datos = await leerPatio(ESTADO.procedencia);
+    refrescarPanel();
   }else if(n === 'carbon'){
     ESTADO.datos = await leer(CLAVE_CARBON);
   }else if(n === 'proceso'){
@@ -670,10 +782,10 @@ function marcarProcedencia(){
 }
 async function elegirProcedencia(id){
   ESTADO.procedencia = id;
+  ESTADO.mesPatio = '';
   marcarProcedencia();
   await cargarDatos();
-  escucharClave(clavePatio(id), datos =>{ ESTADO.datos = datos; pintar(); });
-  abrirFormulario(null);
+  escucharClave(clavePatio(id), datos =>{ ESTADO.datos = datos; pintar(); refrescarPanel(); });
 }
 
 /* ---------- pintado ---------- */
@@ -690,20 +802,257 @@ function pintar(){
   return pintarGenerico();
 }
 
+function carpetasMes(){
+  const cuenta = {};
+  ESTADO.datos.forEach(g=>{
+    const m = (g.fecha || '').slice(0,7);
+    if(m) cuenta[m] = (cuenta[m] || 0) + 1;
+  });
+  const meses = Object.keys(cuenta).sort();
+  if(!meses.length){ ESTADO.mesPatio = ''; return ''; }
+
+  // si no hay mes elegido o ya no existe, se abre el más reciente
+  if(!ESTADO.mesPatio || !meses.includes(ESTADO.mesPatio)) ESTADO.mesPatio = meses[meses.length - 1];
+  const anio = ESTADO.mesPatio.slice(0,4);
+
+  const anios = [...new Set(meses.map(m => m.slice(0,4)))].sort();
+  const porAnio = {};
+  anios.forEach(a => porAnio[a] = meses.filter(m => m.slice(0,4) === a)
+                                       .reduce((t,m)=> t + cuenta[m], 0));
+
+  const filaAnios = `<div class="carpetas">` + anios.map(a =>
+    `<button class="carpeta carpeta-anio" data-anio="${a}" aria-pressed="${a === anio}">AÑO ${a}</button>`
+  ).join('') + `</div>`;
+
+  const nombre = m => MESES[Number(m.slice(5,7)) - 1];
+  const filaMeses = `<div class="carpetas carpetas-mes">` +
+    meses.filter(m => m.slice(0,4) === anio).map(m =>
+      `<button class="carpeta" data-mes="${m}" aria-pressed="${m === ESTADO.mesPatio}">${esc(nombre(m))}</button>`
+    ).join('') + `</div>`;
+
+  return filaAnios + filaMeses;
+}
+
+function enlazarCarpetas(zona){
+  zona.querySelectorAll('[data-mes]').forEach(b => b.addEventListener('click', ()=>{
+    ESTADO.mesPatio = b.dataset.mes; pintar();
+  }));
+  const bp = zona.querySelector('#btn-panel');
+  if(bp) bp.addEventListener('click', ()=>{ ESTADO.panelAbierto = !ESTADO.panelAbierto; pintar(); });
+  zona.querySelectorAll('[data-anio]').forEach(b => b.addEventListener('click', ()=>{
+    // al cambiar de año se abre su mes más reciente
+    const meses = [...new Set(ESTADO.datos.map(g => (g.fecha||'').slice(0,7)).filter(Boolean))]
+      .filter(m => m.slice(0,4) === b.dataset.anio).sort();
+    if(meses.length){ ESTADO.mesPatio = meses[meses.length - 1]; pintar(); }
+  }));
+}
+
+// líneas horizontales de referencia: máximo, media y mínimo de los valores graficados
+function lineasReferencia(vals, py, x1, x2, dec, tam){
+  if(!vals.length) return '';
+  const media = vals.reduce((a,b)=> a+b, 0) / vals.length;
+  const vMax = Math.max.apply(null, vals), vMin = Math.min.apply(null, vals);
+  return [['MÁXIMO', vMax, '#993C1D', '6,4'],
+          ['MEDIA',  media, '#1F2937', '10,5'],
+          ['MÍNIMO', vMin, '#0F6E56', '6,4']].map(([rot, v, c, guion])=>{
+    const y = py(v);
+    return `<line x1="${x1}" y1="${y.toFixed(1)}" x2="${x2}" y2="${y.toFixed(1)}" stroke="${c}" stroke-width="1.6" stroke-dasharray="${guion}"/>` +
+           `<text x="${(x2-3).toFixed(1)}" y="${(y-5).toFixed(1)}" text-anchor="end" font-size="${tam}" font-weight="bold" fill="${c}">${rot} ${v.toFixed(dec)}</text>`;
+  }).join('');
+}
+
+// limpia el nombre de la pila para el eje X: espacios de más y paréntesis sueltos
+function rotuloPila(t){
+  return String(t ?? '').replace(/\s+/g,' ').replace(/\(\s+/g,'(').replace(/\s+\)/g,')').trim();
+}
+function svgLineaPilas(labels, datos, color, dec){
+  const n = labels.length;
+  const limpios = labels.map(rotuloPila);
+  const TOPE = 32;                                   // tope de caracteres en el eje X
+  const cortos = limpios.map(l => l.length > TOPE ? l.slice(0, TOPE - 1) + '…' : l);
+  const largo = cortos.reduce((a,l)=> Math.max(a, l.length), 0);
+  const mL=58, mR=16, mT=16;
+  const mB = Math.min(220, Math.max(70, Math.round(largo * 6.1) + 26)); // alto reservado para los nombres
+  const paso = 30;                                   // separación entre pilas
+  const ancho = Math.max(620, mL + mR + Math.max(1, n-1) * paso);
+  const H = mT + 218 + mB;
+  const vals = datos.filter(v => v !== null && v !== undefined);
+  if(!vals.length) return '';
+  let min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+  if(min === max){ min -= 1; max += 1; }
+  const pad = (max-min)*0.12; min -= pad; max += pad;
+  const px = i => mL + (n <= 1 ? (ancho-mL-mR)/2 : i*(ancho-mL-mR)/(n-1));
+  const py = v => mT + (H-mT-mB)*(1-(v-min)/(max-min));
+
+  let g = '';
+  for(let t=0; t<=4; t++){
+    const v = min + (max-min)*t/4, y = py(v);
+    g += `<line x1="${mL}" y1="${y.toFixed(1)}" x2="${ancho-mR}" y2="${y.toFixed(1)}" stroke="#DCDCD8" stroke-width="1"/>`;
+    g += `<text x="${mL-8}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="11" fill="#5F5E5A">${v.toFixed(dec)}</text>`;
+  }
+  let d = '', primero = true;
+  datos.forEach((v,i)=>{
+    if(v === null || v === undefined) return;
+    d += (primero ? 'M ' : 'L ') + px(i).toFixed(1) + ' ' + py(v).toFixed(1) + ' ';
+    primero = false;
+  });
+  g += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  g += lineasReferencia(vals, py, mL, ancho - mR, dec, 11);
+  datos.forEach((v,i)=>{
+    if(v === null || v === undefined) return;
+    g += `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="4" fill="${color}"><title>${esc(limpios[i])}: ${v.toFixed(dec)}</title></circle>`;
+  });
+  // todas las pilas rotuladas, en vertical; el nombre completo queda en el tooltip
+  cortos.forEach((l,i)=>{
+    const x = px(i).toFixed(1), y = (mT + 218 + 10).toFixed(1);
+    g += `<text x="${x}" y="${y}" transform="rotate(-90 ${x} ${y})" text-anchor="end" font-size="11" fill="#5F5E5A">` +
+         `<title>${esc(limpios[i])}</title>${esc(l)}</text>`;
+  });
+  return `<svg viewBox="0 0 ${ancho} ${H}" width="${ancho}" height="${H}" style="max-width:none">${g}</svg>`;
+}
+
+function tablaResumenPatio(items){
+  // toda la estadística se calcula sobre el promedio (o mediana) de cada pila, no sobre los códigos sueltos
+  const valores = items.map(x => x.valor).filter(v => v !== null && v !== undefined);
+  if(!valores.length) return '';
+  const codigos = items.flatMap(x => (x.grupo.muestras || []).map(m => m.tenor));
+  const media = valores.reduce((a,b)=> a+b, 0) / valores.length;
+  const cv = coefVar(valores);
+  return `<table class="patio tabla-resumen"><thead><tr>
+      <th>PARÁMETRO</th><th>VALOR</th></tr></thead><tbody>
+      <tr><td class="izq">Media acumulada en el mes (g/Ton)</td><td>${fmt(media, 3)}</td></tr>
+      <tr><td class="izq">Mediana en el mes (g/Ton)</td><td>${fmt(mediana(valores), 3)}</td></tr>
+      <tr><td class="izq">Tenor promedio máximo de pila (g/Ton)</td><td>${fmt(Math.max.apply(null, valores), 3)}</td></tr>
+      <tr><td class="izq">Tenor promedio mínimo de pila (g/Ton)</td><td>${fmt(Math.min.apply(null, valores), 3)}</td></tr>
+      <tr><td class="izq">Coeficiente de variación entre pilas (%)</td><td>${fmt(cv, 1)}</td></tr>
+      <tr><td class="izq">Total de pilas</td><td>${valores.length}</td></tr>
+      <tr><td class="izq">Total de muestras</td><td>${codigos.length}</td></tr>
+    </tbody></table>`;
+}
+
+function resumenPatio(grupos, titulo){
+  if(!grupos.length) return '';
+  const porPila = grupos.map(g => centro(g, (g.muestras || []).map(m => m.tenor)));
+  if(!porPila.some(v => v !== null && v !== undefined)) return '';
+
+  const items = grupos.map((g,i)=> ({pila: String(g.pila || ''), valor: porPila[i], grupo: g}))
+                      .filter(x => x.valor !== null && x.valor !== undefined);
+
+  const bloque = (titulo, color, lista, sub) => `
+    <div class="rotulo rotulo-graf" style="margin-top:28px">${esc(titulo)}${sub ? `<small>${esc(sub)}</small>` : ''}</div>` +
+    (lista.length
+      ? `<div class="graf graf-ancho">${svgLineaPilas(lista.map(x=>x.pila), lista.map(x=>x.valor), color, 3)}</div>
+         ${tablaResumenPatio(lista)}`
+      : `<div class="vacio" style="padding:22px">Sin pilas en este rango</div>`);
+
+  const rangos = [
+    ['PILAS CON TENOR MENOR O IGUAL A 5 g/Ton', '#0F6E56', items.filter(x => x.valor <= 5)],
+    ['PILAS CON TENOR MAYOR A 5 Y MENOR O IGUAL A 10 g/Ton', '#B8860B', items.filter(x => x.valor > 5 && x.valor <= 10)],
+    ['PILAS CON TENOR MAYOR A 10 g/Ton', '#993C1D', items.filter(x => x.valor > 10)]
+  ];
+
+  return `<div class="resumen-patio">` +
+    bloque('COMPORTAMIENTO GENERAL DE TENOR', '#185FA5', items, titulo) +
+    rangos.map(([t,c,l]) => bloque(t, c, l, `${l.length} pila${l.length===1?'':'s'}`)).join('') +
+    '</div>';
+}
+
+/* ---------- panel tipo tablero (muestreo en patio) ---------- */
+function mesCalendario(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+const sinTenor = m => String(m.tenor ?? '').trim() === '';
+const nombreMes = m => /^\d{4}-\d{2}/.test(m||'')
+  ? `${MESES[Number(m.slice(5,7))-1]} ${m.slice(0,4)}` : '';
+
+async function calcularPanel(){
+  const mesHoy = mesCalendario();
+  const pendientes = [];
+  for(const p of PROCEDENCIAS){
+    const datos = await leerPatio(p.id);
+    datos.forEach(g=>{
+      const ms = g.muestras || [];
+      const faltan = ms.filter(sinTenor).length;
+      if(!faltan) return;
+      pendientes.push({
+        procId:p.id, proc:p.nombre, pila:String(g.pila||''), orden:g.orden||'',
+        fecha:g.fecha||'', mes:(g.fecha||'').slice(0,7),
+        faltan, total:ms.length, clave:claveOrden(g)
+      });
+    });
+  }
+  // todos los meses que tengan pilas sin tenor, del más reciente al más antiguo
+  const meses = [...new Set(pendientes.map(x => x.mes).filter(Boolean))].sort().reverse();
+  ESTADO.panel = {mesHoy, meses, pendientes};
+}
+
+function tablaPendientes(lista){
+  return `<table class="patio tabla-pend"><thead><tr>
+      <th>PROCEDENCIA</th><th>FECHA</th><th>PILA</th><th>ORDEN</th><th>FALTAN</th><th>ESTADO</th>
+    </tr></thead><tbody>` +
+    lista.map(x=>{
+      const total = x.faltan === x.total;
+      return `<tr class="${total ? 'fila-falta' : 'fila-parcial'}">
+        <td class="izq">${esc(x.proc)}</td>
+        <td>${esc(fechaLegible(x.fecha))}</td>
+        <td>${esc(x.pila)}</td>
+        <td><b>${esc(x.orden)}</b></td>
+        <td>${x.faltan} de ${x.total}</td>
+        <td><span class="marca ${total ? 'mal' : 'medio'}">${total ? 'SIN TENOR' : 'INCOMPLETA'}</span></td>
+      </tr>`;
+    }).join('') + `</tbody></table>`;
+}
+
+function panelPatio(){
+  const pan = ESTADO.panel;
+  if(!pan) return '';
+  // el panel sigue siempre al mes abierto en las carpetas
+  const mes = ESTADO.mesPatio || pan.mesHoy;
+  const lista = pan.pendientes.filter(x => x.mes === mes)
+                              .sort((a,b)=> a.clave.localeCompare(b.clave) || a.proc.localeCompare(b.proc));
+  const pilas = lista.length;
+  const codigos = lista.reduce((a,x)=> a + x.faltan, 0);
+  const rotuloMes = nombreMes(mes) + (mes === pan.mesHoy ? ' — MES EN CURSO' : '');
+
+  const cab = `<div class="panel-pend-cab">
+      <div><b>PILAS QUE FALTAN POR TENOR — ${esc(rotuloMes)}</b>
+        <small>${pilas ? `${pilas} pila${pilas===1?'':'s'} pendiente${pilas===1?'':'s'} · ${codigos} código${codigos===1?'':'s'} sin tenor`
+                       : 'Todas las pilas del mes tienen sus tenores cargados'}</small></div>
+      <button class="btn" id="btn-panel">${ESTADO.panelAbierto ? 'Ocultar panel' : 'Mostrar panel'}</button>
+    </div>`;
+  if(!ESTADO.panelAbierto) return `<div class="panel-pend">${cab}</div>`;
+
+  const cuerpo = pilas
+    ? `<div class="cifras">
+         <div class="cifra mal"><b>${pilas}</b><span>PILAS PENDIENTES</span></div>
+         <div class="cifra mal"><b>${codigos}</b><span>CÓDIGOS SIN TENOR</span></div>
+       </div>${tablaPendientes(lista)}`
+    : `<div class="ok">Todas las pilas de ${esc(nombreMes(mes))} tienen sus tenores cargados</div>`;
+  return `<div class="panel-pend">${cab}<div class="panel-pend-caja">${cuerpo}</div></div>`;
+}
+
 function pintarPatio(){
-  const grupos = ESTADO.datos.filter(coincide).slice().sort((a,b)=>
-    (String(a.fecha||'') + String(a.correlativo||'').padStart(4,'0'))
-      .localeCompare(String(b.fecha||'') + String(b.correlativo||'').padStart(4,'0')));
+  // carpetasMes fija ESTADO.mesPatio, por eso se calcula antes que el panel
+  const folders = carpetasMes();
+  const carpetas = panelPatio() + folders;
+  const grupos = ESTADO.datos
+    .filter(g => !ESTADO.mesPatio || (g.fecha || '').slice(0,7) === ESTADO.mesPatio)
+    .filter(coincide).slice()
+    .sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
   const zona = $('#zona-tabla');
-  const mes = periodo(ESTADO.datos);
-  const rotulo = `<div class="rotulo">TENORES DE PATIO DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>
+  const mes = ESTADO.mesPatio
+    ? `${MESES[Number(ESTADO.mesPatio.slice(5,7))-1]} ${ESTADO.mesPatio.slice(0,4)}`
+    : periodo(ESTADO.datos);
+  const rotulo = carpetas + `<div class="rotulo">TENORES DE PATIO DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>
     <div class="barra-accion"><button class="btn btn-primario" id="btn-otra-pila">+ Registrar otra pila</button></div>`;
 
   if(!grupos.length){
     zona.innerHTML = rotulo + `<div class="vacio">
-      <strong>${ESTADO.filtro ? 'Ninguna pila coincide con la búsqueda' : 'Todavía no hay pilas cargadas para esta procedencia'}</strong>
+      <strong>${ESTADO.mesPatio ? 'No hay pilas cargadas en este mes' : 'Todavía no hay pilas cargadas para esta procedencia'}</strong>
       ${ESTADO.filtro ? 'Pruebe con otro término.' : 'Use “Registrar pila” para cargar la primera.'}</div>`;
     $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
+    enlazarCarpetas(zona);
     ponerPie('0 pilas');
     return;
   }
@@ -736,8 +1085,11 @@ function pintarPatio(){
       <td></td></tr>`;
   });
 
-  zona.innerHTML = rotulo + `<table class="patio"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+  const titulo = `${esc(nombreProc(ESTADO.procedencia))} ${esc(mes || '')}`.trim();
+  zona.innerHTML = rotulo + `<table class="patio"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`
+    + resumenPatio(grupos, titulo);
   $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
+  enlazarCarpetas(zona);
   enlazarAcciones(zona);
   const totalM = grupos.reduce((a,g)=> a + (g.muestras||[]).length, 0);
   ponerPie(`${grupos.length} pila${grupos.length===1?'':'s'} · ${totalM} código${totalM===1?'':'s'}`);
@@ -791,11 +1143,12 @@ function enlazarAcciones(zona){
 $('#btn-nuevo').addEventListener('click', ()=> abrirFormulario(null));
 $('#btn-cancelar').addEventListener('click', cerrarFormulario);
 $('#telon').addEventListener('mousedown', e=>{ if(e.target.id==='telon') cerrarFormulario(); });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') cerrarFormulario(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ cerrarFormulario(); cerrarDialogoExport(); } });
 
-function abrirFormulario(indice){
+function abrirFormulario(indice, base){
   ESTADO.editando = indice;
-  if(ESTADO.modulo === 'patio') formularioPatio(indice);
+  $('#btn-misma-orden').style.display = (ESTADO.modulo === 'patio') ? '' : 'none';
+  if(ESTADO.modulo === 'patio') formularioPatio(indice, base);
   else if(ESTADO.modulo === 'proceso') formularioProceso(indice);
   else if(ESTADO.modulo === 'carbon') formularioCarbon(indice);
   else formularioGenerico(indice);
@@ -807,7 +1160,7 @@ function abrirFormulario(indice){
   $('#telon').classList.add('activo');
   const p = $('#form-cuerpo').querySelector('input,select,textarea'); if(p) p.focus();
 }
-function cerrarFormulario(){ $('#telon').classList.remove('activo'); ESTADO.editando = null; }
+function cerrarFormulario(){ $('#telon').classList.remove('activo'); ESTADO.editando = null; SEGUIR_MISMA_ORDEN = false; }
 
 function filaMuestra(m){
   m = m || {};
@@ -819,9 +1172,14 @@ function filaMuestra(m){
     <td><button type="button" class="mini borrar quitar">Quitar</button></td></tr>`;
 }
 
-function formularioPatio(indice){
-  const g = indice === null ? {muestras:[{},{},{},{},{}]} : ESTADO.datos[indice];
-  $('#form-titulo').textContent = (indice===null?'Registrar pila — ':'Editar pila — ') + nombreProc(ESTADO.procedencia);
+function formularioPatio(indice, base){
+  const g = indice === null
+    ? Object.assign({muestras:[{},{},{},{},{}]}, base || {})
+    : ESTADO.datos[indice];
+  const mismaOrden = indice === null && base && base.correlativo;
+  $('#form-titulo').textContent = mismaOrden
+    ? `Otra pila de la orden ${armarOrden(ESTADO.procedencia, base.fecha, base.correlativo)} — ${nombreProc(ESTADO.procedencia)}`
+    : (indice===null?'Registrar pila — ':'Editar pila — ') + nombreProc(ESTADO.procedencia);
   $('#btn-guardar').textContent = indice===null ? 'Guardar pila' : 'Guardar cambios';
   const ms = (g.muestras && g.muestras.length) ? g.muestras : [{}];
   $('#form-cuerpo').innerHTML = `
@@ -911,6 +1269,16 @@ function formularioGenerico(indice){
   }).join('') + '</div>';
 }
 
+let SEGUIR_MISMA_ORDEN = false;
+$('#btn-misma-orden').addEventListener('click', ()=>{
+  // se envía el formulario como si fuera Guardar, respetando los campos obligatorios
+  SEGUIR_MISMA_ORDEN = true;
+  const f = $('#formulario');
+  if(f.reportValidity && !f.reportValidity()){ SEGUIR_MISMA_ORDEN = false; return; }
+  f.requestSubmit ? f.requestSubmit() : f.dispatchEvent(new Event('submit', {cancelable:true}));
+});
+$('#btn-guardar').addEventListener('click', ()=>{ SEGUIR_MISMA_ORDEN = false; });
+
 $('#formulario').addEventListener('submit', async e=>{
   e.preventDefault();
   if(ESTADO.modulo === 'patio'){
@@ -937,6 +1305,14 @@ $('#formulario').addEventListener('submit', async e=>{
     const ok = await escribir(clavePatio(ESTADO.procedencia), ESTADO.datos);
     avisar(ok ? (ESTADO.editando===null ? 'Pila guardada' : 'Cambios guardados')
               : 'Pila cargada solo en esta sesión: descargue el Excel antes de cerrar');
+    refrescarPanel();
+    if(SEGUIR_MISMA_ORDEN){
+      SEGUIR_MISMA_ORDEN = false;
+      cerrarFormulario(); pintar();
+      abrirFormulario(null, {fecha:g.fecha, turno:g.turno, correlativo:g.correlativo,
+                             estadistico:g.estadistico});
+      return;
+    }
   }else if(ESTADO.modulo === 'carbon'){
     const fd = new FormData(e.target);
     const g = {
@@ -991,11 +1367,45 @@ async function borrar(i){
     : ESTADO.modulo==='proceso' ? CLAVE_PROCESO
     : ESTADO.modulo==='carbon' ? CLAVE_CARBON : MODULOS[ESTADO.modulo].clave, ESTADO.datos);
   avisar('Registro eliminado'); pintar();
+  if(ESTADO.modulo === 'patio') refrescarPanel();
 }
 
 /* ---------- exportación ---------- */
+function marcarOpcionExport(){
+  const una = $('#op-una').querySelector('input').checked;
+  $('#op-una').classList.toggle('activa', una);
+  $('#op-todo').classList.toggle('activa', !una);
+  $('#export-proc').disabled = !una;
+}
+function abrirDialogoExport(){
+  const mes = ESTADO.mesPatio
+    ? `${MESES[Number(ESTADO.mesPatio.slice(5,7))-1]} ${ESTADO.mesPatio.slice(0,4)}` : '';
+  $('#export-titulo').textContent = 'Exportar a Excel' + (mes ? ' — ' + mes : '');
+  $('#export-proc').innerHTML = PROCEDENCIAS.map(p =>
+    `<option value="${p.id}" ${p.id === ESTADO.procedencia ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('');
+  $('#op-todo').querySelector('input').checked = true;
+  marcarOpcionExport();
+  $('#telon-export').classList.add('activo');
+}
+function cerrarDialogoExport(){ $('#telon-export').classList.remove('activo'); }
+
+document.querySelectorAll('[name=alcance]').forEach(r => r.addEventListener('change', marcarOpcionExport));
+$('#export-proc').addEventListener('mousedown', ()=>{
+  // al tocar la lista se entiende que quiere una sola procedencia
+  $('#op-una').querySelector('input').checked = true;
+  marcarOpcionExport();
+});
+$('#export-cancelar').addEventListener('click', cerrarDialogoExport);
+$('#telon-export').addEventListener('mousedown', e=>{ if(e.target.id === 'telon-export') cerrarDialogoExport(); });
+$('#export-aceptar').addEventListener('click', async ()=>{
+  const una = $('#op-una').querySelector('input').checked;
+  const proc = $('#export-proc').value;
+  cerrarDialogoExport();
+  await exportarExcelPatio(una ? proc : null);
+});
+
 $('#btn-csv').addEventListener('click', async ()=>{
-  if(ESTADO.modulo === 'patio'){ await exportarExcelPatio(); return; }
+  if(ESTADO.modulo === 'patio'){ abrirDialogoExport(); return; }
   if(ESTADO.modulo === 'proceso'){ await exportarExcelProceso(); return; }
   if(ESTADO.modulo === 'carbon'){ await exportarExcelCarbon(); return; }
   const linea = a => a.map(v=>`"${String(v ?? '').replace(/"/g,'""')}"`).join(';');
@@ -1050,6 +1460,7 @@ function svgLinea(labels, datos, color, dec){
     primero = false;
   });
   g += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  g += lineasReferencia(vals, py, mL, W - mR, dec, 10);
   datos.forEach((v,i)=>{
     if(v === null || v === undefined) return;
     g += `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="3.5" fill="${color}"/>`;
@@ -1237,14 +1648,27 @@ function formatearFila(ws, nfila, ncols, opciones){
   return r;
 }
 
+// algunos navegadores descartan el nombre del archivo si lleva eñes o acentos
+// y lo guardan como "download"; por eso se envía sin esos caracteres
+function nombreArchivo(t){
+  return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                  .replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').trim();
+}
 async function descargarLibro(wb, nombre){
+  nombre = nombreArchivo(nombre);
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
+  a.href = url;
   a.download = nombre;
+  a.rel = 'noopener';
+  // el enlace debe estar en la página y la dirección liberarse después,
+  // o el navegador puede perder el nombre y guardarlo como "download"
+  a.style.display = 'none';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(a.href);
+  setTimeout(()=>{ a.remove(); URL.revokeObjectURL(url); }, 4000);
   avisar('Archivo Excel descargado');
 }
 
@@ -1257,7 +1681,7 @@ function periodo(grupos){
   return a[1] === b[1] ? `${a[0]}-${b[0]} ${b[1]}` : `${a.join(' ')} A ${b.join(' ')}`;
 }
 
-async function exportarExcelPatio(){
+async function exportarExcelPatio(soloProc){
   if(typeof ExcelJS === 'undefined'){ avisar('No se pudo cargar el generador de Excel. Revise la conexión.'); return; }
   avisar('Generando el archivo…');
 
@@ -1265,10 +1689,14 @@ async function exportarExcelPatio(){
   wb.creator = 'Control de Muestreo — Planta Revemin';
   let hayDatos = false;
 
-  for(const p of PROCEDENCIAS){
-    const grupos = (await leerPatio(p.id)).slice().sort((a,b)=>
-      (String(a.fecha||'') + String(a.correlativo||'').padStart(4,'0'))
-        .localeCompare(String(b.fecha||'') + String(b.correlativo||'').padStart(4,'0')));
+  // se exporta el mes abierto en las carpetas
+  const mesSel = ESTADO.mesPatio || '';
+  const lista = soloProc ? PROCEDENCIAS.filter(p => p.id === soloProc) : PROCEDENCIAS;
+
+  for(const p of lista){
+    const grupos = (await leerPatio(p.id))
+      .filter(g => !mesSel || (g.fecha || '').slice(0,7) === mesSel)
+      .sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
     if(grupos.length) hayDatos = true;
 
     const ws = wb.addWorksheet(p.nombre.slice(0,31));
@@ -1320,8 +1748,14 @@ async function exportarExcelPatio(){
     ws.views = [{state:'frozen', ySplit:4}];
   }
 
-  if(!hayDatos){ avisar('No hay pilas cargadas para exportar'); return; }
-  await descargarLibro(wb, 'tenores_de_patio_planta_revemin.xlsx');
+  if(!hayDatos){
+    avisar(soloProc ? `${nombreProc(soloProc)} no tiene pilas en este mes`
+                    : 'No hay pilas cargadas en este mes para exportar');
+    return;
+  }
+  const rotulo = mesSel ? `${MESES[Number(mesSel.slice(5,7))-1]} ${mesSel.slice(0,4)}` : '';
+  const quien = soloProc ? ' DE ' + nombreProc(soloProc) : ' PLANTA REVEMIN';
+  await descargarLibro(wb, `TENORES DE PATIO${quien}${rotulo ? ' ' + rotulo : ''}.xlsx`);
 }
 
 async function exportarExcelProceso(){
@@ -1394,7 +1828,7 @@ async function exportarExcelProceso(){
   });
   we.views = [{state:'frozen', ySplit:4}];
 
-  await descargarLibro(wb, 'muestras_puntuales_planta_revemin.xlsx');
+  await descargarLibro(wb, `MUESTRAS PUNTUALES PLANTA REVEMIN${mes ? ' ' + mes : ''}.xlsx`);
 }
 
 /* ================= MUESTREO DE CARBON ACTIVADO ================= */
@@ -1405,7 +1839,7 @@ function ordenCarbon(fecha, correlativo){
 
 function pintarCarbon(){
   const zona = $('#zona-tabla');
-  const grupos = ESTADO.datos;
+  const grupos = ESTADO.datos.slice().sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
   const mes = periodo(grupos);
   const rotulo = `<div class="rotulo">MUESTREO DE CARBON ACTIVADO<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>`;
 
@@ -1435,8 +1869,11 @@ function pintarCarbon(){
     });
   });
 
-  zona.innerHTML = rotulo + `<table class="patio"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+  const titulo = `${esc(nombreProc(ESTADO.procedencia))} ${esc(mes || '')}`.trim();
+  zona.innerHTML = rotulo + `<table class="patio"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`
+    + resumenPatio(grupos, titulo);
   $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
+  enlazarCarpetas(zona);
   enlazarAcciones(zona);
   const totalM = grupos.reduce((a,g)=> a + (g.muestras||[]).length, 0);
   ponerPie(`${grupos.length} orden${grupos.length===1?'':'es'} · ${totalM} muestra${totalM===1?'':'s'}`);
@@ -1513,9 +1950,8 @@ function formularioCarbon(indice){
 
 async function exportarExcelCarbon(){
   if(typeof ExcelJS === 'undefined'){ avisar('No se pudo cargar el generador de Excel. Revise la conexión.'); return; }
-  const grupos = (await leer(CLAVE_CARBON)).slice().sort((a,b)=>
-    (String(a.fecha||'') + String(a.correlativo||'').padStart(4,'0'))
-      .localeCompare(String(b.fecha||'') + String(b.correlativo||'').padStart(4,'0')));
+  const grupos = (await leer(CLAVE_CARBON)).slice()
+    .sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
   if(!grupos.length){ avisar('No hay órdenes cargadas para exportar'); return; }
   avisar('Generando el archivo…');
 
@@ -1547,7 +1983,8 @@ async function exportarExcelCarbon(){
   });
 
   ws.views = [{state:'frozen', ySplit:4}];
-  await descargarLibro(wb, 'muestreo_carbon_activado_revemin.xlsx');
+  const periodoCarbon = periodo(grupos);
+  await descargarLibro(wb, `MUESTREO DE CARBON ACTIVADO PLANTA REVEMIN${periodoCarbon ? ' ' + periodoCarbon : ''}.xlsx`);
 }
 
 /* ---------- tema ---------- */
