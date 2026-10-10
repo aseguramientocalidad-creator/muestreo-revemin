@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Control de Muestreo — Planta Revemin</title>
 <style>
-  :root{--gris:#5F5E5A;--gris-suave:#DCDCD8;--rojo:#9B1C1C;--alerta:#C0202E;--aviso:#B8860B}
+  :root{--gris:#5F5E5A;--gris-suave:#DCDCD8;--rojo:#9B1C1C;--alerta:#C0202E;--aviso:#B8860B;--gris-cab:#595959}
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
@@ -106,6 +106,12 @@
   .carpeta:hover{background:var(--t-hover)}
   .carpeta[aria-pressed="true"]{background:var(--t-cons-bg); font-weight:bold}
   .barra-accion{display:flex; justify-content:flex-end; margin:8px 0 -4px}
+  .barra-vista-patio{display:flex; justify-content:flex-end; margin:16px 0 0}
+  .btn-vista{
+    border:2px solid var(--t-acento); background:var(--t-cons-bg); color:#000;
+    font-weight:bold; font-size:14px; padding:11px 22px; cursor:pointer;
+  }
+  .btn-vista:hover{filter:brightness(1.06)}
   .rotulo small{display:block; font-size:clamp(13px,1.6vw,16px); font-weight:bold}
 
   /* ---- panel de pilas pendientes por tenor (muestreo en patio) ---- */
@@ -134,15 +140,49 @@
   .barra-prom{display:block; height:9px; background:var(--t-acento); min-width:2px}
 
   table{border-collapse:collapse; width:100%; font-size:13px; margin-top:14px}
-  thead th{position:sticky; top:0; background:var(--t-cons-bg); border-bottom:2px solid var(--t-acento); text-align:left; padding:10px; font-size:12px; white-space:nowrap}
+  thead th{position:sticky; top:0; background:var(--gris-cab); color:#fff; border-bottom:2px solid var(--t-acento); text-align:left; padding:10px; font-size:12px; white-space:nowrap}
   tbody td{border-bottom:1px solid var(--gris-suave); padding:9px 10px; vertical-align:top}
   tbody tr:hover{background:var(--t-hover)}
   .patio th,.patio td{border:1px solid #000; padding:8px 9px; text-align:center; vertical-align:middle}
-  .patio thead th{background:var(--t-cons-bg); font-size:12px; text-align:center}
+  .patio thead th{background:var(--gris-cab); color:#fff; font-size:12px; text-align:center}
   .patio tbody tr:hover{background:transparent}
   .patio .grupo:hover td{background:var(--t-hover)}
   .patio td.izq{text-align:left}
   .patio tr.promedio td{background:var(--t-cons-bg); font-weight:bold}
+  .patio tr.fila-total td{background:var(--gris-cab); color:#fff; font-weight:bold}
+  .patio tr.fila-ponderado td{background:var(--t-cons-bg); font-weight:bold; font-size:14px}
+  /* tabla principal de tenores de patio: orden más ancha y en una sola línea;
+     toneladas húmedas/secas y Au contenido más angostas, para que la tabla sea más compacta */
+  .tabla-tenores{table-layout:fixed}
+  .tabla-tenores thead th{white-space:normal; word-break:normal; overflow-wrap:normal; hyphens:none; font-size:11px; padding:8px 4px; line-height:1.3}
+  .tabla-tenores td{padding:7px 5px; overflow-wrap:break-word}
+  .tabla-tenores th:nth-child(1),.tabla-tenores td:nth-child(1){width:8%}
+  .tabla-tenores th:nth-child(2),.tabla-tenores td:nth-child(2){width:10%}
+  .tabla-tenores th:nth-child(3),.tabla-tenores td:nth-child(3){width:6%}
+  .tabla-tenores th:nth-child(4),.tabla-tenores td:nth-child(4){width:11%}
+  .tabla-tenores td:nth-child(4){white-space:nowrap}
+  .tabla-tenores th:nth-child(5),.tabla-tenores td:nth-child(5){width:7%}
+  .tabla-tenores th:nth-child(6),.tabla-tenores td:nth-child(6){width:7%}
+  .tabla-tenores th:nth-child(7),.tabla-tenores td:nth-child(7){width:10%}
+  .tabla-tenores th:nth-child(8),.tabla-tenores td:nth-child(8){width:10%}
+  .tabla-tenores th:nth-child(9),.tabla-tenores td:nth-child(9){width:7%}
+  .tabla-tenores th:nth-child(10),.tabla-tenores td:nth-child(10){width:8%}
+  .tabla-tenores th:nth-child(11),.tabla-tenores td:nth-child(11){width:7%}
+  .tabla-tenores th:nth-child(12),.tabla-tenores td:nth-child(12){width:9%}
+  /* tabla consolidada de pilas en stock: igual a la tabla principal pero sin fecha/turno/orden,
+     con una columna de PROCEDENCIA a la izquierda */
+  .tabla-stock{table-layout:fixed}
+  .tabla-stock thead th{white-space:normal; word-break:normal; overflow-wrap:normal; hyphens:none; font-size:11px; padding:8px 4px; line-height:1.3}
+  .tabla-stock td{padding:7px 5px; overflow-wrap:break-word}
+  .tabla-stock th:nth-child(1),.tabla-stock td:nth-child(1){width:16%}
+  .tabla-stock th:nth-child(2),.tabla-stock td:nth-child(2){width:14%}
+  .tabla-stock th:nth-child(3),.tabla-stock td:nth-child(3){width:10%}
+  .tabla-stock th:nth-child(4),.tabla-stock td:nth-child(4){width:10%}
+  .tabla-stock th:nth-child(5),.tabla-stock td:nth-child(5){width:12%}
+  .tabla-stock th:nth-child(6),.tabla-stock td:nth-child(6){width:12%}
+  .tabla-stock th:nth-child(7),.tabla-stock td:nth-child(7){width:10%}
+  .tabla-stock th:nth-child(8),.tabla-stock td:nth-child(8){width:9%}
+  .tabla-stock th:nth-child(9),.tabla-stock td:nth-child(9){width:7%}
   .fase{margin:20px 0 8px; font-weight:bold; font-size:13px; color:#000; border-bottom:2px solid var(--t-acento); padding-bottom:5px}
   .graficos{display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:14px}
   .graf{border:1px solid var(--t-acento); background:#fff; padding:12px}
@@ -188,7 +228,7 @@
   #export-proc:disabled{background:#F2F2F0; color:var(--gris); border-color:var(--gris-suave); cursor:not-allowed}
   .subtitulo{margin:22px 0 8px; font-weight:bold; font-size:13px; display:flex; align-items:center; gap:12px}
   .tabla-form{border-collapse:collapse; width:100%; font-size:13px}
-  .tabla-form th{background:var(--t-hover); border:1px solid var(--gris-suave); padding:7px; font-size:12px}
+  .tabla-form th{background:var(--gris-cab); color:#fff; border:1px solid var(--gris-suave); padding:7px; font-size:12px}
   .tabla-form td{border:1px solid var(--gris-suave); padding:4px}
   .tabla-form input.fijo{background:var(--t-hover); font-weight:bold; text-align:center; cursor:default; text-overflow:clip}
   .tabla-form th:first-child, .tabla-form td:first-child{min-width:160px}
@@ -463,13 +503,16 @@ const COLS_PATIO = [
   {id:'pila', etiqueta:'PILA'},
   {id:'turno', etiqueta:'TURNO'},
   {id:'orden', etiqueta:'ORDEN'},
+  {id:'toneladasHumedas', etiqueta:'TONELADAS HUMEDAS'},
   {id:'codigo', etiqueta:'CODIGO'},
-  {id:'tenor', etiqueta:'TENOR (g/Ton)'},
-  {id:'humedad', etiqueta:'HUMEDAD (%)'},
-  {id:'obs', etiqueta:'OBSERVACION'}
+  {id:'tenor', etiqueta:'TENOR MUESTRA (g/Ton)'},
+  {id:'humedad', etiqueta:'HUMEDAD MUESTRA (%)'},
+  {id:'toneladasSecas', etiqueta:'TONELADAS SECAS'},
+  {id:'tenorPromedio', etiqueta:'TENOR PROMEDIO (g/t)'},
+  {id:'auContenido', etiqueta:'Au CONTENIDO (g)'}
 ];
 
-const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, panelAbierto:true};
+const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, panelAbierto:true, vistaPatio:'datos'};
 
 const $ = s => document.querySelector(s);
 const clavePatio = p => 'revemin_patio_' + p;
@@ -652,13 +695,31 @@ function centro(g, valores){
 }
 function rotuloCentro(g){ return (g && g.estadistico === 'mediana') ? 'MEDIANA' : 'PROMEDIO'; }
 
+// ---- toneladas secas, tenor promedio y Au contenido, a partir de las toneladas húmedas ----
+function toneladasSecasDe(g){
+  const th = num(g && g.toneladasHumedas);
+  if(th === null) return null;
+  const hProm = centro(g, (g.muestras || []).map(m => m.humedad));
+  if(hProm === null) return null;
+  return th * (1 - hProm / 100);
+}
+function tenorPromedioDe(g){
+  return centro(g, (g.muestras || []).map(m => m.tenor));
+}
+function auContenidoDe(g){
+  const ts = toneladasSecasDe(g);
+  const tp = tenorPromedioDe(g);
+  if(ts === null || tp === null) return null;
+  return ts * tp;
+}
+
 function promedio(lista){
   const v = lista.map(num).filter(x => x !== null);
   return v.length ? (v.reduce((a,b)=>a+b,0) / v.length) : null;
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '06/10/2026-5';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-16';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -783,6 +844,7 @@ function marcarProcedencia(){
 async function elegirProcedencia(id){
   ESTADO.procedencia = id;
   ESTADO.mesPatio = '';
+  ESTADO.vistaPatio = 'datos';
   marcarProcedencia();
   await cargarDatos();
   escucharClave(clavePatio(id), datos =>{ ESTADO.datos = datos; pintar(); refrescarPanel(); });
@@ -969,22 +1031,28 @@ const nombreMes = m => /^\d{4}-\d{2}/.test(m||'')
 async function calcularPanel(){
   const mesHoy = mesCalendario();
   const pendientes = [];
+  const stock = [];
   for(const p of PROCEDENCIAS){
     const datos = await leerPatio(p.id);
     datos.forEach(g=>{
       const ms = g.muestras || [];
       const faltan = ms.filter(sinTenor).length;
-      if(!faltan) return;
-      pendientes.push({
-        procId:p.id, proc:p.nombre, pila:String(g.pila||''), orden:g.orden||'',
-        fecha:g.fecha||'', mes:(g.fecha||'').slice(0,7),
-        faltan, total:ms.length, clave:claveOrden(g)
-      });
+      if(faltan){
+        pendientes.push({
+          procId:p.id, proc:p.nombre, pila:String(g.pila||''), orden:g.orden||'',
+          fecha:g.fecha||'', mes:(g.fecha||'').slice(0,7),
+          faltan, total:ms.length, clave:claveOrden(g)
+        });
+      }
+      if(String(g.stock||'').toLowerCase() === 'si'){
+        stock.push({procId:p.id, proc:p.nombre, grupo:g});
+      }
     });
   }
   // todos los meses que tengan pilas sin tenor, del más reciente al más antiguo
   const meses = [...new Set(pendientes.map(x => x.mes).filter(Boolean))].sort().reverse();
   ESTADO.panel = {mesHoy, meses, pendientes};
+  ESTADO.stock = stock.sort((a,b)=> a.proc.localeCompare(b.proc) || claveOrden(a.grupo).localeCompare(claveOrden(b.grupo)));
 }
 
 function tablaPendientes(lista){
@@ -1033,6 +1101,7 @@ function panelPatio(){
 }
 
 function pintarPatio(){
+  if(ESTADO.vistaPatio === 'stock'){ pintarStockPatio(); return; }
   // carpetasMes fija ESTADO.mesPatio, por eso se calcula antes que el panel
   const folders = carpetasMes();
   const carpetas = panelPatio() + folders;
@@ -1044,55 +1113,179 @@ function pintarPatio(){
   const mes = ESTADO.mesPatio
     ? `${MESES[Number(ESTADO.mesPatio.slice(5,7))-1]} ${ESTADO.mesPatio.slice(0,4)}`
     : periodo(ESTADO.datos);
-  const rotulo = carpetas + `<div class="rotulo">TENORES DE PATIO DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>
+
+  const vistaGraf = ESTADO.vistaPatio === 'graficos';
+  const hayStock = ESTADO.stock && ESTADO.stock.length > 0;
+  const btnVista = grupos.length
+    ? `<button class="btn btn-vista" id="btn-vista-patio">
+         ${vistaGraf ? '📋 Ver tabla de tenores' : '📊 Ver gráficos y estadísticas'}</button>`
+    : '';
+  const btnStock = hayStock
+    ? `<button class="btn btn-vista" id="btn-stock-patio">📦 Pilas en stock (${ESTADO.stock.length})</button>`
+    : '';
+  const tituloTabla = `<div class="rotulo">TENORES DE PATIO DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>`;
+  const barras = `<div class="barra-vista-patio">${btnStock}${btnVista}</div>
     <div class="barra-accion"><button class="btn btn-primario" id="btn-otra-pila">+ Registrar otra pila</button></div>`;
+  const rotulo = carpetas + tituloTabla + barras;
+
+  function enlazarBotonStock(){
+    const b = $('#btn-stock-patio');
+    if(b) b.addEventListener('click', ()=>{ ESTADO.vistaPatio = 'stock'; pintar(); });
+  }
 
   if(!grupos.length){
     zona.innerHTML = rotulo + `<div class="vacio">
       <strong>${ESTADO.mesPatio ? 'No hay pilas cargadas en este mes' : 'Todavía no hay pilas cargadas para esta procedencia'}</strong>
       ${ESTADO.filtro ? 'Pruebe con otro término.' : 'Use “Registrar pila” para cargar la primera.'}</div>`;
     $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
+    enlazarBotonStock();
     enlazarCarpetas(zona);
     ponerPie('0 pilas');
     return;
   }
 
+  const titulo = `${esc(nombreProc(ESTADO.procedencia))} ${esc(mes || '')}`.trim();
+
+  if(vistaGraf){
+    // en la vista de gráficos no se repite el título "TENORES DE PATIO DE…": cada gráfico ya trae su propio rótulo
+    zona.innerHTML = carpetas + barras + resumenPatio(grupos, titulo);
+    $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
+    $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
+    enlazarBotonStock();
+    enlazarCarpetas(zona);
+    const totalM = grupos.reduce((a,g)=> a + (g.muestras||[]).length, 0);
+    ponerPie(`${grupos.length} pila${grupos.length===1?'':'s'} · ${totalM} código${totalM===1?'':'s'} · gráficos y estadísticas`);
+    return;
+  }
+
   const th = COLS_PATIO.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('') + '<th></th>';
   let cuerpo = '';
+  let totalHumedas = 0, totalSecas = 0, totalAu = 0;
   grupos.forEach(g=>{
     const i = ESTADO.datos.indexOf(g);
     const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:'',obs:''}];
     const n = ms.length;
+    const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
+    totalHumedas += num(g.toneladasHumedas) || 0;
+    totalSecas += ts || 0;
+    totalAu += au || 0;
     ms.forEach((m, k)=>{
       const cabecera = k === 0 ? `
         <td rowspan="${n+1}"><b>${esc(fechaLegible(g.fecha))}</b></td>
         <td rowspan="${n+1}">${esc(g.pila)}</td>
         <td rowspan="${n+1}">${esc(g.turno)}</td>
-        <td rowspan="${n+1}">${esc(g.orden)}</td>` : '';
+        <td rowspan="${n+1}">${esc(g.orden)}</td>
+        <td rowspan="${n+1}">${g.toneladasHumedas === '' || g.toneladasHumedas == null ? '' : esc(g.toneladasHumedas)}</td>` : '';
+      const calculados = k === 0 ? `
+        <td rowspan="${n+1}">${fmt(ts, 2)}</td>
+        <td rowspan="${n+1}">${fmt(tp, 3)}</td>
+        <td rowspan="${n+1}">${fmt(au, 2)}</td>` : '';
       const acciones = k === 0 ? `<td rowspan="${n+1}" class="col-acc">
         <button class="mini" data-editar="${i}">Editar</button><br>
         <button class="mini borrar" data-borrar="${i}">Eliminar</button></td>` : '';
       cuerpo += `<tr class="grupo">${cabecera}
         <td>${esc(m.codigo)}</td>
         <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
-        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>
-        <td class="izq">${esc(m.obs)}</td>${acciones}</tr>`;
+        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}${acciones}</tr>`;
     });
     cuerpo += `<tr class="grupo promedio">
       <td>${rotuloCentro(g)}</td>
       <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
-      <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td>
-      <td></td></tr>`;
+      <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
   });
+  const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
+  cuerpo += `<tr class="grupo fila-total">
+      <td colspan="4" class="izq"><b>TOTAL</b></td>
+      <td><b>${fmt(totalHumedas || null, 2)}</b></td>
+      <td colspan="3"></td>
+      <td><b>${fmt(totalSecas || null, 2)}</b></td>
+      <td></td>
+      <td><b>${fmt(totalAu || null, 2)}</b></td>
+      <td></td></tr>
+    <tr class="grupo fila-ponderado">
+      <td colspan="10" class="izq"><b>TENOR PONDERADO ${esc(nombreProc(ESTADO.procedencia))} (g/t)</b></td>
+      <td><b>${fmt(tenorPonderado, 3)}</b></td>
+      <td></td></tr>`;
 
-  const titulo = `${esc(nombreProc(ESTADO.procedencia))} ${esc(mes || '')}`.trim();
-  zona.innerHTML = rotulo + `<table class="patio"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`
-    + resumenPatio(grupos, titulo);
+  zona.innerHTML = rotulo + `<table class="patio tabla-tenores"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
   $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
+  $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'graficos'; pintar(); });
+  enlazarBotonStock();
   enlazarCarpetas(zona);
   enlazarAcciones(zona);
   const totalM = grupos.reduce((a,g)=> a + (g.muestras||[]).length, 0);
   ponerPie(`${grupos.length} pila${grupos.length===1?'':'s'} · ${totalM} código${totalM===1?'':'s'}`);
+}
+
+const COLS_STOCK = COLS_PATIO.filter(c => c.id !== 'fechaMuestreo' && c.id !== 'turno' && c.id !== 'orden');
+
+function tituloStockPatio(){
+  return `PILAS EN STOCK<small>PLANTA REVEMIN PIM II-${esc(nombreMes(mesCalendario()))}</small>`;
+}
+
+function pintarStockPatio(){
+  const zona = $('#zona-tabla');
+  const lista = (ESTADO.stock || []).slice();
+  const tituloTabla = `<div class="rotulo">${tituloStockPatio()}</div>`;
+  const barras = `<div class="barra-vista-patio">
+      <button class="btn btn-vista" id="btn-vista-patio">📋 Ver tabla de tenores</button>
+    </div>`;
+
+  if(!lista.length){
+    zona.innerHTML = tituloTabla + barras + `<div class="vacio">
+      <strong>No hay pilas marcadas en stock</strong>
+      Marque “Si” en el campo Stock del formulario de una pila para que aparezca aquí.</div>`;
+    $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
+    ponerPie('0 pilas en stock');
+    return;
+  }
+
+  const th = `<th>PROCEDENCIA</th>` + COLS_STOCK.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('');
+  let cuerpo = '';
+  let totalHumedas = 0, totalSecas = 0, totalAu = 0;
+  lista.forEach(x=>{
+    const g = x.grupo;
+    const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:''}];
+    const n = ms.length;
+    const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
+    totalHumedas += num(g.toneladasHumedas) || 0;
+    totalSecas += ts || 0;
+    totalAu += au || 0;
+    ms.forEach((m, k)=>{
+      const cabecera = k === 0 ? `
+        <td rowspan="${n+1}">${esc(x.proc)}</td>
+        <td rowspan="${n+1}">${esc(g.pila)}</td>
+        <td rowspan="${n+1}">${g.toneladasHumedas === '' || g.toneladasHumedas == null ? '' : esc(g.toneladasHumedas)}</td>` : '';
+      const calculados = k === 0 ? `
+        <td rowspan="${n+1}">${fmt(ts, 2)}</td>
+        <td rowspan="${n+1}">${fmt(tp, 3)}</td>
+        <td rowspan="${n+1}">${fmt(au, 2)}</td>` : '';
+      cuerpo += `<tr class="grupo">${cabecera}
+        <td>${esc(m.codigo)}</td>
+        <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
+        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}</tr>`;
+    });
+    cuerpo += `<tr class="grupo promedio">
+      <td>${rotuloCentro(g)}</td>
+      <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
+      <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
+  });
+  const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
+  cuerpo += `<tr class="grupo fila-total">
+      <td colspan="2" class="izq"><b>TOTAL</b></td>
+      <td><b>${fmt(totalHumedas || null, 2)}</b></td>
+      <td colspan="3"></td>
+      <td><b>${fmt(totalSecas || null, 2)}</b></td>
+      <td></td>
+      <td><b>${fmt(totalAu || null, 2)}</b></td></tr>
+    <tr class="grupo fila-ponderado">
+      <td colspan="8" class="izq"><b>TENOR PONDERADO CONSOLIDADO — PILAS EN STOCK (g/t)</b></td>
+      <td><b>${fmt(tenorPonderado, 3)}</b></td></tr>`;
+
+  zona.innerHTML = tituloTabla + barras + `<table class="patio tabla-stock"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+  $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
+  const totalM = lista.reduce((a,x)=> a + (x.grupo.muestras||[]).length, 0);
+  ponerPie(`${lista.length} pila${lista.length===1?'':'s'} en stock · ${totalM} código${totalM===1?'':'s'}`);
 }
 
 function pintarGenerico(){
@@ -1194,6 +1387,13 @@ function formularioPatio(indice, base){
         </div>
         <small id="orden-vista" style="font-size:12px; color:var(--gris)"></small>
       </div>
+      <div class="campo"><label>Toneladas húmedas (t)</label><input type="text" name="toneladasHumedas" value="${esc(g.toneladasHumedas)}" inputmode="decimal"></div>
+      <div class="campo"><label>Stock</label>
+        <select name="stock">
+          <option value="no" ${String(g.stock||'no').toLowerCase()==='no' ? 'selected' : ''}>No</option>
+          <option value="si" ${String(g.stock||'').toLowerCase()==='si' ? 'selected' : ''}>Si</option>
+        </select>
+      </div>
       <div class="campo"><label>Procedencia</label><input type="text" value="${esc(nombreProc(ESTADO.procedencia))}" disabled></div>
     </div>
     <div class="subtitulo">Códigos de la pila
@@ -1222,6 +1422,7 @@ function formularioPatio(indice, base){
   inFecha.addEventListener('change', refrescarOrden);
   refrescarOrden();
 
+  const inTon = $('#form-cuerpo').querySelector('[name=toneladasHumedas]');
   $('#btn-agregar-codigo').addEventListener('click', ()=>{
     tbody.insertAdjacentHTML('beforeend', filaMuestra({}));
     engancharFilas(); calcularVivo();
@@ -1244,13 +1445,22 @@ function formularioPatio(indice, base){
     const cv = coefVar(t);
     const usa = $('#usar-mediana').checked;
     const marca = (texto, activo) => activo ? `<b>${texto}</b>` : texto;
+    const gVivo = {
+      estadistico: usa ? 'mediana' : 'media',
+      toneladasHumedas: inTon.value,
+      muestras: t.map((v,k)=> ({tenor:v, humedad:h[k]}))
+    };
+    const ts = toneladasSecasDe(gVivo);
+    const au = auContenidoDe(gVivo);
     $('#promedio-vivo').innerHTML =
       `Tenor — ${marca('promedio: ' + fmt(promedio(t),3), !usa)} · ${marca('mediana: ' + fmt(mediana(t),3), usa)} g/Ton` +
       `<br>Humedad — ${marca('promedio: ' + fmt(promedio(h),2), !usa)} · ${marca('mediana: ' + fmt(mediana(h),2), usa)} %` +
       (cv === null ? '' : `<br><span style="font-weight:normal; color:var(--gris)">Dispersión del tenor (CV): ${fmt(cv,1)} %` +
-        (cv > 30 ? ' — dispersión alta, conviene la mediana' : '') + '</span>');
+        (cv > 30 ? ' — dispersión alta, conviene la mediana' : '') + '</span>') +
+      (inTon.value.trim() === '' ? '' : `<br>Toneladas secas: ${fmt(ts,2)} t · Au contenido: ${fmt(au,2)} g`);
   }
   $('#usar-mediana').addEventListener('change', calcularVivo);
+  inTon.addEventListener('input', calcularVivo);
 }
 
 function formularioGenerico(indice){
@@ -1288,6 +1498,8 @@ $('#formulario').addEventListener('submit', async e=>{
       fecha:(fd.get('fecha')||'').toString(),
       pila:(fd.get('pila')||'').toString().trim(), turno:(fd.get('turno')||'').toString().trim(),
       orden:'', correlativo:(fd.get('correlativo')||'').toString().trim(),
+      toneladasHumedas:(fd.get('toneladasHumedas')||'').toString().trim(),
+      stock:(fd.get('stock')||'no').toString().trim().toLowerCase(),
       estadistico: fd.get('usarMediana') ? 'mediana' : 'media', muestras:[]
     };
     g.orden = armarOrden(ESTADO.procedencia, g.fecha, g.correlativo);
@@ -1405,7 +1617,10 @@ $('#export-aceptar').addEventListener('click', async ()=>{
 });
 
 $('#btn-csv').addEventListener('click', async ()=>{
-  if(ESTADO.modulo === 'patio'){ abrirDialogoExport(); return; }
+  if(ESTADO.modulo === 'patio'){
+    if(ESTADO.vistaPatio === 'stock'){ await exportarExcelStock(); return; }
+    abrirDialogoExport(); return;
+  }
   if(ESTADO.modulo === 'proceso'){ await exportarExcelProceso(); return; }
   if(ESTADO.modulo === 'carbon'){ await exportarExcelCarbon(); return; }
   const linea = a => a.map(v=>`"${String(v ?? '').replace(/"/g,'""')}"`).join(';');
@@ -1607,6 +1822,7 @@ const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO',
                'AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 const BORDE = {top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
 const AZUL  = {type:'pattern', pattern:'solid', fgColor:{argb:'FFD9E1F2'}};
+const GRIS_CAB_FILL = {type:'pattern', pattern:'solid', fgColor:{argb:'FF595959'}};
 const ARIAL = {size:10, name:'Arial'};
 
 function tituloHoja(ws, ncols, titulo, subtitulo){
@@ -1622,15 +1838,15 @@ function tituloHoja(ws, ncols, titulo, subtitulo){
   });
 }
 
-function encabezadoHoja(ws, nfila, etiquetas){
+function encabezadoHoja(ws, nfila, etiquetas, relleno, colorTexto){
   const r = ws.getRow(nfila);
   r.values = etiquetas;
   r.height = 22;
   r.eachCell({includeEmpty:true}, c=>{
-    c.font = {bold:true, size:10, name:'Arial'};
+    c.font = {bold:true, size:10, name:'Arial', color: colorTexto ? {argb:colorTexto} : undefined};
     c.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
     c.border = BORDE;
-    c.fill = AZUL;
+    c.fill = relleno || AZUL;
   });
   return r;
 }
@@ -1700,7 +1916,7 @@ async function exportarExcelPatio(soloProc){
     if(grupos.length) hayDatos = true;
 
     const ws = wb.addWorksheet(p.nombre.slice(0,31));
-    const anchos = [19,10,10,17,12,14,14,32];
+    const anchos = [19,14,10,17,16,12,16,16,16,16,16];
     anchos.forEach((w,i)=> ws.getColumn(i+1).width = w);
     const NC = anchos.length;
 
@@ -1710,9 +1926,14 @@ async function exportarExcelPatio(soloProc){
     encabezadoHoja(ws, 4, COLS_PATIO.map(c => c.etiqueta));
 
     let n = 5;
+    let totalHumedas = 0, totalSecas = 0, totalAu = 0;
     grupos.forEach(g=>{
       const ms = (g.muestras && g.muestras.length) ? g.muestras : [{}];
       const ini = n;
+      const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
+      totalHumedas += num(g.toneladasHumedas) || 0;
+      totalSecas += ts || 0;
+      totalAu += au || 0;
 
       ms.forEach(m=>{
         const f = formatearFila(ws, n, NC);
@@ -1720,30 +1941,57 @@ async function exportarExcelPatio(soloProc){
         f.getCell(2).value = ini === n ? String(g.pila ?? '') : null;
         f.getCell(3).value = ini === n ? (g.turno || '') : null;
         f.getCell(4).value = ini === n ? (g.orden || '') : null;
-        f.getCell(5).value = celda(m.codigo);
-        f.getCell(6).value = celda(m.tenor);
-        f.getCell(7).value = celda(m.humedad);
-        f.getCell(8).value = m.obs || '';
-        f.getCell(8).alignment = {horizontal:'left', vertical:'middle', wrapText:true};
+        f.getCell(5).value = ini === n ? celda(g.toneladasHumedas) : null;
+        f.getCell(6).value = celda(m.codigo);
+        f.getCell(7).value = celda(m.tenor);
+        f.getCell(8).value = celda(m.humedad);
         n++;
       });
       const fin = n - 1;
 
       // los datos de la pila abarcan todas sus filas
-      [1,2,3,4].forEach(col => { if(fin > ini) ws.mergeCells(ini, col, fin, col); });
-      // la observación solo se combina si no hay notas por código
-      if(fin > ini && ms.slice(1).every(m => !m.obs)) ws.mergeCells(ini, 8, fin, 8);
+      [1,2,3,4,5].forEach(col => { if(fin > ini) ws.mergeCells(ini, col, fin, col); });
 
       const f = formatearFila(ws, n, NC, {negrita:true});
-      ws.mergeCells(n, 1, n, 4);
+      ws.mergeCells(n, 1, n, 5);
       const fn = g.estadistico === 'mediana' ? 'MEDIAN' : 'AVERAGE';
-      f.getCell(5).value = rotuloCentro(g);
-      f.getCell(6).value = {formula:`${fn}(F${ini}:F${fin})`, result: centro(g, ms.map(m=>m.tenor))};
-      f.getCell(7).value = {formula:`${fn}(G${ini}:G${fin})`, result: centro(g, ms.map(m=>m.humedad))};
-      f.getCell(6).numFmt = '0.000';
-      f.getCell(7).numFmt = '0.00';
+      f.getCell(6).value = rotuloCentro(g);
+      f.getCell(7).value = {formula:`${fn}(G${ini}:G${fin})`, result: centro(g, ms.map(m=>m.tenor))};
+      f.getCell(8).value = {formula:`${fn}(H${ini}:H${fin})`, result: centro(g, ms.map(m=>m.humedad))};
+      f.getCell(7).numFmt = '0.000';
+      f.getCell(8).numFmt = '0.00';
+
+      // toneladas secas, tenor promedio y Au contenido: abarcan toda la pila, incluida su fila de promedio
+      ws.getCell(ini, 9).value = ts === null ? '' : Number(ts.toFixed(2));
+      ws.getCell(ini, 10).value = tp === null ? '' : Number(tp.toFixed(3));
+      ws.getCell(ini, 11).value = au === null ? '' : Number(au.toFixed(2));
+      ws.getCell(ini, 9).numFmt = '0.00';
+      ws.getCell(ini, 10).numFmt = '0.000';
+      ws.getCell(ini, 11).numFmt = '0.00';
+      [9,10,11].forEach(col => ws.mergeCells(ini, col, n, col));
       n++;
     });
+
+    if(grupos.length){
+      const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
+      const ft = formatearFila(ws, n, NC, {negrita:true});
+      ws.mergeCells(n, 1, n, 4);
+      ft.getCell(1).value = 'TOTAL';
+      ft.getCell(5).value = Number(totalHumedas.toFixed(2));
+      ft.getCell(9).value = Number(totalSecas.toFixed(2));
+      ft.getCell(11).value = Number(totalAu.toFixed(2));
+      ft.eachCell({includeEmpty:true}, c=> c.fill = GRIS_CAB_FILL);
+      ft.font = {bold:true, size:10, name:'Arial', color:{argb:'FFFFFFFF'}};
+      n++;
+
+      const fp = formatearFila(ws, n, NC, {negrita:true});
+      ws.mergeCells(n, 1, n, 10);
+      fp.getCell(1).value = `TENOR PONDERADO ${p.nombre} (g/t)`;
+      fp.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
+      fp.getCell(11).value = tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3));
+      fp.eachCell({includeEmpty:true}, c=> c.fill = AZUL);
+      n++;
+    }
 
     ws.views = [{state:'frozen', ySplit:4}];
   }
@@ -1756,6 +2004,100 @@ async function exportarExcelPatio(soloProc){
   const rotulo = mesSel ? `${MESES[Number(mesSel.slice(5,7))-1]} ${mesSel.slice(0,4)}` : '';
   const quien = soloProc ? ' DE ' + nombreProc(soloProc) : ' PLANTA REVEMIN';
   await descargarLibro(wb, `TENORES DE PATIO${quien}${rotulo ? ' ' + rotulo : ''}.xlsx`);
+}
+
+async function exportarExcelStock(){
+  if(typeof ExcelJS === 'undefined'){ avisar('No se pudo cargar el generador de Excel. Revise la conexión.'); return; }
+  const lista = (ESTADO.stock || []).slice();
+  if(!lista.length){ avisar('No hay pilas en stock para exportar'); return; }
+  avisar('Generando el archivo…');
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Control de Muestreo — Planta Revemin';
+
+  const ws = wb.addWorksheet('PILAS EN STOCK');
+  const anchos = [19, 16, 14, 12, 16, 16, 16, 16, 16];
+  anchos.forEach((w,i)=> ws.getColumn(i+1).width = w);
+  const NC = anchos.length;
+
+  const rotuloMes = nombreMes(mesCalendario());
+  tituloHoja(ws, NC, 'PILAS EN STOCK', `PLANTA REVEMIN PIM II-${rotuloMes}`);
+  encabezadoHoja(ws, 4, ['PROCEDENCIA'].concat(COLS_STOCK.map(c => c.etiqueta)), GRIS_CAB_FILL, 'FFFFFFFF');
+
+  let n = 5;
+  let totalHumedas = 0, totalSecas = 0, totalAu = 0;
+  lista.forEach(x=>{
+    const g = x.grupo;
+    const ms = (g.muestras && g.muestras.length) ? g.muestras : [{}];
+    const ini = n;
+    const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
+    totalHumedas += num(g.toneladasHumedas) || 0;
+    totalSecas += ts || 0;
+    totalAu += au || 0;
+
+    ms.forEach(m=>{
+      const f = formatearFila(ws, n, NC);
+      f.getCell(1).value = ini === n ? x.proc : null;
+      f.getCell(2).value = ini === n ? String(g.pila ?? '') : null;
+      f.getCell(3).value = ini === n ? celda(g.toneladasHumedas) : null;
+      f.getCell(4).value = celda(m.codigo);
+      f.getCell(5).value = celda(m.tenor);
+      f.getCell(6).value = celda(m.humedad);
+      n++;
+    });
+    const fin = n - 1;
+
+    [1,2,3].forEach(col => { if(fin > ini) ws.mergeCells(ini, col, fin, col); });
+
+    const f = formatearFila(ws, n, NC, {negrita:true});
+    ws.mergeCells(n, 1, n, 3);
+    const fn = g.estadistico === 'mediana' ? 'MEDIAN' : 'AVERAGE';
+    f.getCell(4).value = rotuloCentro(g);
+    f.getCell(5).value = {formula:`${fn}(E${ini}:E${fin})`, result: centro(g, ms.map(m=>m.tenor))};
+    f.getCell(6).value = {formula:`${fn}(F${ini}:F${fin})`, result: centro(g, ms.map(m=>m.humedad))};
+    f.getCell(5).numFmt = '0.000';
+    f.getCell(6).numFmt = '0.00';
+
+    // toneladas secas, tenor promedio y Au contenido: fórmulas vivas sobre las celdas de la misma hoja,
+    // no valores fijos, para que se recalculen si se edita toneladas húmedas, tenor o humedad
+    const prom = n; // fila de PROMEDIO de esta pila, ya calculada arriba
+    ws.getCell(ini, 7).value = {formula:`C${ini}*(1-F${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
+    ws.getCell(ini, 8).value = {formula:`E${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
+    ws.getCell(ini, 9).value = {formula:`G${ini}*H${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
+    ws.getCell(ini, 7).numFmt = '0.00';
+    ws.getCell(ini, 8).numFmt = '0.000';
+    ws.getCell(ini, 9).numFmt = '0.00';
+    [7,8,9].forEach(col => ws.mergeCells(ini, col, n, col));
+    n++;
+  });
+
+  const filaDesde = 5, filaHasta = n - 1;
+  const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
+  const ft = formatearFila(ws, n, NC, {negrita:true});
+  ws.mergeCells(n, 1, n, 2);
+  ft.getCell(1).value = 'TOTAL';
+  ft.getCell(3).value = {formula:`SUM(C${filaDesde}:C${filaHasta})`, result: Number(totalHumedas.toFixed(2))};
+  ft.getCell(7).value = {formula:`SUM(G${filaDesde}:G${filaHasta})`, result: Number(totalSecas.toFixed(2))};
+  ft.getCell(9).value = {formula:`SUM(I${filaDesde}:I${filaHasta})`, result: Number(totalAu.toFixed(2))};
+  ft.getCell(3).numFmt = '0.00';
+  ft.getCell(7).numFmt = '0.00';
+  ft.getCell(9).numFmt = '0.00';
+  ft.eachCell({includeEmpty:true}, c=> c.fill = GRIS_CAB_FILL);
+  ft.font = {bold:true, size:10, name:'Arial', color:{argb:'FFFFFFFF'}};
+  const filaTotal = n;
+  n++;
+
+  const fp = formatearFila(ws, n, NC, {negrita:true});
+  ws.mergeCells(n, 1, n, 8);
+  fp.getCell(1).value = 'TENOR PONDERADO CONSOLIDADO — PILAS EN STOCK (g/t)';
+  fp.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
+  fp.getCell(9).value = {formula:`IFERROR(I${filaTotal}/G${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
+  fp.getCell(9).numFmt = '0.000';
+  fp.eachCell({includeEmpty:true}, c=> c.fill = AZUL);
+
+  ws.views = [{state:'frozen', ySplit:4}];
+
+  await descargarLibro(wb, `PILAS EN STOCK PLANTA REVEMIN ${rotuloMes}.xlsx`);
 }
 
 async function exportarExcelProceso(){
