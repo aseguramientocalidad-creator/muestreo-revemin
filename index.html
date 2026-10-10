@@ -719,7 +719,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-16';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-18';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -973,32 +973,61 @@ function svgLineaPilas(labels, datos, color, dec){
   return `<svg viewBox="0 0 ${ancho} ${H}" width="${ancho}" height="${H}" style="max-width:none">${g}</svg>`;
 }
 
-function tablaResumenPatio(items){
+// estadística compartida entre la tabla en pantalla y la hoja de gráficos del Excel:
+// cada fila es [etiqueta, valor numérico o null, decimales a mostrar]
+function statsResumenPatio(items){
   // toda la estadística se calcula sobre el promedio (o mediana) de cada pila, no sobre los códigos sueltos
   const valores = items.map(x => x.valor).filter(v => v !== null && v !== undefined);
-  if(!valores.length) return '';
+  if(!valores.length) return null;
   const codigos = items.flatMap(x => (x.grupo.muestras || []).map(m => m.tenor));
-  const media = valores.reduce((a,b)=> a+b, 0) / valores.length;
+  let totalSecas = 0, totalAu = 0;
+  items.forEach(x=>{
+    const ts = toneladasSecasDe(x.grupo), au = auContenidoDe(x.grupo);
+    totalSecas += ts || 0;
+    totalAu += au || 0;
+  });
+  const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
   const cv = coefVar(valores);
+  return [
+    ['Tenor ponderado (g/Ton)', tenorPonderado, 3],
+    ['Mediana en el mes (g/Ton)', mediana(valores), 3],
+    ['Tenor promedio máximo de pila (g/Ton)', Math.max.apply(null, valores), 3],
+    ['Tenor promedio mínimo de pila (g/Ton)', Math.min.apply(null, valores), 3],
+    ['Coeficiente de variación entre pilas (%)', cv, 1],
+    ['Total de pilas', valores.length, 0],
+    ['Total de muestras', codigos.length, 0]
+  ];
+}
+
+function tablaResumenPatio(items){
+  const filas = statsResumenPatio(items);
+  if(!filas) return '';
   return `<table class="patio tabla-resumen"><thead><tr>
-      <th>PARÁMETRO</th><th>VALOR</th></tr></thead><tbody>
-      <tr><td class="izq">Media acumulada en el mes (g/Ton)</td><td>${fmt(media, 3)}</td></tr>
-      <tr><td class="izq">Mediana en el mes (g/Ton)</td><td>${fmt(mediana(valores), 3)}</td></tr>
-      <tr><td class="izq">Tenor promedio máximo de pila (g/Ton)</td><td>${fmt(Math.max.apply(null, valores), 3)}</td></tr>
-      <tr><td class="izq">Tenor promedio mínimo de pila (g/Ton)</td><td>${fmt(Math.min.apply(null, valores), 3)}</td></tr>
-      <tr><td class="izq">Coeficiente de variación entre pilas (%)</td><td>${fmt(cv, 1)}</td></tr>
-      <tr><td class="izq">Total de pilas</td><td>${valores.length}</td></tr>
-      <tr><td class="izq">Total de muestras</td><td>${codigos.length}</td></tr>
-    </tbody></table>`;
+      <th>PARÁMETRO</th><th>VALOR</th></tr></thead><tbody>` +
+    filas.map(([etiqueta, valor, dec]) => `<tr><td class="izq">${esc(etiqueta)}</td><td>${fmt(valor, dec)}</td></tr>`).join('') +
+    `</tbody></table>`;
+}
+
+// agrupa las pilas de una procedencia en el bloque general y los 3 rangos de tenor,
+// reutilizado tanto por la vista en pantalla como por la hoja de gráficos del Excel
+function calcularBloquesTenor(grupos){
+  const porPila = grupos.map(g => centro(g, (g.muestras || []).map(m => m.tenor)));
+  if(!porPila.some(v => v !== null && v !== undefined)) return null;
+  const items = grupos.map((g,i)=> ({pila: String(g.pila || ''), valor: porPila[i], grupo: g}))
+                      .filter(x => x.valor !== null && x.valor !== undefined);
+  const rangos = [
+    ['PILAS CON TENOR MENOR O IGUAL A 5 g/Ton', '#0F6E56', items.filter(x => x.valor <= 5)],
+    ['PILAS CON TENOR MAYOR A 5 Y MENOR O IGUAL A 10 g/Ton', '#B8860B', items.filter(x => x.valor > 5 && x.valor <= 10)],
+    ['PILAS CON TENOR MAYOR A 10 g/Ton', '#993C1D', items.filter(x => x.valor > 10)]
+  ];
+  return {items, rangos};
 }
 
 function resumenPatio(grupos, titulo){
   if(!grupos.length) return '';
-  const porPila = grupos.map(g => centro(g, (g.muestras || []).map(m => m.tenor)));
-  if(!porPila.some(v => v !== null && v !== undefined)) return '';
-
-  const items = grupos.map((g,i)=> ({pila: String(g.pila || ''), valor: porPila[i], grupo: g}))
-                      .filter(x => x.valor !== null && x.valor !== undefined);
+  const datos = calcularBloquesTenor(grupos);
+  if(!datos) return '';
+  const {items, rangos} = datos;
 
   const bloque = (titulo, color, lista, sub) => `
     <div class="rotulo rotulo-graf" style="margin-top:28px">${esc(titulo)}${sub ? `<small>${esc(sub)}</small>` : ''}</div>` +
@@ -1006,12 +1035,6 @@ function resumenPatio(grupos, titulo){
       ? `<div class="graf graf-ancho">${svgLineaPilas(lista.map(x=>x.pila), lista.map(x=>x.valor), color, 3)}</div>
          ${tablaResumenPatio(lista)}`
       : `<div class="vacio" style="padding:22px">Sin pilas en este rango</div>`);
-
-  const rangos = [
-    ['PILAS CON TENOR MENOR O IGUAL A 5 g/Ton', '#0F6E56', items.filter(x => x.valor <= 5)],
-    ['PILAS CON TENOR MAYOR A 5 Y MENOR O IGUAL A 10 g/Ton', '#B8860B', items.filter(x => x.valor > 5 && x.valor <= 10)],
-    ['PILAS CON TENOR MAYOR A 10 g/Ton', '#993C1D', items.filter(x => x.valor > 10)]
-  ];
 
   return `<div class="resumen-patio">` +
     bloque('COMPORTAMIENTO GENERAL DE TENOR', '#185FA5', items, titulo) +
@@ -1897,6 +1920,126 @@ function periodo(grupos){
   return a[1] === b[1] ? `${a[0]}-${b[0]} ${b[1]}` : `${a.join(' ')} A ${b.join(' ')}`;
 }
 
+// convierte el SVG de un gráfico de línea en una imagen PNG (data URL en base64, sin el prefijo
+// "data:image/png;base64,") para poder insertarlo en una celda de Excel con workbook.addImage
+async function imagenSvgPng(svgMarkup, escala){
+  return new Promise((resolve, reject)=>{
+    try{
+      // el SVG se pinta normalmente embebido en la página (donde el navegador ya sabe que es SVG),
+      // pero como imagen independiente (Blob) necesita declarar su espacio de nombres o el navegador
+      // lo rechaza como XML inválido y no dispara 'load'
+      const svgConNamespace = /xmlns=/.test(svgMarkup)
+        ? svgMarkup
+        : svgMarkup.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+      const svgBlob = new Blob([svgConNamespace], {type:'image/svg+xml;charset=utf-8'});
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = ()=>{
+        const w = img.naturalWidth || img.width || 620;
+        const h = img.naturalHeight || img.height || 300;
+        const e = escala || 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(w * e);
+        canvas.height = Math.round(h * e);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(e, e);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        const dataUrl = canvas.toDataURL('image/png');
+        resolve({base64: dataUrl.replace(/^data:image\/png;base64,/, ''), width: w, height: h});
+      };
+      img.onerror = (e)=>{ URL.revokeObjectURL(url); reject(e); };
+      img.src = url;
+    }catch(e){ reject(e); }
+  });
+}
+
+// agrega al libro la hoja "GRAFICOS Y ESTADISTICAS" con el gráfico y la tabla de cada bloque
+// (comportamiento general + los 3 rangos de tenor) de cada procedencia exportada
+async function agregarHojaGraficos(wb, exportados){
+  const conDatos = exportados.filter(x => x.grupos.length);
+  if(!conDatos.length) return;
+
+  const ws = wb.addWorksheet('GRAFICOS Y ESTADISTICAS');
+  ws.getColumn(1).width = 46;
+  ws.getColumn(2).width = 20;
+
+  let fila = 1;
+  for(const {nombre, grupos} of conDatos){
+    const datos = calcularBloquesTenor(grupos);
+    if(!datos) continue;
+    const {items, rangos} = datos;
+    const bloques = [
+      ['COMPORTAMIENTO GENERAL DE TENOR', '#185FA5', items, nombre],
+      ...rangos.map(([t,c,l]) => [t, c, l, `${l.length} pila${l.length===1?'':'s'}`])
+    ];
+
+    ws.mergeCells(fila, 1, fila, 2);
+    const cTitProc = ws.getCell(fila, 1);
+    cTitProc.value = `GRÁFICOS Y ESTADÍSTICAS — ${nombre}`;
+    cTitProc.font = {bold:true, size:13, name:'Arial', color:{argb:'FFFFFFFF'}};
+    cTitProc.alignment = {horizontal:'center', vertical:'middle'};
+    cTitProc.fill = GRIS_CAB_FILL;
+    ws.getRow(fila).height = 22;
+    fila += 2;
+
+    for(const [titulo, color, lista, sub] of bloques){
+      ws.mergeCells(fila, 1, fila, 2);
+      const cb = ws.getCell(fila, 1);
+      cb.value = sub ? `${titulo} — ${sub}` : titulo;
+      cb.font = {bold:true, size:11, name:'Arial'};
+      cb.alignment = {horizontal:'left', vertical:'middle'};
+      fila += 1;
+
+      if(!lista.length){
+        ws.getCell(fila, 1).value = 'Sin pilas en este rango';
+        ws.getCell(fila, 1).font = ARIAL;
+        fila += 2;
+        continue;
+      }
+
+      try{
+        const svg = svgLineaPilas(lista.map(x=>x.pila), lista.map(x=>x.valor), color, 3);
+        if(svg){
+          const {base64, width, height} = await imagenSvgPng(svg, 2);
+          const imgId = wb.addImage({base64, extension:'png'});
+          ws.addImage(imgId, {tl:{col:0, row:fila-1}, ext:{width, height}});
+          fila += Math.ceil(height / 20) + 1;
+        }
+      }catch(e){ /* si el navegador no puede generar la imagen, se deja solo la tabla */ }
+
+      const filasStat = statsResumenPatio(lista);
+      if(filasStat){
+        const fEnc = ws.getRow(fila);
+        fEnc.getCell(1).value = 'PARÁMETRO';
+        fEnc.getCell(2).value = 'VALOR';
+        fEnc.eachCell({includeEmpty:true}, c=>{
+          c.font = {bold:true, size:10, name:'Arial', color:{argb:'FFFFFFFF'}};
+          c.fill = GRIS_CAB_FILL;
+          c.border = BORDE;
+          c.alignment = {horizontal:'center', vertical:'middle'};
+        });
+        fila++;
+        filasStat.forEach(([etiqueta, valor, dec])=>{
+          const f = ws.getRow(fila);
+          f.getCell(1).value = etiqueta;
+          f.getCell(2).value = valor === null ? '' : Number(valor.toFixed(dec));
+          f.getCell(1).border = BORDE; f.getCell(2).border = BORDE;
+          f.getCell(1).font = ARIAL; f.getCell(2).font = ARIAL;
+          f.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
+          f.getCell(2).alignment = {horizontal:'center', vertical:'middle'};
+          f.getCell(2).numFmt = dec === 0 ? '0' : (dec === 1 ? '0.0' : (dec === 3 ? '0.000' : '0.00'));
+          fila++;
+        });
+      }
+      fila += 2;
+    }
+    fila += 1;
+  }
+}
+
 async function exportarExcelPatio(soloProc){
   if(typeof ExcelJS === 'undefined'){ avisar('No se pudo cargar el generador de Excel. Revise la conexión.'); return; }
   avisar('Generando el archivo…');
@@ -1904,6 +2047,7 @@ async function exportarExcelPatio(soloProc){
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Control de Muestreo — Planta Revemin';
   let hayDatos = false;
+  const exportados = [];
 
   // se exporta el mes abierto en las carpetas
   const mesSel = ESTADO.mesPatio || '';
@@ -1961,10 +2105,12 @@ async function exportarExcelPatio(soloProc){
       f.getCell(7).numFmt = '0.000';
       f.getCell(8).numFmt = '0.00';
 
-      // toneladas secas, tenor promedio y Au contenido: abarcan toda la pila, incluida su fila de promedio
-      ws.getCell(ini, 9).value = ts === null ? '' : Number(ts.toFixed(2));
-      ws.getCell(ini, 10).value = tp === null ? '' : Number(tp.toFixed(3));
-      ws.getCell(ini, 11).value = au === null ? '' : Number(au.toFixed(2));
+      // toneladas secas, tenor promedio y Au contenido: fórmulas vivas sobre las celdas de la misma hoja,
+      // no valores fijos, para que se recalculen si se edita toneladas húmedas, tenor o humedad
+      const prom = n; // fila de PROMEDIO de esta pila, ya calculada arriba
+      ws.getCell(ini, 9).value = {formula:`E${ini}*(1-H${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
+      ws.getCell(ini, 10).value = {formula:`G${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
+      ws.getCell(ini, 11).value = {formula:`I${ini}*J${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
       ws.getCell(ini, 9).numFmt = '0.00';
       ws.getCell(ini, 10).numFmt = '0.000';
       ws.getCell(ini, 11).numFmt = '0.00';
@@ -1973,27 +2119,34 @@ async function exportarExcelPatio(soloProc){
     });
 
     if(grupos.length){
+      const filaDesde = 5, filaHasta = n - 1;
       const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
       const ft = formatearFila(ws, n, NC, {negrita:true});
       ws.mergeCells(n, 1, n, 4);
       ft.getCell(1).value = 'TOTAL';
-      ft.getCell(5).value = Number(totalHumedas.toFixed(2));
-      ft.getCell(9).value = Number(totalSecas.toFixed(2));
-      ft.getCell(11).value = Number(totalAu.toFixed(2));
+      ft.getCell(5).value = {formula:`SUM(E${filaDesde}:E${filaHasta})`, result: Number(totalHumedas.toFixed(2))};
+      ft.getCell(9).value = {formula:`SUM(I${filaDesde}:I${filaHasta})`, result: Number(totalSecas.toFixed(2))};
+      ft.getCell(11).value = {formula:`SUM(K${filaDesde}:K${filaHasta})`, result: Number(totalAu.toFixed(2))};
+      ft.getCell(5).numFmt = '0.00';
+      ft.getCell(9).numFmt = '0.00';
+      ft.getCell(11).numFmt = '0.00';
       ft.eachCell({includeEmpty:true}, c=> c.fill = GRIS_CAB_FILL);
       ft.font = {bold:true, size:10, name:'Arial', color:{argb:'FFFFFFFF'}};
+      const filaTotal = n;
       n++;
 
       const fp = formatearFila(ws, n, NC, {negrita:true});
       ws.mergeCells(n, 1, n, 10);
       fp.getCell(1).value = `TENOR PONDERADO ${p.nombre} (g/t)`;
       fp.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
-      fp.getCell(11).value = tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3));
+      fp.getCell(11).value = {formula:`IFERROR(K${filaTotal}/I${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
+      fp.getCell(11).numFmt = '0.000';
       fp.eachCell({includeEmpty:true}, c=> c.fill = AZUL);
       n++;
     }
 
     ws.views = [{state:'frozen', ySplit:4}];
+    exportados.push({nombre: p.nombre, grupos});
   }
 
   if(!hayDatos){
@@ -2001,6 +2154,12 @@ async function exportarExcelPatio(soloProc){
                     : 'No hay pilas cargadas en este mes para exportar');
     return;
   }
+
+  // hoja adicional con los gráficos y la estadística: de la única procedencia exportada,
+  // o de todas las que tengan pilas cuando se exportan todas
+  try{ await agregarHojaGraficos(wb, exportados); }
+  catch(e){ /* si algo falla generando los gráficos, el libro con los tenores se entrega igual */ }
+
   const rotulo = mesSel ? `${MESES[Number(mesSel.slice(5,7))-1]} ${mesSel.slice(0,4)}` : '';
   const quien = soloProc ? ' DE ' + nombreProc(soloProc) : ' PLANTA REVEMIN';
   await descargarLibro(wb, `TENORES DE PATIO${quien}${rotulo ? ' ' + rotulo : ''}.xlsx`);
