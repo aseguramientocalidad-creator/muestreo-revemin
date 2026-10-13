@@ -199,6 +199,20 @@
   .vacio strong{display:block; color:#000; font-size:15px; margin-bottom:6px}
   .pie{padding:10px 20px; font-size:12px; color:var(--gris); border-top:1px solid var(--gris-suave)}
 
+  #telon-import{z-index:60}
+  .imp-tabla{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px}
+  .imp-tabla th,.imp-tabla td{border:1px solid #999; padding:4px 7px; text-align:center}
+  .imp-tabla th{background:#595959; color:#fff}
+  .imp-tabla td.izq{text-align:left}
+  .imp-tabla .e-nuevo{background:#e6f4ea}
+  .imp-tabla .e-dist{background:#fde8e8; font-weight:bold}
+  .imp-tabla .e-sin{color:#777}
+  .imp-caja{padding:10px 12px; margin:8px 0; font-size:13px; border:1px solid}
+  .imp-caja ul{margin:6px 0 0; padding-left:20px}
+  .imp-err{background:#fde8e8; border-color:#c00}
+  .imp-aviso{background:#fff6dd; border-color:#c90}
+  .imp-ok{background:#e6f4ea; border-color:#2e7d32}
+  .imp-datos{font-size:13px; margin:0 0 6px}
   .telon{display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); align-items:flex-start; justify-content:center; padding:28px 14px; overflow:auto; z-index:50}
   .telon.activo{display:flex}
   .panel{background:#fff; border:2px solid var(--t-acento); width:100%; max-width:880px}
@@ -353,6 +367,18 @@
     <footer>
       <button type="button" class="btn" id="export-cancelar">Cancelar</button>
       <button type="button" class="btn btn-primario" id="export-aceptar">Exportar</button>
+    </footer>
+  </div>
+</div>
+
+<input type="file" id="archivo-reporte" accept="application/pdf,.pdf" style="display:none">
+<div class="telon" id="telon-import">
+  <div class="panel" style="max-width:980px">
+    <header>Importar reporte de laboratorio</header>
+    <div class="cuerpo" id="import-cuerpo"></div>
+    <footer>
+      <button type="button" class="btn" id="import-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-primario" id="import-aplicar" disabled>Transcribir tenores y humedades</button>
     </footer>
   </div>
 </div>
@@ -719,7 +745,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-18';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-21';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1421,6 +1447,7 @@ function formularioPatio(indice, base){
     </div>
     <div class="subtitulo">Códigos de la pila
       <button type="button" class="btn" id="btn-agregar-codigo">Agregar código</button>
+      <button type="button" class="btn" id="btn-importar-form">📥 Importar reporte de laboratorio</button>
       <label class="opcion"><input type="checkbox" name="usarMediana" id="usar-mediana" ${g.estadistico === 'mediana' ? 'checked' : ''}>
         Usar mediana en vez de promedio</label></div>
     <table class="tabla-form" id="tabla-muestras">
@@ -1664,6 +1691,316 @@ $('#btn-csv').addEventListener('click', async ()=>{
   a.href = URL.createObjectURL(blob); a.download = nombre; a.click(); URL.revokeObjectURL(a.href);
   avisar('Archivo descargado');
 });
+
+
+/* ================= IMPORTAR REPORTE DE LABORATORIO (PDF) ================= */
+const PDFJS_URL    = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+function cargarPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise((ok, mal)=>{
+    const s = document.createElement('script');
+    s.src = PDFJS_URL;
+    s.onload = ()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; ok(window.pdfjsLib); };
+    s.onerror = ()=> mal(new Error('No se pudo cargar el lector de PDF. Verifique la conexión a internet e intente de nuevo.'));
+    document.head.appendChild(s);
+  });
+}
+
+// "TCR 09-473" / "TCR-09-473" / "tcr-9-0473" → "TCR-09-473"
+function normOrden(s){
+  const m = String(s || '').match(/([A-Za-z]{2,6})[\s\-_]*(\d{1,2})[\s\-_]*(\d{1,6})/);
+  return m ? `${m[1].toUpperCase()}-${m[2].padStart(2,'0')}-${String(Number(m[3]))}` : '';
+}
+const sinTildes = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+const mismoValor = (a, b)=>{
+  const x = String(a ?? '').trim(), y = String(b ?? '').trim();
+  if(x === y) return true;
+  const nx = num(x), ny = num(y);
+  return nx !== null && ny !== null && !/^</.test(x) && !/^</.test(y) && Math.abs(nx - ny) < 1e-9;
+};
+const redondear2 = n => (Math.round((n + 1e-9) * 100) / 100).toFixed(2);
+
+// "1,77" → "1.77" ; "<0,20" → "<0.20" ; "-" → null ; ilegible → undefined
+function leerNumeroReporte(t){
+  const s = String(t ?? '').replace(/\s+/g,'');
+  if(s === '' || s === '-') return null;
+  let m = s.match(/^<(\d+(?:[.,]\d+)?)$/);
+  if(m) return '<' + Number(m[1].replace(',','.')).toFixed(2);
+  m = s.match(/^(\d+(?:[.,]\d+)?)$/);
+  if(m) return m[1].replace(',','.');
+  return undefined;
+}
+
+/* items: [{str, x, w, y}]  (x = borde izquierdo, w = ancho, y = posición vertical creciente hacia abajo) */
+function parsearReporte(items){
+  const res = {orden:'', procedencia:'', recibidas:null, filas:[], errores:[], avisos:[]};
+  items = items.filter(i => String(i.str).trim() !== '');
+  if(!items.length){ res.errores.push('El PDF no tiene texto legible (¿es una imagen escaneada?).'); return res; }
+
+  // líneas de texto
+  const ord = items.slice().sort((a,b)=> a.y - b.y || a.x - b.x);
+  const lineas = [];
+  ord.forEach(it=>{
+    const l = lineas.find(L => Math.abs(L.y - it.y) <= 2.5);
+    if(l) l.items.push(it); else lineas.push({y: it.y, items:[it]});
+  });
+  lineas.forEach(L=>{ L.items.sort((a,b)=>a.x-b.x); L.texto = L.items.map(i=>String(i.str).trim()).join(' '); });
+  lineas.sort((a,b)=>a.y-b.y);
+
+  for(const L of lineas){
+    let m;
+    if(!res.orden && (m = L.texto.match(/N\s*[°º]?\s*de\s*Orden\s*:?\s*(.+)$/i))) res.orden = normOrden(m[1]);
+    if(!res.procedencia && (m = L.texto.match(/Procedencia\s+de\s+la\s+Muestra\s*:?\s*(.*?)\s+Tipo\s+de\s+muestra/i))) res.procedencia = m[1].trim();
+    if(res.recibidas === null && (m = L.texto.match(/Muestras\s+Recibidas\s*:?\s*(\d+)/i))) res.recibidas = Number(m[1]);
+  }
+  if(!res.orden) res.errores.push('No se encontró el “N° de Orden” en el reporte.');
+
+  // encabezado de la tabla
+  const cab = lineas.find(L => /C[ÓO]DIGO/i.test(L.texto) && /TENOR/i.test(L.texto));
+  if(!cab){ res.errores.push('No se encontró la tabla de resultados (encabezado ÍTEM / CÓDIGO MUESTRA / TENOR).'); return res; }
+  // columnas = grupos de palabras del encabezado separados por un hueco amplio
+  const cols = [];
+  cab.items.forEach(it=>{
+    const u = cols[cols.length-1];
+    if(u && it.x - u.fin < 12){ u.fin = Math.max(u.fin, it.x + it.w); u.texto += ' ' + it.str; }
+    else cols.push({ini: it.x, fin: it.x + it.w, texto: String(it.str)});
+  });
+  cols.forEach(c=>{ c.centro = (c.ini + c.fin)/2; });
+  const colDe = re => cols.find(c => re.test(sinTildes(c.texto)));
+  const cItem = colDe(/ITEM/), cCod = colDe(/CODIGO/), cTen = colDe(/TENOR/), cHum = colDe(/HUMEDAD/);
+  if(!cItem || !cCod || !cTen){ res.errores.push('El encabezado de la tabla no tiene las columnas ÍTEM, CÓDIGO y TENOR esperadas.'); return res; }
+
+  // zona de datos: debajo del encabezado y antes del bloque de control de calidad
+  const lQC = lineas.find(L => L.y > cab.y && /CONTROL\s+DE\s+CALIDAD/i.test(L.texto));
+  const yFin = lQC ? lQC.y : Infinity;
+  const dentro = items.filter(i => i.y > cab.y + 2 && i.y < yFin - 2);
+  const cercana = it => cols.reduce((a,c)=> Math.abs(c.centro - (it.x + it.w/2)) < Math.abs(a.centro - (it.x + it.w/2)) ? c : a, cols[0]);
+  const deCol = c => dentro.filter(i => cercana(i) === c);
+
+  const filasItem = deCol(cItem).filter(i => /^\d{1,3}$/.test(String(i.str).trim())).sort((a,b)=>a.y-b.y);
+  if(!filasItem.length){ res.errores.push('No se encontraron filas de resultados en la tabla.'); return res; }
+  const filaMasCercana = y => filasItem.reduce((a,f)=> Math.abs(f.y - y) < Math.abs(a.y - y) ? f : a, filasItem[0]);
+  const reg = new Map(filasItem.map(f => [f, {item: Number(String(f.str).trim()), y: f.y, codigo:'', tenorTxt:'', humTxt:''}]));
+  const celda = (colItems, campo, soloMisma)=>{
+    colItems.forEach(it=>{
+      const f = filaMasCercana(it.y);
+      if(soloMisma && Math.abs(f.y - it.y) > 4.5) return;
+      const r = reg.get(f);
+      r[campo] = (r[campo] ? r[campo] + ' ' : '') + String(it.str).trim();
+    });
+  };
+  celda(deCol(cCod), 'codigo', true);
+  celda(deCol(cTen), 'tenorTxt', true);
+  if(cHum) celda(deCol(cHum), 'humTxt', false);   // la humedad suele ser una celda combinada: se asigna a la fila más cercana
+
+  // agrupar por código (duplicados → promedio)
+  const grupos = new Map();
+  [...reg.values()].forEach(r=>{
+    const cod = r.codigo.replace(/\s+/g,'');
+    if(!cod || cod === '-') return;
+    if(!grupos.has(cod)) grupos.set(cod, {codigo: cod, items: [], tenores: [], humedades: [], textos: []});
+    const g = grupos.get(cod);
+    g.items.push(r.item);
+    const t = leerNumeroReporte(r.tenorTxt);
+    if(t === undefined) res.errores.push(`Ítem ${r.item} (código ${cod}): tenor ilegible “${r.tenorTxt}”.`);
+    else if(t !== null) g.tenores.push(t);
+    const h = leerNumeroReporte(r.humTxt.split(/\s+/)[0] || '');
+    if(h === undefined) res.errores.push(`Ítem ${r.item} (código ${cod}): humedad ilegible “${r.humTxt}”.`);
+    else if(h !== null) g.humedades.push(h);
+  });
+
+  grupos.forEach(g=>{
+    let tenor = null;
+    const menor = g.tenores.filter(t => t.startsWith('<'));
+    const reales = g.tenores.filter(t => !t.startsWith('<')).map(Number);
+    if(g.tenores.length){
+      if(menor.length && reales.length){
+        res.errores.push(`Código ${g.codigo}: duplicados con un valor “<” y otro numérico (${g.tenores.join(' / ')}). Verifique manualmente.`);
+      }else if(menor.length){
+        tenor = menor[0];
+      }else{
+        tenor = redondear2(reales.reduce((a,b)=>a+b,0) / reales.length);
+      }
+    }
+    let humedad = null;
+    const hs = [...new Set(g.humedades)];
+    if(hs.length === 1) humedad = hs[0];
+    else if(hs.length > 1){
+      const nums = g.humedades.map(Number);
+      humedad = redondear2(nums.reduce((a,b)=>a+b,0) / nums.length);
+    }
+    res.filas.push({codigo: g.codigo, tenor, humedad, repeticiones: g.items.length, items: g.items, tenoresOriginales: g.tenores});
+  });
+  if(!res.filas.length) res.errores.push('La tabla del reporte no tiene códigos de muestra.');
+  return res;
+}
+
+async function leerPdfReporte(archivo){
+  const lib = await cargarPdfJs();
+  const pdf = await lib.getDocument({data: await archivo.arrayBuffer()}).promise;
+  let ultimo = null;
+  for(let n = 1; n <= pdf.numPages; n++){
+    const pag = await pdf.getPage(n);
+    const cont = await pag.getTextContent();
+    const items = cont.items.map(i => ({str: i.str, x: i.transform[4], w: i.width || 0, y: -i.transform[5]}));
+    const r = parsearReporte(items);
+    ultimo = ultimo || r;
+    if(r.filas.length && r.orden) return r;
+  }
+  return ultimo;
+}
+
+/* cruce con la pila que se está registrando/editando en el diálogo */
+function cruzarReporteConFormulario(rep){
+  const out = {errores: rep.errores.slice(), avisos: [], filas: [], orden: rep.orden};
+  if(out.errores.length) return out;
+
+  const cuerpo = $('#form-cuerpo');
+  const fecha = cuerpo.querySelector('[name=fecha]').value;
+  const corr = cuerpo.querySelector('[name=correlativo]').value;
+  const pila = cuerpo.querySelector('[name=pila]').value.trim();
+  const ordenPila = normOrden(armarOrden(ESTADO.procedencia, fecha, corr));
+  if(!ordenPila || /yyy/i.test(armarOrden(ESTADO.procedencia, fecha, corr))){
+    out.errores.push('Complete primero la fecha y el correlativo de la orden de la pila.');
+    return out;
+  }
+  out.pila = pila; out.ordenPila = ordenPila;
+  if(rep.orden !== ordenPila)
+    out.errores.push(`El reporte es de la orden ${rep.orden} y la pila ${pila || ''} tiene la orden ${ordenPila}. Elija el reporte correcto.`);
+
+  const trs = [...document.querySelectorAll('#tabla-muestras tbody tr')];
+  const prog = new Map();
+  trs.forEach(tr=>{
+    const cod = tr.querySelector('[name=codigo]').value.trim();
+    if(!cod) return;
+    if(prog.has(cod)) out.errores.push(`El código ${cod} está repetido en esta pila.`);
+    else prog.set(cod, tr);
+  });
+  if(!prog.size) out.errores.push('Escriba primero los códigos de la pila; el reporte se cruza con ellos.');
+
+  const porCodigo = new Map(rep.filas.map(f => [f.codigo, f]));
+  const faltanReporte = [...prog.keys()].filter(c => !porCodigo.has(c));
+  if(faltanReporte.length) out.errores.push(`Códigos de la pila que no vienen en el reporte: ${faltanReporte.join(', ')}.`);
+
+  // códigos del reporte que no son de esta pila: deben pertenecer a otra pila de la misma orden
+  const ajenos = rep.filas.filter(f => !prog.has(f.codigo)).map(f => f.codigo);
+  if(ajenos.length){
+    const otras = new Set();
+    ESTADO.datos.forEach((g, i)=>{
+      if(i === ESTADO.editando || normOrden(g.orden) !== rep.orden) return;
+      (g.muestras || []).forEach(m => otras.add(String(m.codigo ?? '').trim()));
+    });
+    const sinDueno = ajenos.filter(c => !otras.has(c));
+    if(sinDueno.length) out.errores.push(`Códigos del reporte que no están en esta pila ni en otra pila de la orden ${rep.orden}: ${sinDueno.join(', ')}.`);
+    else out.avisos.push(`El reporte también trae ${ajenos.length} código(s) de otras pilas de la misma orden (${ajenos.join(', ')}); se importan desde la otra pila.`);
+  }
+  if(rep.procedencia){
+    const a = sinTildes(rep.procedencia), b = sinTildes(nombreProc(ESTADO.procedencia));
+    if(!a.includes(b) && !b.includes(a))
+      out.avisos.push(`La procedencia del reporte (“${rep.procedencia}”) no coincide con la de la pila (“${nombreProc(ESTADO.procedencia)}”).`);
+  }
+  rep.filas.filter(f => f.repeticiones > 1 && prog.has(f.codigo)).forEach(f =>
+    out.avisos.push(`Código ${f.codigo}: ${f.repeticiones} repeticiones (${f.tenoresOriginales.join(' / ').replace(/\./g,',')}) → se transcribe el promedio ${String(f.tenor).replace('.',',')}.`));
+  if(out.errores.length) return out;
+
+  prog.forEach((tr, cod)=>{
+    const f = porCodigo.get(cod);
+    const act = {t: tr.querySelector('[name=tenor]').value, h: tr.querySelector('[name=humedad]').value};
+    const est = (a, nuevo)=>{
+      if(nuevo === null) return 'sin';
+      if(String(a ?? '').trim() === '') return 'nuevo';
+      return mismoValor(a, nuevo) ? 'igual' : 'dist';
+    };
+    out.filas.push({tr, codigo: cod, tenor: f.tenor, humedad: f.humedad, actT: act.t, actH: act.h,
+      estT: est(act.t, f.tenor), estH: est(act.h, f.humedad)});
+  });
+  return out;
+}
+
+let IMPORTACION = null;
+
+function pintarImportacion(){
+  const R = IMPORTACION, cuerpo = $('#import-cuerpo');
+  const lista = (cls, titulo, arr) => arr.length
+    ? `<div class="imp-caja ${cls}"><b>${titulo}</b><ul>${arr.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>` : '';
+  if(R.errores.length){
+    cuerpo.innerHTML = lista('imp-err', 'No se transcribió nada. Corrija lo siguiente y vuelva a importar:', R.errores) + lista('imp-aviso', 'Avisos', R.avisos);
+    $('#import-aplicar').disabled = true;
+    $('#import-aplicar').textContent = 'Transcribir';
+    return;
+  }
+  const sobre = !!($('#imp-sobrescribir') && $('#imp-sobrescribir').checked);
+  const celdaE = (act, nuevo, est)=>{
+    const txt = nuevo === null ? '—' : esc(nuevo);
+    const cls = est === 'nuevo' ? 'e-nuevo' : est === 'dist' ? 'e-dist' : est === 'sin' ? 'e-sin' : '';
+    const ant = (est === 'dist') ? `<small style="display:block;font-weight:normal">actual: ${esc(act)}</small>` : '';
+    return `<td class="${cls}">${txt}${ant}</td>`;
+  };
+  let nuevos = 0, distintos = 0, iguales = 0;
+  const filas = R.filas.map(f=>{
+    [f.estT, f.estH].forEach(e=>{ if(e==='nuevo') nuevos++; else if(e==='dist') distintos++; else if(e==='igual') iguales++; });
+    return `<tr><td>${esc(f.codigo)}</td>${celdaE(f.actT, f.tenor, f.estT)}${celdaE(f.actH, f.humedad, f.estH)}</tr>`;
+  }).join('');
+  const aTranscribir = nuevos + (sobre ? distintos : 0);
+  cuerpo.innerHTML = `
+    <div class="imp-caja imp-ok"><b>Todo coincide.</b> Orden ${esc(R.orden)} · pila ${esc(R.pila)} · ${R.filas.length} código(s) cruzados.</div>
+    ${lista('imp-aviso', 'Avisos', R.avisos)}
+    <p class="imp-datos">Valores nuevos: <b>${nuevos}</b> · ya iguales: <b>${iguales}</b> · distintos a lo ya escrito: <b>${distintos}</b></p>
+    ${distintos ? `<label style="font-size:13px"><input type="checkbox" id="imp-sobrescribir" ${sobre?'checked':''}> Sobrescribir los ${distintos} valor(es) distintos (en rojo). Si no se marca, se conservan los que ya están escritos.</label>` : ''}
+    <table class="imp-tabla"><thead><tr><th>CÓDIGO</th><th>TENOR (g/t)</th><th>HUMEDAD (%)</th></tr></thead><tbody>${filas}</tbody></table>
+    <p class="imp-datos" style="margin-top:8px">Los valores se escriben en el formulario de la pila; para conservarlos presione “Guardar”.</p>`;
+  const chk = $('#imp-sobrescribir');
+  if(chk) chk.addEventListener('change', pintarImportacion);
+  const b = $('#import-aplicar');
+  b.disabled = aTranscribir === 0;
+  b.textContent = aTranscribir ? `Transcribir ${aTranscribir} valor${aTranscribir===1?'':'es'}` : 'Nada que transcribir';
+}
+
+function aplicarImportacion(){
+  const R = IMPORTACION;
+  if(!R || R.errores.length) return;
+  const sobre = !!($('#imp-sobrescribir') && $('#imp-sobrescribir').checked);
+  let n = 0;
+  const poner = (tr, campo, valor)=>{
+    const inp = tr.querySelector('[name='+campo+']');
+    inp.value = valor; inp.dispatchEvent(new Event('input', {bubbles:true})); n++;
+  };
+  R.filas.forEach(f=>{
+    if(f.tenor !== null && (f.estT === 'nuevo' || (sobre && f.estT === 'dist'))) poner(f.tr, 'tenor', f.tenor);
+    if(f.humedad !== null && (f.estH === 'nuevo' || (sobre && f.estH === 'dist'))) poner(f.tr, 'humedad', f.humedad);
+  });
+  cerrarImportacion();
+  avisar(`${n} valor${n===1?'':'es'} transcrito${n===1?'':'s'} al formulario: presione Guardar`);
+}
+function cerrarImportacion(){ $('#telon-import').classList.remove('activo'); IMPORTACION = null; }
+
+async function importarArchivoReporte(archivo){
+  const cuerpo = $('#import-cuerpo');
+  $('#import-aplicar').disabled = true;
+  $('#import-aplicar').textContent = 'Transcribir';
+  cuerpo.innerHTML = `<p>Leyendo “${esc(archivo.name)}”…</p>`;
+  $('#telon-import').classList.add('activo');
+  try{
+    const rep = await leerPdfReporte(archivo);
+    IMPORTACION = cruzarReporteConFormulario(rep);
+  }catch(e){
+    IMPORTACION = {errores: [String(e && e.message || e)], avisos: [], filas: []};
+  }
+  pintarImportacion();
+}
+
+document.addEventListener('click', e=>{
+  if(e.target.closest('#btn-importar-form')){ $('#archivo-reporte').value = ''; $('#archivo-reporte').click(); }
+});
+$('#archivo-reporte').addEventListener('change', e=>{
+  const f = e.target.files && e.target.files[0];
+  if(f) importarArchivoReporte(f);
+});
+$('#import-cancelar').addEventListener('click', cerrarImportacion);
+$('#import-aplicar').addEventListener('click', aplicarImportacion);
+$('#telon-import').addEventListener('mousedown', e=>{ if(e.target.id === 'telon-import') cerrarImportacion(); });
 
 
 /* ================= MUESTREO DE PROCESO DE PLANTA ================= */
