@@ -745,7 +745,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-21';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-23';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1800,6 +1800,9 @@ function parsearReporte(items){
   [...reg.values()].forEach(r=>{
     const cod = r.codigo.replace(/\s+/g,'');
     if(!cod || cod === '-') return;
+    // filas de relleno de la plantilla (p. ej. “DUPLICADO” sin resultados): sin tenor ni humedad no son muestras
+    const vacio = t => { const x = String(t).replace(/\s+/g,''); return x === '' || x === '-'; };
+    if(vacio(r.tenorTxt) && vacio(r.humTxt)) return;
     if(!grupos.has(cod)) grupos.set(cod, {codigo: cod, items: [], tenores: [], humedades: [], textos: []});
     const g = grupos.get(cod);
     g.items.push(r.item);
@@ -1884,23 +1887,10 @@ function cruzarReporteConFormulario(rep){
   const faltanReporte = [...prog.keys()].filter(c => !porCodigo.has(c));
   if(faltanReporte.length) out.errores.push(`Códigos de la pila que no vienen en el reporte: ${faltanReporte.join(', ')}.`);
 
-  // códigos del reporte que no son de esta pila: deben pertenecer a otra pila de la misma orden
+  // códigos del reporte que no son de esta pila (de otras pilas de la orden): se descartan, solo cuentan los de esta pila
   const ajenos = rep.filas.filter(f => !prog.has(f.codigo)).map(f => f.codigo);
-  if(ajenos.length){
-    const otras = new Set();
-    ESTADO.datos.forEach((g, i)=>{
-      if(i === ESTADO.editando || normOrden(g.orden) !== rep.orden) return;
-      (g.muestras || []).forEach(m => otras.add(String(m.codigo ?? '').trim()));
-    });
-    const sinDueno = ajenos.filter(c => !otras.has(c));
-    if(sinDueno.length) out.errores.push(`Códigos del reporte que no están en esta pila ni en otra pila de la orden ${rep.orden}: ${sinDueno.join(', ')}.`);
-    else out.avisos.push(`El reporte también trae ${ajenos.length} código(s) de otras pilas de la misma orden (${ajenos.join(', ')}); se importan desde la otra pila.`);
-  }
-  if(rep.procedencia){
-    const a = sinTildes(rep.procedencia), b = sinTildes(nombreProc(ESTADO.procedencia));
-    if(!a.includes(b) && !b.includes(a))
-      out.avisos.push(`La procedencia del reporte (“${rep.procedencia}”) no coincide con la de la pila (“${nombreProc(ESTADO.procedencia)}”).`);
-  }
+  if(ajenos.length)
+    out.avisos.push(`Se omitieron ${ajenos.length} código(s) del reporte que no pertenecen a esta pila: ${ajenos.join(', ')}.`);
   rep.filas.filter(f => f.repeticiones > 1 && prog.has(f.codigo)).forEach(f =>
     out.avisos.push(`Código ${f.codigo}: ${f.repeticiones} repeticiones (${f.tenoresOriginales.join(' / ').replace(/\./g,',')}) → se transcribe el promedio ${String(f.tenor).replace('.',',')}.`));
   if(out.errores.length) return out;
