@@ -745,7 +745,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-23';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-24';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1755,7 +1755,6 @@ function parsearReporte(items){
     if(!res.procedencia && (m = L.texto.match(/Procedencia\s+de\s+la\s+Muestra\s*:?\s*(.*?)\s+Tipo\s+de\s+muestra/i))) res.procedencia = m[1].trim();
     if(res.recibidas === null && (m = L.texto.match(/Muestras\s+Recibidas\s*:?\s*(\d+)/i))) res.recibidas = Number(m[1]);
   }
-  if(!res.orden) res.errores.push('No se encontró el “N° de Orden” en el reporte.');
 
   // encabezado de la tabla
   const cab = lineas.find(L => /C[ÓO]DIGO/i.test(L.texto) && /TENOR/i.test(L.texto));
@@ -1870,8 +1869,9 @@ function cruzarReporteConFormulario(rep){
     return out;
   }
   out.pila = pila; out.ordenPila = ordenPila;
+  // la validación se hace por los códigos; el nombre de la orden solo se avisa (el laboratorio a veces lo transcribe mal)
   if(rep.orden !== ordenPila)
-    out.errores.push(`El reporte es de la orden ${rep.orden} y la pila ${pila || ''} tiene la orden ${ordenPila}. Elija el reporte correcto.`);
+    out.avisos.push(`La orden escrita en el reporte (${rep.orden || 'sin orden'}) no coincide con la de la pila (${ordenPila}); se validó solo por los códigos.`);
 
   const trs = [...document.querySelectorAll('#tabla-muestras tbody tr')];
   const prog = new Map();
