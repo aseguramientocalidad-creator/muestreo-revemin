@@ -796,7 +796,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-25';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-26';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2334,18 +2334,26 @@ async function imagenSvgPng(svgMarkup, escala){
   });
 }
 
-// agrega al libro la hoja "GRAFICOS Y ESTADISTICAS" con el gráfico y la tabla de cada bloque
-// (comportamiento general + los 3 rangos de tenor) de cada procedencia exportada
+// agrega al libro la hoja "GRAFICOS Y ESTADISTICAS": cada procedencia ocupa su propia franja de columnas
+// (de izquierda a derecha, una al lado de la otra) y dentro de ella van, hacia abajo, el gráfico y la tabla
+// del comportamiento general y de los 3 rangos de tenor
 async function agregarHojaGraficos(wb, exportados){
   const conDatos = exportados.filter(x => x.grupos.length);
   if(!conDatos.length) return;
 
   const ws = wb.addWorksheet('GRAFICOS Y ESTADISTICAS');
-  ws.getColumn(1).width = 46;
-  ws.getColumn(2).width = 20;
+  const ANCHO_C1 = 60, ANCHO_C2 = 28;               // ≈ 626 px por franja: cabe el gráfico de 620 px
+  const PX_FRANJA = Math.round((ANCHO_C1 + ANCHO_C2) * 7 + 10);
+  const ESPACIO = 4;                                 // columna separadora entre procedencias
 
-  let fila = 1;
+  let idx = 0;
   for(const {nombre, grupos} of conDatos){
+    const c1 = 1 + idx * 3, c2 = c1 + 1;
+    ws.getColumn(c1).width = ANCHO_C1;
+    ws.getColumn(c2).width = ANCHO_C2;
+    ws.getColumn(c2 + 1).width = ESPACIO;
+    idx++;
+
     const datos = calcularBloquesTenor(grupos);
     if(!datos) continue;
     const {items, rangos} = datos;
@@ -2354,8 +2362,9 @@ async function agregarHojaGraficos(wb, exportados){
       ...rangos.map(([t,c,l]) => [t, c, l, `${l.length} pila${l.length===1?'':'s'}`])
     ];
 
-    ws.mergeCells(fila, 1, fila, 2);
-    const cTitProc = ws.getCell(fila, 1);
+    let fila = 1;
+    ws.mergeCells(fila, c1, fila, c2);
+    const cTitProc = ws.getCell(fila, c1);
     cTitProc.value = `GRÁFICOS Y ESTADÍSTICAS — ${nombre}`;
     cTitProc.font = {bold:true, size:13, name:'Arial', color:{argb:'FFFFFFFF'}};
     cTitProc.alignment = {horizontal:'center', vertical:'middle'};
@@ -2364,16 +2373,16 @@ async function agregarHojaGraficos(wb, exportados){
     fila += 2;
 
     for(const [titulo, color, lista, sub] of bloques){
-      ws.mergeCells(fila, 1, fila, 2);
-      const cb = ws.getCell(fila, 1);
+      ws.mergeCells(fila, c1, fila, c2);
+      const cb = ws.getCell(fila, c1);
       cb.value = sub ? `${titulo} — ${sub}` : titulo;
       cb.font = {bold:true, size:11, name:'Arial'};
       cb.alignment = {horizontal:'left', vertical:'middle'};
       fila += 1;
 
       if(!lista.length){
-        ws.getCell(fila, 1).value = 'Sin pilas en este rango';
-        ws.getCell(fila, 1).font = ARIAL;
+        ws.getCell(fila, c1).value = 'Sin pilas en este rango';
+        ws.getCell(fila, c1).font = ARIAL;
         fila += 2;
         continue;
       }
@@ -2383,38 +2392,40 @@ async function agregarHojaGraficos(wb, exportados){
         if(svg){
           const {base64, width, height} = await imagenSvgPng(svg, 2);
           const imgId = wb.addImage({base64, extension:'png'});
-          ws.addImage(imgId, {tl:{col:0, row:fila-1}, ext:{width, height}});
-          fila += Math.ceil(height / 20) + 1;
+          const k = width > PX_FRANJA - 6 ? (PX_FRANJA - 6) / width : 1;     // que no invada la franja vecina
+          const w = Math.round(width * k), h = Math.round(height * k);
+          ws.addImage(imgId, {tl:{col:c1 - 1, row:fila - 1}, ext:{width:w, height:h}});
+          fila += Math.ceil(h / 20) + 1;
         }
       }catch(e){ /* si el navegador no puede generar la imagen, se deja solo la tabla */ }
 
       const filasStat = statsResumenPatio(lista);
       if(filasStat){
         const fEnc = ws.getRow(fila);
-        fEnc.getCell(1).value = 'PARÁMETRO';
-        fEnc.getCell(2).value = 'VALOR';
-        fEnc.eachCell({includeEmpty:true}, c=>{
-          c.font = {bold:true, size:10, name:'Arial', color:{argb:'FFFFFFFF'}};
-          c.fill = GRIS_CAB_FILL;
-          c.border = BORDE;
-          c.alignment = {horizontal:'center', vertical:'middle'};
+        fEnc.getCell(c1).value = 'PARÁMETRO';
+        fEnc.getCell(c2).value = 'VALOR';
+        [c1, c2].forEach(c=>{
+          const cel = fEnc.getCell(c);
+          cel.font = {bold:true, size:10, name:'Arial', color:{argb:'FFFFFFFF'}};
+          cel.fill = GRIS_CAB_FILL;
+          cel.border = BORDE;
+          cel.alignment = {horizontal:'center', vertical:'middle'};
         });
         fila++;
         filasStat.forEach(([etiqueta, valor, dec])=>{
           const f = ws.getRow(fila);
-          f.getCell(1).value = etiqueta;
-          f.getCell(2).value = valor === null ? '' : Number(valor.toFixed(dec));
-          f.getCell(1).border = BORDE; f.getCell(2).border = BORDE;
-          f.getCell(1).font = ARIAL; f.getCell(2).font = ARIAL;
-          f.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
-          f.getCell(2).alignment = {horizontal:'center', vertical:'middle'};
-          f.getCell(2).numFmt = dec === 0 ? '0' : (dec === 1 ? '0.0' : (dec === 3 ? '0.000' : '0.00'));
+          f.getCell(c1).value = etiqueta;
+          f.getCell(c2).value = valor === null ? '' : Number(valor.toFixed(dec));
+          f.getCell(c1).border = BORDE; f.getCell(c2).border = BORDE;
+          f.getCell(c1).font = ARIAL; f.getCell(c2).font = ARIAL;
+          f.getCell(c1).alignment = {horizontal:'left', vertical:'middle'};
+          f.getCell(c2).alignment = {horizontal:'center', vertical:'middle'};
+          f.getCell(c2).numFmt = dec === 0 ? '0' : (dec === 1 ? '0.0' : (dec === 3 ? '0.000' : '0.00'));
           fila++;
         });
       }
       fila += 2;
     }
-    fila += 1;
   }
 }
 
