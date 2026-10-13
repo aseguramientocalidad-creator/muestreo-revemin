@@ -796,7 +796,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-27';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-28';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2271,14 +2271,9 @@ function nombreArchivo(t){
   return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                   .replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').trim();
 }
-async function descargarLibro(wb, nombre, graficos){
+async function descargarLibro(wb, nombre){
   nombre = nombreArchivo(nombre);
-  let buffer = await wb.xlsx.writeBuffer();
-  let sinGraficos = '';
-  if(graficos && graficos.length){
-    try{ buffer = await inyectarGraficos(buffer, graficos); }
-    catch(e){ sinGraficos = e && e.message || String(e); }
-  }
+  const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const a = document.createElement('a');
   const url = URL.createObjectURL(blob);
@@ -2291,7 +2286,7 @@ async function descargarLibro(wb, nombre, graficos){
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{ a.remove(); URL.revokeObjectURL(url); }, 4000);
-  avisar(sinGraficos ? 'Excel descargado SIN los gráficos: ' + sinGraficos : 'Archivo Excel descargado');
+  avisar('Archivo Excel descargado');
 }
 
 function periodo(grupos){
@@ -2303,273 +2298,6 @@ function periodo(grupos){
   return a[1] === b[1] ? `${a[0]}-${b[0]} ${b[1]}` : `${a.join(' ')} A ${b.join(' ')}`;
 }
 
-/* ---------- gráficos NATIVOS de Excel ----------
-   ExcelJS no sabe crear gráficos, así que después de generar el libro se le inyectan las partes
-   (drawing + chart) con JSZip. Los gráficos leen los datos de celdas de la misma hoja. */
-const xmlEsc = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const refHoja = nombre => "'" + String(nombre).replace(/'/g,"''") + "'";
-function letraCol(n){ let s = ''; while(n > 0){ const m = (n-1) % 26; s = String.fromCharCode(65+m) + s; n = Math.floor((n-1)/26); } return s; }
-
-function cargarJsZip(){
-  if(window.JSZip) return Promise.resolve(window.JSZip);
-  return new Promise((ok, mal)=>{
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    s.onload = ()=> ok(window.JSZip);
-    s.onerror = ()=> mal(new Error('No se pudo cargar el componente para armar los gráficos de Excel.'));
-    document.head.appendChild(s);
-  });
-}
-
-// g = {hoja, color, filaIni, filaFin, colPila, colTenor, colMax, colMed, colMin, filaEnc, pilas[], valores[], max, med, min}
-function xmlGraficoLinea(g){
-  const H = refHoja(g.hoja);
-  const rng = c => `${H}!$${letraCol(c)}$${g.filaIni}:$${letraCol(c)}$${g.filaFin}`;
-  const enc = c => `${H}!$${letraCol(c)}$${g.filaEnc}`;
-  const n = g.pilas.length;
-  const cacheStr = arr => `<c:strCache><c:ptCount val="${arr.length}"/>` +
-    arr.map((v,i)=>`<c:pt idx="${i}"><c:v>${xmlEsc(v)}</c:v></c:pt>`).join('') + `</c:strCache>`;
-  const cacheNum = arr => `<c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${arr.length}"/>` +
-    arr.map((v,i)=> (v === null || v === undefined) ? '' : `<c:pt idx="${i}"><c:v>${v}</c:v></c:pt>`).join('') + `</c:numCache>`;
-  const color = String(g.color).replace('#','').toUpperCase();
-  const serie = (i, nombre, colEnc, colVal, valores, hex, opciones)=>{
-    const o = opciones || {};
-    const linea = `<a:ln w="${o.ancho || 31750}" cap="rnd"><a:solidFill><a:srgbClr val="${hex}"/></a:solidFill>` +
-      (o.guion ? '<a:prstDash val="dash"/>' : '') + '<a:round/></a:ln>';
-    const marca = o.sinMarca
-      ? '<c:marker><c:symbol val="none"/></c:marker>'
-      : `<c:marker><c:symbol val="circle"/><c:size val="6"/><c:spPr><a:solidFill><a:srgbClr val="${hex}"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="${hex}"/></a:solidFill></a:ln></c:spPr></c:marker>`;
-    return `<c:ser><c:idx val="${i}"/><c:order val="${i}"/>` +
-      `<c:tx><c:strRef><c:f>${xmlEsc(enc(colEnc))}</c:f>${cacheStr([nombre])}</c:strRef></c:tx>` +
-      `<c:spPr>${linea}</c:spPr>${marca}` +
-      `<c:cat><c:strRef><c:f>${xmlEsc(rng(g.colPila))}</c:f>${cacheStr(g.pilas)}</c:strRef></c:cat>` +
-      `<c:val><c:numRef><c:f>${xmlEsc(rng(colVal))}</c:f>${cacheNum(valores)}</c:numRef></c:val>` +
-      `<c:smooth val="0"/></c:ser>`;
-  };
-  const cte = v => Array.from({length:n}, ()=> v);
-  const series =
-    serie(0, 'TENOR PROMEDIO', g.colTenor, g.colTenor, g.valores, color) +
-    serie(1, 'MÁXIMO', g.colMax, g.colMax, cte(g.max), 'B5452B', {guion:true, sinMarca:true, ancho:19050}) +
-    serie(2, 'MEDIA',  g.colMed, g.colMed, cte(g.med), '262626', {guion:true, sinMarca:true, ancho:19050}) +
-    serie(3, 'MÍNIMO', g.colMin, g.colMin, cte(g.min), '1D7A5F', {guion:true, sinMarca:true, ancho:19050});
-  const tx = (sz, rot) => `<c:txPr><a:bodyPr${rot ? ` rot="${rot}" vert="horz"` : ''}/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="${sz}"/></a:pPr><a:endParaRPr lang="es-VE"/></a:p></c:txPr>`;
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
-    `<c:roundedCorners val="0"/><c:chart><c:autoTitleDeleted val="1"/><c:plotArea><c:layout/>` +
-    `<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>${series}<c:marker val="1"/><c:axId val="50010"/><c:axId val="50020"/></c:lineChart>` +
-    `<c:catAx><c:axId val="50010"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/>` +
-    `<c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="out"/><c:minorTickMark val="none"/><c:tickLblPos val="low"/>` +
-    `${tx(800, '-5400000')}<c:crossAx val="50020"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:tickLblSkip val="1"/><c:noMultiLvlLbl val="0"/></c:catAx>` +
-    `<c:valAx><c:axId val="50020"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/>` +
-    `<c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="DCDCD8"/></a:solidFill></a:ln></c:spPr></c:majorGridlines>` +
-    `<c:title><c:tx><c:rich><a:bodyPr rot="-5400000" vert="horz"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900" b="0"/></a:pPr><a:r><a:rPr lang="es-VE" sz="900" b="0"/><a:t>Tenor (g/Ton)</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>` +
-    `<c:numFmt formatCode="0.00" sourceLinked="0"/><c:majorTickMark val="out"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>` +
-    `${tx(900)}<c:crossAx val="50010"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>` +
-    `</c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>` +
-    `<c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="BFBFBF"/></a:solidFill></a:ln></c:spPr>` +
-    `</c:chartSpace>`;
-}
-
-function xmlDibujo(graficos){
-  const NS = 'xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"';
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr ${NS}>` + graficos.map((g,i)=>
-    `<xdr:oneCellAnchor><xdr:from><xdr:col>${g.col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${g.row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>` +
-    `<xdr:ext cx="${Math.round(g.w*9525)}" cy="${Math.round(g.h*9525)}"/>` +
-    `<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${i+2}" name="Gráfico ${i+1}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>` +
-    `<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart r:id="rId${i+1}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:oneCellAnchor>`
-  ).join('') + `</xdr:wsDr>`;
-}
-
-// hojas = [{hoja, graficos:[{col,row,w,h,datos}]}]; devuelve el libro con los gráficos insertados
-async function inyectarGraficos(buffer, hojas){
-  const JSZipLib = await cargarJsZip();
-  const zip = await JSZipLib.loadAsync(buffer);
-  const leer = async ruta => { const f = zip.file(ruta); if(!f) throw new Error('Falta ' + ruta); return f.async('string'); };
-  const des = t => String(t).replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
-  const atributo = (tag, n) => { const m = tag.match(new RegExp('\\s' + n + '="([^"]*)"')); return m ? des(m[1]) : null; };
-
-  const libro = await leer('xl/workbook.xml');
-  const relsLibro = await leer('xl/_rels/workbook.xml.rels');
-  const destinoDe = {};
-  (relsLibro.match(/<Relationship\b[^>]*>/g) || []).forEach(t=>{ destinoDe[atributo(t,'Id')] = atributo(t,'Target'); });
-  const hojaRuta = {};
-  (libro.match(/<sheet\b[^>]*>/g) || []).forEach(t=>{
-    let d = destinoDe[atributo(t,'r:id')] || '';
-    d = d.replace(/^\/?(xl\/)?/, '');
-    hojaRuta[atributo(t,'name')] = 'xl/' + d;
-  });
-
-  let tipos = await leer('[Content_Types].xml');
-  const overrides = [];
-  let nDibujo = 0, nGrafico = 0;
-
-  for(const h of hojas){
-    const ruta = hojaRuta[h.hoja];
-    if(!ruta || !zip.file(ruta) || !h.graficos.length) continue;
-    nDibujo++;
-    const relDib = [];
-    h.graficos.forEach((g, i)=>{
-      nGrafico++;
-      zip.file(`xl/charts/chart${nGrafico}.xml`, xmlGraficoLinea(g.datos));
-      overrides.push(`<Override PartName="/xl/charts/chart${nGrafico}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`);
-      relDib.push(`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${nGrafico}.xml"/>`);
-    });
-    zip.file(`xl/drawings/drawing${nDibujo}.xml`, xmlDibujo(h.graficos));
-    zip.file(`xl/drawings/_rels/drawing${nDibujo}.xml.rels`,
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relDib.join('')}</Relationships>`);
-    overrides.push(`<Override PartName="/xl/drawings/drawing${nDibujo}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`);
-
-    // relación hoja → dibujo
-    const nombreHoja = ruta.split('/').pop();
-    const rutaRels = `xl/worksheets/_rels/${nombreHoja}.rels`;
-    const relNueva = `<Relationship Id="rIdGraf${nDibujo}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${nDibujo}.xml"/>`;
-    if(zip.file(rutaRels)){
-      const r = await leer(rutaRels);
-      zip.file(rutaRels, r.replace('</Relationships>', relNueva + '</Relationships>'));
-    }else{
-      zip.file(rutaRels, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relNueva}</Relationships>`);
-    }
-
-    // <drawing> dentro de la hoja, en el lugar que exige el esquema (antes de legacyDrawing/tableParts/extLst)
-    let xml = await leer(ruta);
-    if(!/<worksheet\b[^>]*xmlns:r=/.test(xml))
-      xml = xml.replace(/<worksheet\b/, '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"');
-    const etiqueta = `<drawing r:id="rIdGraf${nDibujo}"/>`;
-    const despues = ['<legacyDrawing','<legacyDrawingHF','<picture','<oleObjects','<controls','<webPublishItems','<tableParts','<extLst']
-      .map(t => xml.indexOf(t)).filter(i => i >= 0);
-    const pos = despues.length ? Math.min.apply(null, despues) : xml.lastIndexOf('</worksheet>');
-    xml = xml.slice(0, pos) + etiqueta + xml.slice(pos);
-    zip.file(ruta, xml);
-  }
-  if(!overrides.length) return buffer;
-  zip.file('[Content_Types].xml', tipos.replace('</Types>', overrides.join('') + '</Types>'));
-  return zip.generateAsync({type:'arraybuffer', compression:'DEFLATE'});
-}
-
-// escribe en la hoja de la procedencia (a la derecha de la tabla de tenores) los datos, las tablas
-// estadísticas y devuelve la definición de los gráficos nativos que se insertarán al generar el archivo
-function agregarGraficosEnHoja(ws, grupos){
-  const datos = calcularBloquesTenor(grupos);
-  if(!datos) return [];
-  const {items, rangos} = datos;
-  const bloques = [
-    ['COMPORTAMIENTO GENERAL DE TENOR', '#185FA5', items, ws.name],
-    ...rangos.map(([t,c,l]) => [t, c, l, `${l.length} pila${l.length===1?'':'s'}`])
-  ];
-  const C1 = 13, C2 = 14;                                  // M y N: tabla estadística
-  const ALTO = 340;
-  const anchoDe = n => Math.min(1600, Math.max(620, 90 + n * 26));
-  const conDatos = bloques.filter(b => b[2].length);
-  if(!conDatos.length) return [];
-  const maxAncho = Math.max.apply(null, conDatos.map(b => anchoDe(b[2].length)));
-  const colDatos = C1 + 2 + Math.ceil(Math.max(0, maxAncho - 430) / 64) + 2;   // los datos quedan a la derecha del gráfico más ancho
-
-  ws.getColumn(C1 - 1).width = 3;
-  ws.getColumn(C1).width = 44;
-  ws.getColumn(C2).width = 16;
-  ws.getColumn(colDatos - 1).width = 3;
-  ws.getColumn(colDatos).width = 24;
-  for(let k = 1; k <= 4; k++) ws.getColumn(colDatos + k).width = 15;
-
-  const filasQueOcupa = (px, desde)=>{
-    let acc = 0, r = desde, n = 0;
-    while(acc < px){ acc += (ws.getRow(r).height || 15) * 96 / 72; r++; n++; }
-    return n;
-  };
-  const celdaTitulo = (fila, c1, c2, texto, grande)=>{
-    ws.mergeCells(fila, c1, fila, c2);
-    const c = ws.getCell(fila, c1);
-    c.value = texto;
-    c.font = {bold:true, size: grande ? 12 : 11, name:'Arial'};
-    c.alignment = {horizontal:'left', vertical:'middle'};
-  };
-  const cabecera = (fila, col, etiquetas)=>{
-    etiquetas.forEach((t,k)=>{
-      const c = ws.getRow(fila).getCell(col + k);
-      c.value = t;
-      c.font = {bold:true, size:10, name:'Arial', color:{argb:'FFFFFFFF'}};
-      c.fill = GRIS_CAB_FILL; c.border = BORDE;
-      c.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
-    });
-  };
-
-  const graficos = [];
-  let fila = 5, filaD = 5;
-  celdaTitulo(fila, C1, C1 + 4, `GRÁFICOS Y ESTADÍSTICAS — ${ws.name}`, true);
-  ws.getCell(fila, C1).fill = GRIS_CAB_FILL;
-  ws.getCell(fila, C1).font = {bold:true, size:12, name:'Arial', color:{argb:'FFFFFFFF'}};
-  fila += 2;
-  celdaTitulo(filaD, colDatos, colDatos + 4, 'DATOS DE LOS GRÁFICOS', true);
-  filaD += 2;
-
-  for(const [titulo, color, lista, sub] of bloques){
-    celdaTitulo(fila, C1, C1 + 4, sub ? `${titulo} — ${sub}` : titulo, false);
-    fila += 1;
-    if(!lista.length){
-      ws.getCell(fila, C1).value = 'Sin pilas en este rango';
-      ws.getCell(fila, C1).font = ARIAL;
-      fila += 2;
-      continue;
-    }
-
-    // datos del gráfico (con las líneas de máximo, media y mínimo como fórmulas)
-    celdaTitulo(filaD, colDatos, colDatos + 4, titulo, false);
-    filaD += 1;
-    const filaEnc = filaD;
-    cabecera(filaEnc, colDatos, ['PILA', 'TENOR PROMEDIO', 'MÁXIMO', 'MEDIA', 'MÍNIMO']);
-    filaD += 1;
-    const filaIni = filaD, filaFin = filaD + lista.length - 1;
-    const vals = lista.map(x => Number(x.valor.toFixed(3)));
-    const max = Math.max.apply(null, vals), min = Math.min.apply(null, vals);
-    const med = Number((vals.reduce((a,b)=>a+b,0) / vals.length).toFixed(3));
-    const L = letraCol(colDatos + 1);
-    const rango = `$${L}$${filaIni}:$${L}$${filaFin}`;
-    lista.forEach((x, i)=>{
-      const r = ws.getRow(filaIni + i);
-      r.getCell(colDatos).value = x.pila;
-      r.getCell(colDatos + 1).value = vals[i];
-      r.getCell(colDatos + 2).value = {formula:`MAX(${rango})`, result:max};
-      r.getCell(colDatos + 3).value = {formula:`AVERAGE(${rango})`, result:med};
-      r.getCell(colDatos + 4).value = {formula:`MIN(${rango})`, result:min};
-      for(let k = 0; k < 5; k++){
-        const c = r.getCell(colDatos + k);
-        c.border = BORDE; c.font = ARIAL;
-        c.alignment = {horizontal: k === 0 ? 'left' : 'center', vertical:'middle'};
-        if(k > 0) c.numFmt = '0.000';
-      }
-    });
-    filaD = filaFin + 3;
-
-    // gráfico nativo
-    const w = anchoDe(lista.length);
-    graficos.push({col: C1 - 1, row: fila - 1, w, h: ALTO, datos: {
-      hoja: ws.name, color, filaIni, filaFin, filaEnc,
-      colPila: colDatos, colTenor: colDatos + 1, colMax: colDatos + 2, colMed: colDatos + 3, colMin: colDatos + 4,
-      pilas: lista.map(x => x.pila), valores: vals, max, med, min
-    }});
-    fila += filasQueOcupa(ALTO, fila) + 1;
-
-    // tabla estadística
-    const filasStat = statsResumenPatio(lista);
-    if(filasStat){
-      cabecera(fila, C1, ['PARÁMETRO', 'VALOR']);
-      fila++;
-      filasStat.forEach(([etiqueta, valor, dec])=>{
-        const f = ws.getRow(fila);
-        f.getCell(C1).value = etiqueta;
-        f.getCell(C2).value = valor === null ? '' : Number(valor.toFixed(dec));
-        [C1, C2].forEach(c=>{ f.getCell(c).border = BORDE; f.getCell(c).font = ARIAL; });
-        f.getCell(C1).alignment = {horizontal:'left', vertical:'middle'};
-        f.getCell(C2).alignment = {horizontal:'center', vertical:'middle'};
-        f.getCell(C2).numFmt = dec === 0 ? '0' : (dec === 1 ? '0.0' : (dec === 3 ? '0.000' : '0.00'));
-        fila++;
-      });
-    }
-    fila += 2;
-  }
-  return graficos;
-}
-
 async function exportarExcelPatio(soloProc){
   if(typeof ExcelJS === 'undefined'){ avisar('No se pudo cargar el generador de Excel. Revise la conexión.'); return; }
   avisar('Generando el archivo…');
@@ -2577,7 +2305,6 @@ async function exportarExcelPatio(soloProc){
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Control de Muestreo — Planta Revemin';
   let hayDatos = false;
-  const graficosLibro = [];
 
   // se exporta el mes abierto en las carpetas
   const mesSel = ESTADO.mesPatio || '';
@@ -2676,11 +2403,6 @@ async function exportarExcelPatio(soloProc){
     }
 
     ws.views = [{state:'frozen', ySplit:4}];
-    // gráficos y tablas estadísticas de esta procedencia, en su propia hoja
-    try{
-      const gf = agregarGraficosEnHoja(ws, grupos);
-      if(gf.length) graficosLibro.push({hoja: ws.name, graficos: gf});
-    }catch(e){ /* si falla, la hoja de tenores se entrega igual */ }
   }
 
   if(!hayDatos){
@@ -2691,7 +2413,7 @@ async function exportarExcelPatio(soloProc){
 
   const rotulo = mesSel ? `${MESES[Number(mesSel.slice(5,7))-1]} ${mesSel.slice(0,4)}` : '';
   const quien = soloProc ? ' DE ' + nombreProc(soloProc) : ' PLANTA REVEMIN';
-  await descargarLibro(wb, `TENORES DE PATIO${quien}${rotulo ? ' ' + rotulo : ''}.xlsx`, graficosLibro);
+  await descargarLibro(wb, `TENORES DE PATIO${quien}${rotulo ? ' ' + rotulo : ''}.xlsx`);
 }
 
 async function exportarExcelStock(){
