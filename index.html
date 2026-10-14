@@ -796,7 +796,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-30';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-31';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2454,23 +2454,21 @@ async function exportarExcelPatio(soloProc){
   await descargarLibro(wb, `TENORES DE PATIO${quien}${rotulo ? ' ' + rotulo : ''}.xlsx`);
 }
 
-async function exportarExcelStock(){
-  if(typeof ExcelJS === 'undefined'){ avisar('No se pudo cargar el generador de Excel. Revise la conexión.'); return; }
-  const lista = (ESTADO.stock || []).slice();
-  if(!lista.length){ avisar('No hay pilas en stock para exportar'); return; }
-  avisar('Generando el archivo…');
-
-  const wb = new ExcelJS.Workbook();
-  wb.creator = 'Control de Muestreo — Planta Revemin';
-
-  const ws = wb.addWorksheet('PILAS EN STOCK');
-  const anchos = [19, 16, 14, 12, 16, 16, 16, 16, 16];
+// conProcedencia=true agrega una columna PROCEDENCIA al inicio (hoja consolidada);
+// false la omite porque la hoja ya es de una sola procedencia
+function escribirHojaStock(ws, lista, conProcedencia, tituloTxt, subtituloTxt, rotuloPonderado){
+  const offset = conProcedencia ? 1 : 0;
+  const anchos = (conProcedencia ? [19] : []).concat([16,14,12,16,16,16,16,16]);
   anchos.forEach((w,i)=> ws.getColumn(i+1).width = w);
   const NC = anchos.length;
+  const col = i => String.fromCharCode(64+i);
+  const cPila = 1+offset, cHumedas = 2+offset, cCodigo = 3+offset,
+        cTenor = 4+offset, cHumedad = 5+offset, cSecas = 6+offset,
+        cProm = 7+offset, cAu = 8+offset;
 
-  const rotuloMes = nombreMes(mesCalendario());
-  tituloHoja(ws, NC, 'PILAS EN STOCK', `PLANTA REVEMIN PIM II-${rotuloMes}`);
-  encabezadoHoja(ws, 4, ['PROCEDENCIA'].concat(COLS_STOCK.map(c => c.etiqueta)), GRIS_CAB_FILL, 'FFFFFFFF');
+  tituloHoja(ws, NC, tituloTxt, subtituloTxt);
+  const etiquetas = (conProcedencia ? ['PROCEDENCIA'] : []).concat(COLS_STOCK.map(c => c.etiqueta));
+  encabezadoHoja(ws, 4, etiquetas, GRIS_CAB_FILL, 'FFFFFFFF');
 
   let n = 5;
   let totalHumedas = 0, totalSecas = 0, totalAu = 0;
@@ -2485,65 +2483,95 @@ async function exportarExcelStock(){
 
     ms.forEach(m=>{
       const f = formatearFila(ws, n, NC);
-      f.getCell(1).value = ini === n ? x.proc : null;
-      f.getCell(2).value = ini === n ? String(g.pila ?? '') : null;
-      f.getCell(3).value = ini === n ? celda(g.toneladasHumedas) : null;
-      f.getCell(4).value = celda(m.codigo);
-      f.getCell(5).value = celda(m.tenor);
-      f.getCell(6).value = celda(m.humedad);
+      if(conProcedencia) f.getCell(1).value = ini === n ? x.proc : null;
+      f.getCell(cPila).value = ini === n ? String(g.pila ?? '') : null;
+      f.getCell(cHumedas).value = ini === n ? celda(g.toneladasHumedas) : null;
+      f.getCell(cCodigo).value = celda(m.codigo);
+      f.getCell(cTenor).value = celda(m.tenor);
+      f.getCell(cHumedad).value = celda(m.humedad);
       n++;
     });
     const fin = n - 1;
 
-    [1,2,3].forEach(col => { if(fin > ini) ws.mergeCells(ini, col, fin, col); });
+    (conProcedencia ? [1,cPila,cHumedas] : [cPila,cHumedas]).forEach(c => { if(fin > ini) ws.mergeCells(ini, c, fin, c); });
 
     const f = formatearFila(ws, n, NC, {negrita:true});
-    ws.mergeCells(n, 1, n, 3);
+    ws.mergeCells(n, 1, n, cHumedas);
     const fn = g.estadistico === 'mediana' ? 'MEDIAN' : 'AVERAGE';
-    f.getCell(4).value = rotuloCentro(g);
-    f.getCell(5).value = {formula:`${fn}(E${ini}:E${fin})`, result: centro(g, ms.map(m=>m.tenor))};
-    f.getCell(6).value = {formula:`${fn}(F${ini}:F${fin})`, result: centro(g, ms.map(m=>m.humedad))};
-    f.getCell(5).numFmt = '0.000';
-    f.getCell(6).numFmt = '0.00';
+    f.getCell(cCodigo).value = rotuloCentro(g);
+    f.getCell(cTenor).value = {formula:`${fn}(${col(cTenor)}${ini}:${col(cTenor)}${fin})`, result: centro(g, ms.map(m=>m.tenor))};
+    f.getCell(cHumedad).value = {formula:`${fn}(${col(cHumedad)}${ini}:${col(cHumedad)}${fin})`, result: centro(g, ms.map(m=>m.humedad))};
+    f.getCell(cTenor).numFmt = '0.000';
+    f.getCell(cHumedad).numFmt = '0.00';
 
     // toneladas secas, tenor promedio y Au contenido: fórmulas vivas sobre las celdas de la misma hoja,
     // no valores fijos, para que se recalculen si se edita toneladas húmedas, tenor o humedad
     const prom = n; // fila de PROMEDIO de esta pila, ya calculada arriba
-    ws.getCell(ini, 7).value = {formula:`C${ini}*(1-F${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
-    ws.getCell(ini, 8).value = {formula:`E${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
-    ws.getCell(ini, 9).value = {formula:`G${ini}*H${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
-    ws.getCell(ini, 7).numFmt = '0.00';
-    ws.getCell(ini, 8).numFmt = '0.000';
-    ws.getCell(ini, 9).numFmt = '0.00';
-    [7,8,9].forEach(col => ws.mergeCells(ini, col, n, col));
+    ws.getCell(ini, cSecas).value = {formula:`${col(cHumedas)}${ini}*(1-${col(cHumedad)}${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
+    ws.getCell(ini, cProm).value = {formula:`${col(cTenor)}${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
+    ws.getCell(ini, cAu).value = {formula:`${col(cSecas)}${ini}*${col(cProm)}${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
+    ws.getCell(ini, cSecas).numFmt = '0.00';
+    ws.getCell(ini, cProm).numFmt = '0.000';
+    ws.getCell(ini, cAu).numFmt = '0.00';
+    [cSecas,cProm,cAu].forEach(c => ws.mergeCells(ini, c, n, c));
     n++;
   });
 
   const filaDesde = 5, filaHasta = n - 1;
   const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
   const ft = formatearFila(ws, n, NC, {negrita:true});
-  ws.mergeCells(n, 1, n, 2);
+  ws.mergeCells(n, 1, n, cHumedas - 1);
   ft.getCell(1).value = 'TOTAL';
-  ft.getCell(3).value = {formula:`SUM(C${filaDesde}:C${filaHasta})`, result: Number(totalHumedas.toFixed(2))};
-  ft.getCell(7).value = {formula:`SUM(G${filaDesde}:G${filaHasta})`, result: Number(totalSecas.toFixed(2))};
-  ft.getCell(9).value = {formula:`SUM(I${filaDesde}:I${filaHasta})`, result: Number(totalAu.toFixed(2))};
-  ft.getCell(3).numFmt = '0.00';
-  ft.getCell(7).numFmt = '0.00';
-  ft.getCell(9).numFmt = '0.00';
+  ft.getCell(cHumedas).value = {formula:`SUM(${col(cHumedas)}${filaDesde}:${col(cHumedas)}${filaHasta})`, result: Number(totalHumedas.toFixed(2))};
+  ft.getCell(cSecas).value = {formula:`SUM(${col(cSecas)}${filaDesde}:${col(cSecas)}${filaHasta})`, result: Number(totalSecas.toFixed(2))};
+  ft.getCell(cAu).value = {formula:`SUM(${col(cAu)}${filaDesde}:${col(cAu)}${filaHasta})`, result: Number(totalAu.toFixed(2))};
+  ft.getCell(cHumedas).numFmt = '0.00';
+  ft.getCell(cSecas).numFmt = '0.00';
+  ft.getCell(cAu).numFmt = '0.00';
   ft.eachCell({includeEmpty:true}, c=> c.fill = GRIS_CAB_FILL);
   ft.font = {bold:true, size:10, name:'Arial', color:{argb:'FFFFFFFF'}};
   const filaTotal = n;
   n++;
 
   const fp = formatearFila(ws, n, NC, {negrita:true});
-  ws.mergeCells(n, 1, n, 8);
-  fp.getCell(1).value = 'TENOR PONDERADO CONSOLIDADO — PILAS EN STOCK (g/t)';
+  ws.mergeCells(n, 1, n, cProm);
+  fp.getCell(1).value = rotuloPonderado;
   fp.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
-  fp.getCell(9).value = {formula:`IFERROR(I${filaTotal}/G${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
-  fp.getCell(9).numFmt = '0.000';
+  fp.getCell(cAu).value = {formula:`IFERROR(${col(cAu)}${filaTotal}/${col(cSecas)}${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
+  fp.getCell(cAu).numFmt = '0.000';
   fp.eachCell({includeEmpty:true}, c=> c.fill = AZUL);
 
   ws.views = [{state:'frozen', ySplit:4}];
+}
+
+async function exportarExcelStock(){
+  if(typeof ExcelJS === 'undefined'){ avisar('No se pudo cargar el generador de Excel. Revise la conexión.'); return; }
+  const lista = (ESTADO.stock || []).slice();
+  if(!lista.length){ avisar('No hay pilas en stock para exportar'); return; }
+  avisar('Generando el archivo…');
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Control de Muestreo — Planta Revemin';
+  const rotuloMes = nombreMes(mesCalendario());
+
+  const porProc = new Map();
+  lista.forEach(x=>{
+    if(!porProc.has(x.procId)) porProc.set(x.procId, []);
+    porProc.get(x.procId).push(x);
+  });
+  const ordenProc = PROCEDENCIAS.filter(p => porProc.has(p.id));
+
+  ordenProc.forEach(p=>{
+    const ws = wb.addWorksheet(p.nombre.slice(0,31));
+    escribirHojaStock(ws, porProc.get(p.id), false,
+      `PILAS EN STOCK DE ${p.nombre}`, `PLANTA REVEMIN PIM II-${rotuloMes}`,
+      `TENOR PONDERADO — ${p.nombre} (g/t)`);
+  });
+
+  const wsTodo = wb.addWorksheet('CONSOLIDADO');
+  escribirHojaStock(wsTodo, lista, true,
+    'PILAS EN STOCK — CONSOLIDADO', `PLANTA REVEMIN PIM II-${rotuloMes}`,
+    'TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)');
 
   await descargarLibro(wb, `PILAS EN STOCK PLANTA REVEMIN ${rotuloMes}.xlsx`);
 }
