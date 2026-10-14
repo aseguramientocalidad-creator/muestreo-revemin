@@ -448,10 +448,11 @@ function escucharClave(clave, alCambiar){
 const PROCEDENCIAS = [
   {id:'mina_colombia',   nombre:'MINA COLOMBIA',        prefijo:'TCR'},
   {id:'mina_sosa',       nombre:'MINA SOSA MENDEZ',     prefijo:'TSM'},
-  {id:'colas_camorra',   nombre:'COLAS PLANTA CAMORRA', prefijo:'CMR'},
-  {id:'colas_caratal',   nombre:'COLAS PLANTA CARATAL', prefijo:'Colas'},
+  {id:'colas_camorra',   nombre:'ARENAS COLAS PLANTA CAMORRA', prefijo:'CMR'},
+  {id:'colas_caratal',   nombre:'ARENAS COLAS PLANTA CARATAL', prefijo:'Colas'},
   {id:'mina_isidora',    nombre:'MINA ISIDORA',         prefijo:'TIR'},
-  {id:'pequena_mineria', nombre:'PEQUEÑA MINERIA',      prefijo:'TPM'}
+  {id:'pequena_mineria', nombre:'PEQUEÑA MINERIA',      prefijo:'TPM'},
+  {id:'arenas_laguna_cola_revemin', nombre:'ARENAS LAGUNA DE COLA REVEMIN', prefijo:'ALC'}
 ];
 
 const PUNTOS = [
@@ -790,13 +791,71 @@ function auContenidoDe(g){
   return ts * tp;
 }
 
+/* Una misma pila que ingresa en varias fechas (varias filas de la tabla) pero con un solo peso total:
+   se agrupan las filas consecutivas que comparten el mismo nombre de pila y se calculan las toneladas
+   secas, el tenor promedio y el Au contenido con el peso total y TODAS las muestras juntas, en vez de
+   repartir el peso (desconocido) entre cada fecha. */
+const normalizaPila = p => String(p ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+// detecta nombres de pila "parecidos" pero no idénticos (p. ej. "El Esfuerzo P-01" vs "Esfuerzo 01"):
+// quita palabras de relleno y signos, y compara el resto de las palabras sin importar el orden.
+// Solo sirve para avisar de una posible transcripción inconsistente; la fusión real sigue exigiendo
+// el nombre exactamente igual (normalizaPila), para no mezclar pilas por error.
+const PALABRAS_VACIAS_PILA = new Set(['el','la','los','las','de','del','pila','piletas','p','no','n']);
+function clavePilaFuzzy(p){
+  return normalizaPila(p)
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w && !PALABRAS_VACIAS_PILA.has(w))
+    .map(w => /^\d+$/.test(w) ? String(Number(w)) : w)   // "01" y "1" cuentan como el mismo número
+    .sort()
+    .join('');
+}
+
+function agruparPorPila(grupos){
+  const bloques = [];
+  grupos.forEach(g=>{
+    const ultimo = bloques[bloques.length - 1];
+    if(ultimo && normalizaPila(ultimo[0].pila) === normalizaPila(g.pila) && normalizaPila(g.pila) !== '') ultimo.push(g);
+    else bloques.push([g]);
+  });
+  return bloques;
+}
+
+function statsBloque(bloque){
+  const todas = [];
+  bloque.forEach(g => (g.muestras || []).forEach(m => todas.push(m)));
+  const valores = bloque.map(g => num(g.toneladasHumedas)).filter(v => v !== null);
+  const totalHumedas = valores.length ? valores.reduce((a,v)=> a + v, 0) : null;
+  const ref = bloque[0]; // el criterio (promedio/mediana) de la primera fecha rige el bloque
+  const hProm = centro(ref, todas.map(m => m.humedad));
+  const tProm = centro(ref, todas.map(m => m.tenor));
+  const ts = (totalHumedas !== null && hProm !== null) ? totalHumedas * (1 - hProm / 100) : null;
+  const au = (ts !== null && tProm !== null) ? ts * tProm : null;
+  return {totalHumedas, ts, tp: tProm, au};
+}
+
+// igual que agruparPorPila pero para listas de stock (cada elemento x trae procId y x.grupo):
+// solo se fusionan filas consecutivas que además pertenezcan a la misma procedencia
+function agruparXPorPila(lista){
+  const bloques = [];
+  lista.forEach(x=>{
+    const ultimo = bloques[bloques.length - 1];
+    const mismo = ultimo && ultimo[0].procId === x.procId &&
+      normalizaPila(ultimo[0].grupo.pila) === normalizaPila(x.grupo.pila) && normalizaPila(x.grupo.pila) !== '';
+    if(ultimo && mismo) ultimo.push(x);
+    else bloques.push([x]);
+  });
+  return bloques;
+}
+
 function promedio(lista){
   const v = lista.map(num).filter(x => x !== null);
   return v.length ? (v.reduce((a,b)=>a+b,0) / v.length) : null;
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-31';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-36';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1088,9 +1147,20 @@ function tablaResumenPatio(items){
 // agrupa las pilas de una procedencia en el bloque general y los 3 rangos de tenor,
 // reutilizado tanto por la vista en pantalla como por la hoja de gráficos del Excel
 function calcularBloquesTenor(grupos){
-  const porPila = grupos.map(g => centro(g, (g.muestras || []).map(m => m.tenor)));
+  // misma pila en varias fechas (un solo peso total): en los gráficos y la estadística cuenta como
+  // una sola pila, con el tenor promedio y las toneladas calculadas con el peso total y todas las
+  // muestras de esas fechas juntas, no como varios puntos repetidos de la misma pila física
+  const bloques = agruparPorPila(grupos);
+  const sintetizados = bloques.map(bloque=>{
+    const stats = statsBloque(bloque);
+    const ref = bloque[0];
+    const todas = [];
+    bloque.forEach(g => (g.muestras || []).forEach(m => todas.push(m)));
+    return {pila: String(ref.pila || ''), estadistico: ref.estadistico, toneladasHumedas: stats.totalHumedas, muestras: todas};
+  });
+  const porPila = sintetizados.map(g => tenorPromedioDe(g));
   if(!porPila.some(v => v !== null && v !== undefined)) return null;
-  const items = grupos.map((g,i)=> ({pila: String(g.pila || ''), valor: porPila[i], grupo: g}))
+  const items = sintetizados.map((g,i)=> ({pila: g.pila, valor: porPila[i], grupo: g}))
                       .filter(x => x.valor !== null && x.valor !== undefined);
   const rangos = [
     ['PILAS CON TENOR MENOR O IGUAL A 5 g/Ton', '#0F6E56', items.filter(x => x.valor <= 5)],
@@ -1272,37 +1342,44 @@ function pintarPatio(){
   const th = COLS_PATIO.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('') + '<th></th>';
   let cuerpo = '';
   let totalHumedas = 0, totalSecas = 0, totalAu = 0;
-  grupos.forEach(g=>{
-    const i = ESTADO.datos.indexOf(g);
-    const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:'',obs:''}];
-    const n = ms.length;
-    const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
-    totalHumedas += num(g.toneladasHumedas) || 0;
-    totalSecas += ts || 0;
-    totalAu += au || 0;
-    ms.forEach((m, k)=>{
-      const cabecera = k === 0 ? `
-        <td rowspan="${n+1}"><b>${esc(fechaLegible(g.fecha))}</b></td>
-        <td rowspan="${n+1}">${esc(g.pila)}</td>
-        <td rowspan="${n+1}">${esc(g.turno)}</td>
-        <td rowspan="${n+1}">${esc(g.orden)}</td>
-        <td rowspan="${n+1}">${g.toneladasHumedas === '' || g.toneladasHumedas == null ? '' : esc(g.toneladasHumedas)}</td>` : '';
-      const calculados = k === 0 ? `
-        <td rowspan="${n+1}">${fmt(ts, 2)}</td>
-        <td rowspan="${n+1}">${fmt(tp, 3)}</td>
-        <td rowspan="${n+1}">${fmt(au, 2)}</td>` : '';
-      const acciones = k === 0 ? `<td rowspan="${n+1}" class="col-acc">
-        <button class="mini" data-editar="${i}">Editar</button><br>
-        <button class="mini borrar" data-borrar="${i}">Eliminar</button></td>` : '';
-      cuerpo += `<tr class="grupo">${cabecera}
-        <td>${esc(m.codigo)}</td>
-        <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
-        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}${acciones}</tr>`;
+  const bloques = agruparPorPila(grupos);
+  bloques.forEach(bloque=>{
+    const stats = statsBloque(bloque);
+    const filasBloque = bloque.reduce((a,g)=> a + ((g.muestras && g.muestras.length) ? g.muestras.length : 1) + 1, 0);
+    totalHumedas += stats.totalHumedas || 0;
+    totalSecas += stats.ts || 0;
+    totalAu += stats.au || 0;
+    bloque.forEach((g, bi)=>{
+      const i = ESTADO.datos.indexOf(g);
+      const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:'',obs:''}];
+      const n = ms.length;
+      ms.forEach((m, k)=>{
+        const cabecera = k === 0 ? `
+          <td rowspan="${n+1}"><b>${esc(fechaLegible(g.fecha))}</b></td>
+          <td rowspan="${n+1}">${esc(g.pila)}</td>
+          <td rowspan="${n+1}">${esc(g.turno)}</td>
+          <td rowspan="${n+1}">${esc(g.orden)}</td>` : '';
+        // las columnas dependientes del peso (toneladas húmedas, secas, tenor promedio y Au contenido)
+        // se fusionan una sola vez por bloque (misma pila en varias fechas), no por cada fecha
+        const fusionadas = (k === 0 && bi === 0) ? `
+          <td rowspan="${filasBloque}">${fmt(stats.totalHumedas, 2) === '—' ? '' : fmt(stats.totalHumedas, 2)}</td>` : '';
+        const calculados = (k === 0 && bi === 0) ? `
+          <td rowspan="${filasBloque}">${fmt(stats.ts, 2)}</td>
+          <td rowspan="${filasBloque}">${fmt(stats.tp, 3)}</td>
+          <td rowspan="${filasBloque}">${fmt(stats.au, 2)}</td>` : '';
+        const acciones = k === 0 ? `<td rowspan="${n+1}" class="col-acc">
+          <button class="mini" data-editar="${i}">Editar</button><br>
+          <button class="mini borrar" data-borrar="${i}">Eliminar</button></td>` : '';
+        cuerpo += `<tr class="grupo">${cabecera}${fusionadas}
+          <td>${esc(m.codigo)}</td>
+          <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
+          <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}${acciones}</tr>`;
+      });
+      cuerpo += `<tr class="grupo promedio">
+        <td>${rotuloCentro(g)}</td>
+        <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
+        <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
     });
-    cuerpo += `<tr class="grupo promedio">
-      <td>${rotuloCentro(g)}</td>
-      <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
-      <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
   });
   const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
   cuerpo += `<tr class="grupo fila-total">
@@ -1367,31 +1444,37 @@ function pintarStockPatio(){
     const grupo = porProc.get(id);
     let totalHumedas = 0, totalSecas = 0, totalAu = 0;
     let filas = '';
-    grupo.forEach(x=>{
-      const g = x.grupo;
-      const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:''}];
-      const n = ms.length;
-      const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
-      totalHumedas += num(g.toneladasHumedas) || 0;
-      totalSecas += ts || 0;
-      totalAu += au || 0;
-      ms.forEach((m, k)=>{
-        const cabecera = k === 0 ? `
-          <td rowspan="${n+1}">${esc(g.pila)}</td>
-          <td rowspan="${n+1}">${g.toneladasHumedas === '' || g.toneladasHumedas == null ? '' : esc(g.toneladasHumedas)}</td>` : '';
-        const calculados = k === 0 ? `
-          <td rowspan="${n+1}">${fmt(ts, 2)}</td>
-          <td rowspan="${n+1}">${fmt(tp, 3)}</td>
-          <td rowspan="${n+1}">${fmt(au, 2)}</td>` : '';
-        filas += `<tr class="grupo">${cabecera}
-          <td>${esc(m.codigo)}</td>
-          <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
-          <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}</tr>`;
+    const bloques = agruparPorPila(grupo.map(x=>x.grupo));
+    bloques.forEach(bloque=>{
+      const stats = statsBloque(bloque);
+      const filasBloque = bloque.reduce((a,g)=> a + ((g.muestras && g.muestras.length) ? g.muestras.length : 1) + 1, 0);
+      totalHumedas += stats.totalHumedas || 0;
+      totalSecas += stats.ts || 0;
+      totalAu += stats.au || 0;
+      bloque.forEach((g, bi)=>{
+        const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:''}];
+        const n = ms.length;
+        ms.forEach((m, k)=>{
+          const cabecera = k === 0 ? `
+            <td rowspan="${n+1}">${esc(g.pila)}</td>` : '';
+          // igual que en la tabla de tenores: las toneladas húmedas, secas, el tenor promedio y el Au
+          // contenido se fusionan una sola vez por bloque (misma pila en varias fechas), no por fecha
+          const fusionadas = (k === 0 && bi === 0) ? `
+            <td rowspan="${filasBloque}">${fmt(stats.totalHumedas, 2) === '—' ? '' : fmt(stats.totalHumedas, 2)}</td>` : '';
+          const calculados = (k === 0 && bi === 0) ? `
+            <td rowspan="${filasBloque}">${fmt(stats.ts, 2)}</td>
+            <td rowspan="${filasBloque}">${fmt(stats.tp, 3)}</td>
+            <td rowspan="${filasBloque}">${fmt(stats.au, 2)}</td>` : '';
+          filas += `<tr class="grupo">${cabecera}${fusionadas}
+            <td>${esc(m.codigo)}</td>
+            <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
+            <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}</tr>`;
+        });
+        filas += `<tr class="grupo promedio">
+          <td>${rotuloCentro(g)}</td>
+          <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
+          <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
       });
-      filas += `<tr class="grupo promedio">
-        <td>${rotuloCentro(g)}</td>
-        <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
-        <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
     });
     const tenorPonderadoProc = totalSecas ? totalAu / totalSecas : null;
     filas += `<tr class="grupo fila-total">
@@ -1503,6 +1586,18 @@ function filaMuestra(m){
     <td><button type="button" class="mini borrar quitar">Quitar</button></td></tr>`;
 }
 
+// nombres de pila ya usados en esta procedencia (todas las fechas cargadas), para sugerir con datalist
+// y para el aviso de nombres parecidos; se respeta la primera forma con la que se escribió cada uno
+function listaPilasConocidas(){
+  const vistos = new Set();
+  const nombres = [];
+  (ESTADO.datos || []).forEach(x=>{
+    const clave = normalizaPila(x.pila);
+    if(x.pila && !vistos.has(clave)){ vistos.add(clave); nombres.push(String(x.pila)); }
+  });
+  return nombres.sort((a,b)=> a.localeCompare(b));
+}
+
 function formularioPatio(indice, base){
   const g = indice === null
     ? Object.assign({muestras:[{},{},{},{},{}]}, base || {})
@@ -1516,7 +1611,9 @@ function formularioPatio(indice, base){
   $('#form-cuerpo').innerHTML = `
     <div class="rejilla">
       <div class="campo"><label>Fecha de ingreso *</label><input type="date" name="fecha" value="${esc(g.fecha)}" min="2000-01-01" max="2099-12-31" required></div>
-      <div class="campo"><label>Pila *</label><input type="text" name="pila" value="${esc(g.pila)}" required></div>
+      <div class="campo"><label>Pila *</label><input type="text" name="pila" value="${esc(g.pila)}" list="lista-pilas-patio" autocomplete="off" required>
+        <datalist id="lista-pilas-patio">${listaPilasConocidas().map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
+      </div>
       <div class="campo"><label>Turno</label><input type="text" name="turno" value="${esc(g.turno)}"></div>
       <div class="campo"><label>Orden — correlativo</label>
         <div class="grupo-orden">
@@ -1652,6 +1749,24 @@ $('#formulario').addEventListener('submit', async e=>{
       if(m.codigo || m.tenor || m.humedad || m.obs) g.muestras.push(m);
     });
     if(!g.muestras.length){ avisar('Cargue al menos un código'); return; }
+    if(g.pila){
+      // aviso de nombre parecido pero no idéntico (posible transcripción inconsistente de la misma pila)
+      const claveExacta = normalizaPila(g.pila);
+      const fuzzyNueva = clavePilaFuzzy(g.pila);
+      const parecida = fuzzyNueva ? ESTADO.datos.find((otro, idx)=>
+        idx !== ESTADO.editando && otro.pila &&
+        normalizaPila(otro.pila) !== claveExacta &&
+        clavePilaFuzzy(otro.pila) === fuzzyNueva
+      ) : null;
+      if(parecida){
+        const sigue = confirm(`Ya existe una pila registrada como "${parecida.pila}" en ${nombreProc(ESTADO.procedencia)}, `+
+          `que se parece al nombre que está escribiendo ahora ("${g.pila}") pero no es exactamente igual.\n\n`+
+          `Si es la misma pila que ingresó en otra fecha, escriba el nombre IDÉNTICO ("${parecida.pila}") para que `+
+          `las toneladas y el tenor se fusionen correctamente entre esas fechas.\n\n`+
+          `¿Desea guardar de todas formas con el nombre "${g.pila}" (como una pila distinta)?`);
+        if(!sigue) return;
+      }
+    }
     if(ESTADO.editando === null) ESTADO.datos.push(g); else ESTADO.datos[ESTADO.editando] = g;
     const ok = await escribir(clavePatio(ESTADO.procedencia), ESTADO.datos);
     avisar(ok ? (ESTADO.editando===null ? 'Pila guardada' : 'Cambios guardados')
@@ -2366,51 +2481,77 @@ async function exportarExcelPatio(soloProc){
 
     let n = 5;
     let totalHumedas = 0, totalSecas = 0, totalAu = 0;
-    grupos.forEach(g=>{
-      const ms = (g.muestras && g.muestras.length) ? g.muestras : [{}];
-      const ini = n;
-      const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
-      totalHumedas += num(g.toneladasHumedas) || 0;
-      totalSecas += ts || 0;
-      totalAu += au || 0;
+    const bloques = agruparPorPila(grupos);
+    bloques.forEach(bloque=>{
+      const stats = statsBloque(bloque);
+      const esBloqueMultiple = bloque.length > 1;
+      const inicioBloque = n;
+      totalHumedas += stats.totalHumedas || 0;
+      totalSecas += stats.ts || 0;
+      totalAu += stats.au || 0;
 
-      ms.forEach(m=>{
-        const f = formatearFila(ws, n, NC);
-        f.getCell(1).value = ini === n ? fechaLegible(g.fecha) : null;
-        f.getCell(2).value = ini === n ? String(g.pila ?? '') : null;
-        f.getCell(3).value = ini === n ? (g.turno || '') : null;
-        f.getCell(4).value = ini === n ? (g.orden || '') : null;
-        f.getCell(5).value = ini === n ? celda(g.toneladasHumedas) : null;
-        f.getCell(6).value = celda(m.codigo);
-        f.getCell(7).value = celda(m.tenor);
-        f.getCell(8).value = celda(m.humedad);
+      bloque.forEach(g=>{
+        const ms = (g.muestras && g.muestras.length) ? g.muestras : [{}];
+        const ini = n;
+        const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
+
+        ms.forEach(m=>{
+          const f = formatearFila(ws, n, NC);
+          f.getCell(1).value = ini === n ? fechaLegible(g.fecha) : null;
+          f.getCell(2).value = ini === n ? String(g.pila ?? '') : null;
+          f.getCell(3).value = ini === n ? (g.turno || '') : null;
+          f.getCell(4).value = ini === n ? (g.orden || '') : null;
+          // las toneladas húmedas solo se escriben una vez por bloque (más abajo), no por cada fecha
+          f.getCell(5).value = (!esBloqueMultiple && ini === n) ? celda(g.toneladasHumedas) : null;
+          f.getCell(6).value = celda(m.codigo);
+          f.getCell(7).value = celda(m.tenor);
+          f.getCell(8).value = celda(m.humedad);
+          n++;
+        });
+        const fin = n - 1;
+
+        // los datos de la pila abarcan todas sus filas
+        const colsFecha = esBloqueMultiple ? [1,2,3,4] : [1,2,3,4,5];
+        colsFecha.forEach(col => { if(fin > ini) ws.mergeCells(ini, col, fin, col); });
+
+        const f = formatearFila(ws, n, NC, {negrita:true});
+        ws.mergeCells(n, 1, n, esBloqueMultiple ? 4 : 5);
+        const fn = g.estadistico === 'mediana' ? 'MEDIAN' : 'AVERAGE';
+        f.getCell(6).value = rotuloCentro(g);
+        f.getCell(7).value = {formula:`${fn}(G${ini}:G${fin})`, result: centro(g, ms.map(m=>m.tenor))};
+        f.getCell(8).value = {formula:`${fn}(H${ini}:H${fin})`, result: centro(g, ms.map(m=>m.humedad))};
+        f.getCell(7).numFmt = '0.000';
+        f.getCell(8).numFmt = '0.00';
+
+        if(!esBloqueMultiple){
+          // una sola fecha: fórmulas vivas sobre las celdas de la misma hoja, para que se recalculen
+          // si se edita toneladas húmedas, tenor o humedad
+          const prom = n; // fila de PROMEDIO de esta pila, ya calculada arriba
+          ws.getCell(ini, 9).value = {formula:`E${ini}*(1-H${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
+          ws.getCell(ini, 10).value = {formula:`G${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
+          ws.getCell(ini, 11).value = {formula:`I${ini}*J${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
+          ws.getCell(ini, 9).numFmt = '0.00';
+          ws.getCell(ini, 10).numFmt = '0.000';
+          ws.getCell(ini, 11).numFmt = '0.00';
+          [9,10,11].forEach(col => ws.mergeCells(ini, col, n, col));
+        }
         n++;
       });
-      const fin = n - 1;
 
-      // los datos de la pila abarcan todas sus filas
-      [1,2,3,4,5].forEach(col => { if(fin > ini) ws.mergeCells(ini, col, fin, col); });
-
-      const f = formatearFila(ws, n, NC, {negrita:true});
-      ws.mergeCells(n, 1, n, 5);
-      const fn = g.estadistico === 'mediana' ? 'MEDIAN' : 'AVERAGE';
-      f.getCell(6).value = rotuloCentro(g);
-      f.getCell(7).value = {formula:`${fn}(G${ini}:G${fin})`, result: centro(g, ms.map(m=>m.tenor))};
-      f.getCell(8).value = {formula:`${fn}(H${ini}:H${fin})`, result: centro(g, ms.map(m=>m.humedad))};
-      f.getCell(7).numFmt = '0.000';
-      f.getCell(8).numFmt = '0.00';
-
-      // toneladas secas, tenor promedio y Au contenido: fórmulas vivas sobre las celdas de la misma hoja,
-      // no valores fijos, para que se recalculen si se edita toneladas húmedas, tenor o humedad
-      const prom = n; // fila de PROMEDIO de esta pila, ya calculada arriba
-      ws.getCell(ini, 9).value = {formula:`E${ini}*(1-H${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
-      ws.getCell(ini, 10).value = {formula:`G${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
-      ws.getCell(ini, 11).value = {formula:`I${ini}*J${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
-      ws.getCell(ini, 9).numFmt = '0.00';
-      ws.getCell(ini, 10).numFmt = '0.000';
-      ws.getCell(ini, 11).numFmt = '0.00';
-      [9,10,11].forEach(col => ws.mergeCells(ini, col, n, col));
-      n++;
+      if(esBloqueMultiple){
+        // misma pila en varias fechas con un solo peso total: las toneladas húmedas, secas, el tenor
+        // promedio y el Au contenido se calculan con el peso total y todas las muestras juntas, y se
+        // escriben una sola vez, fusionadas en todo el bloque (no son fórmulas vivas en este caso)
+        const finBloque = n - 1;
+        ws.getCell(inicioBloque, 5).value = stats.totalHumedas === null ? null : Number(stats.totalHumedas.toFixed(2));
+        ws.getCell(inicioBloque, 9).value = stats.ts === null ? null : Number(stats.ts.toFixed(2));
+        ws.getCell(inicioBloque, 10).value = stats.tp === null ? null : Number(stats.tp.toFixed(3));
+        ws.getCell(inicioBloque, 11).value = stats.au === null ? null : Number(stats.au.toFixed(2));
+        ws.getCell(inicioBloque, 9).numFmt = '0.00';
+        ws.getCell(inicioBloque, 10).numFmt = '0.000';
+        ws.getCell(inicioBloque, 11).numFmt = '0.00';
+        [5,9,10,11].forEach(col => ws.mergeCells(inicioBloque, col, finBloque, col));
+      }
     });
 
     if(grupos.length){
@@ -2472,49 +2613,75 @@ function escribirHojaStock(ws, lista, conProcedencia, tituloTxt, subtituloTxt, r
 
   let n = 5;
   let totalHumedas = 0, totalSecas = 0, totalAu = 0;
-  lista.forEach(x=>{
-    const g = x.grupo;
-    const ms = (g.muestras && g.muestras.length) ? g.muestras : [{}];
-    const ini = n;
-    const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
-    totalHumedas += num(g.toneladasHumedas) || 0;
-    totalSecas += ts || 0;
-    totalAu += au || 0;
+  const bloques = agruparXPorPila(lista);
+  bloques.forEach(bloqueX=>{
+    const bloque = bloqueX.map(x=>x.grupo);
+    const stats = statsBloque(bloque);
+    const esBloqueMultiple = bloque.length > 1;
+    const inicioBloque = n;
+    totalHumedas += stats.totalHumedas || 0;
+    totalSecas += stats.ts || 0;
+    totalAu += stats.au || 0;
 
-    ms.forEach(m=>{
-      const f = formatearFila(ws, n, NC);
-      if(conProcedencia) f.getCell(1).value = ini === n ? x.proc : null;
-      f.getCell(cPila).value = ini === n ? String(g.pila ?? '') : null;
-      f.getCell(cHumedas).value = ini === n ? celda(g.toneladasHumedas) : null;
-      f.getCell(cCodigo).value = celda(m.codigo);
-      f.getCell(cTenor).value = celda(m.tenor);
-      f.getCell(cHumedad).value = celda(m.humedad);
+    bloqueX.forEach(x=>{
+      const g = x.grupo;
+      const ms = (g.muestras && g.muestras.length) ? g.muestras : [{}];
+      const ini = n;
+      const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
+
+      ms.forEach(m=>{
+        const f = formatearFila(ws, n, NC);
+        if(conProcedencia) f.getCell(1).value = ini === n ? x.proc : null;
+        f.getCell(cPila).value = ini === n ? String(g.pila ?? '') : null;
+        // las toneladas húmedas solo se escriben una vez por bloque (más abajo), no por cada fecha
+        f.getCell(cHumedas).value = (!esBloqueMultiple && ini === n) ? celda(g.toneladasHumedas) : null;
+        f.getCell(cCodigo).value = celda(m.codigo);
+        f.getCell(cTenor).value = celda(m.tenor);
+        f.getCell(cHumedad).value = celda(m.humedad);
+        n++;
+      });
+      const fin = n - 1;
+
+      const colsFecha = (conProcedencia ? [1,cPila] : [cPila]).concat(esBloqueMultiple ? [] : [cHumedas]);
+      colsFecha.forEach(c => { if(fin > ini) ws.mergeCells(ini, c, fin, c); });
+
+      const f = formatearFila(ws, n, NC, {negrita:true});
+      ws.mergeCells(n, 1, n, cHumedas);
+      const fn = g.estadistico === 'mediana' ? 'MEDIAN' : 'AVERAGE';
+      f.getCell(cCodigo).value = rotuloCentro(g);
+      f.getCell(cTenor).value = {formula:`${fn}(${col(cTenor)}${ini}:${col(cTenor)}${fin})`, result: centro(g, ms.map(m=>m.tenor))};
+      f.getCell(cHumedad).value = {formula:`${fn}(${col(cHumedad)}${ini}:${col(cHumedad)}${fin})`, result: centro(g, ms.map(m=>m.humedad))};
+      f.getCell(cTenor).numFmt = '0.000';
+      f.getCell(cHumedad).numFmt = '0.00';
+
+      if(!esBloqueMultiple){
+        // una sola fecha: fórmulas vivas sobre las celdas de la misma hoja, para que se recalculen
+        // si se edita toneladas húmedas, tenor o humedad
+        const prom = n; // fila de PROMEDIO de esta pila, ya calculada arriba
+        ws.getCell(ini, cSecas).value = {formula:`${col(cHumedas)}${ini}*(1-${col(cHumedad)}${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
+        ws.getCell(ini, cProm).value = {formula:`${col(cTenor)}${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
+        ws.getCell(ini, cAu).value = {formula:`${col(cSecas)}${ini}*${col(cProm)}${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
+        ws.getCell(ini, cSecas).numFmt = '0.00';
+        ws.getCell(ini, cProm).numFmt = '0.000';
+        ws.getCell(ini, cAu).numFmt = '0.00';
+        [cSecas,cProm,cAu].forEach(c => ws.mergeCells(ini, c, n, c));
+      }
       n++;
     });
-    const fin = n - 1;
 
-    (conProcedencia ? [1,cPila,cHumedas] : [cPila,cHumedas]).forEach(c => { if(fin > ini) ws.mergeCells(ini, c, fin, c); });
-
-    const f = formatearFila(ws, n, NC, {negrita:true});
-    ws.mergeCells(n, 1, n, cHumedas);
-    const fn = g.estadistico === 'mediana' ? 'MEDIAN' : 'AVERAGE';
-    f.getCell(cCodigo).value = rotuloCentro(g);
-    f.getCell(cTenor).value = {formula:`${fn}(${col(cTenor)}${ini}:${col(cTenor)}${fin})`, result: centro(g, ms.map(m=>m.tenor))};
-    f.getCell(cHumedad).value = {formula:`${fn}(${col(cHumedad)}${ini}:${col(cHumedad)}${fin})`, result: centro(g, ms.map(m=>m.humedad))};
-    f.getCell(cTenor).numFmt = '0.000';
-    f.getCell(cHumedad).numFmt = '0.00';
-
-    // toneladas secas, tenor promedio y Au contenido: fórmulas vivas sobre las celdas de la misma hoja,
-    // no valores fijos, para que se recalculen si se edita toneladas húmedas, tenor o humedad
-    const prom = n; // fila de PROMEDIO de esta pila, ya calculada arriba
-    ws.getCell(ini, cSecas).value = {formula:`${col(cHumedas)}${ini}*(1-${col(cHumedad)}${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
-    ws.getCell(ini, cProm).value = {formula:`${col(cTenor)}${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
-    ws.getCell(ini, cAu).value = {formula:`${col(cSecas)}${ini}*${col(cProm)}${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
-    ws.getCell(ini, cSecas).numFmt = '0.00';
-    ws.getCell(ini, cProm).numFmt = '0.000';
-    ws.getCell(ini, cAu).numFmt = '0.00';
-    [cSecas,cProm,cAu].forEach(c => ws.mergeCells(ini, c, n, c));
-    n++;
+    if(esBloqueMultiple){
+      // misma pila en varias fechas con un solo peso total: se calculan con el peso total y todas
+      // las muestras juntas, y se escriben una sola vez, fusionadas en todo el bloque
+      const finBloque = n - 1;
+      ws.getCell(inicioBloque, cHumedas).value = stats.totalHumedas === null ? null : Number(stats.totalHumedas.toFixed(2));
+      ws.getCell(inicioBloque, cSecas).value = stats.ts === null ? null : Number(stats.ts.toFixed(2));
+      ws.getCell(inicioBloque, cProm).value = stats.tp === null ? null : Number(stats.tp.toFixed(3));
+      ws.getCell(inicioBloque, cAu).value = stats.au === null ? null : Number(stats.au.toFixed(2));
+      ws.getCell(inicioBloque, cSecas).numFmt = '0.00';
+      ws.getCell(inicioBloque, cProm).numFmt = '0.000';
+      ws.getCell(inicioBloque, cAu).numFmt = '0.00';
+      [cHumedas,cSecas,cProm,cAu].forEach(c => ws.mergeCells(inicioBloque, c, finBloque, c));
+    }
   });
 
   const filaDesde = 5, filaHasta = n - 1;
