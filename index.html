@@ -796,7 +796,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-29';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-30';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1156,20 +1156,31 @@ async function calcularPanel(){
 }
 
 function tablaPendientes(lista){
-  return `<table class="patio tabla-pend"><thead><tr>
-      <th>PROCEDENCIA</th><th>FECHA</th><th>PILA</th><th>ORDEN</th><th>FALTAN</th><th>ESTADO</th>
-    </tr></thead><tbody>` +
-    lista.map(x=>{
-      const total = x.faltan === x.total;
-      return `<tr class="${total ? 'fila-falta' : 'fila-parcial'}">
-        <td class="izq">${esc(x.proc)}</td>
-        <td>${esc(fechaLegible(x.fecha))}</td>
-        <td>${esc(x.pila)}</td>
-        <td><b>${esc(x.orden)}</b></td>
-        <td>${x.faltan} de ${x.total}</td>
-        <td><span class="marca ${total ? 'mal' : 'medio'}">${total ? 'SIN TENOR' : 'INCOMPLETA'}</span></td>
-      </tr>`;
-    }).join('') + `</tbody></table>`;
+  const porProc = new Map();
+  lista.forEach(x=>{
+    if(!porProc.has(x.procId)) porProc.set(x.procId, []);
+    porProc.get(x.procId).push(x);
+  });
+  const ordenProc = PROCEDENCIAS.map(p=>p.id).filter(id => porProc.has(id));
+
+  return ordenProc.map(id=>{
+    const grupo = porProc.get(id);
+    const codigos = grupo.reduce((a,x)=> a + x.faltan, 0);
+    return `<div class="fase">${esc(grupo[0].proc)}<span style="float:right;font-weight:normal">${grupo.length} pila${grupo.length===1?'':'s'} · ${codigos} código${codigos===1?'':'s'} sin tenor</span></div>
+      <table class="patio tabla-pend"><thead><tr>
+        <th>FECHA</th><th>PILA</th><th>ORDEN</th><th>FALTAN</th><th>ESTADO</th>
+      </tr></thead><tbody>` +
+      grupo.map(x=>{
+        const total = x.faltan === x.total;
+        return `<tr class="${total ? 'fila-falta' : 'fila-parcial'}">
+          <td>${esc(fechaLegible(x.fecha))}</td>
+          <td>${esc(x.pila)}</td>
+          <td><b>${esc(x.orden)}</b></td>
+          <td>${x.faltan} de ${x.total}</td>
+          <td><span class="marca ${total ? 'mal' : 'medio'}">${total ? 'SIN TENOR' : 'INCOMPLETA'}</span></td>
+        </tr>`;
+      }).join('') + `</tbody></table>`;
+  }).join('');
 }
 
 function panelPatio(){
@@ -1178,7 +1189,7 @@ function panelPatio(){
   // el panel sigue siempre al mes abierto en las carpetas
   const mes = ESTADO.mesPatio || pan.mesHoy;
   const lista = pan.pendientes.filter(x => x.mes === mes)
-                              .sort((a,b)=> a.clave.localeCompare(b.clave) || a.proc.localeCompare(b.proc));
+                              .sort((a,b)=> a.clave.localeCompare(b.clave));
   const pilas = lista.length;
   const codigos = lista.reduce((a,x)=> a + x.faltan, 0);
   const rotuloMes = nombreMes(mes) + (mes === pan.mesHoy ? ' — MES EN CURSO' : '');
@@ -1340,49 +1351,76 @@ function pintarStockPatio(){
     return;
   }
 
-  const th = `<th>PROCEDENCIA</th>` + COLS_STOCK.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('');
-  let cuerpo = '';
-  let totalHumedas = 0, totalSecas = 0, totalAu = 0;
-  lista.forEach(x=>{
-    const g = x.grupo;
-    const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:''}];
-    const n = ms.length;
-    const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
-    totalHumedas += num(g.toneladasHumedas) || 0;
-    totalSecas += ts || 0;
-    totalAu += au || 0;
-    ms.forEach((m, k)=>{
-      const cabecera = k === 0 ? `
-        <td rowspan="${n+1}">${esc(x.proc)}</td>
-        <td rowspan="${n+1}">${esc(g.pila)}</td>
-        <td rowspan="${n+1}">${g.toneladasHumedas === '' || g.toneladasHumedas == null ? '' : esc(g.toneladasHumedas)}</td>` : '';
-      const calculados = k === 0 ? `
-        <td rowspan="${n+1}">${fmt(ts, 2)}</td>
-        <td rowspan="${n+1}">${fmt(tp, 3)}</td>
-        <td rowspan="${n+1}">${fmt(au, 2)}</td>` : '';
-      cuerpo += `<tr class="grupo">${cabecera}
-        <td>${esc(m.codigo)}</td>
-        <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
-        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}</tr>`;
-    });
-    cuerpo += `<tr class="grupo promedio">
-      <td>${rotuloCentro(g)}</td>
-      <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
-      <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
-  });
-  const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
-  cuerpo += `<tr class="grupo fila-total">
-      <td colspan="2" class="izq"><b>TOTAL</b></td>
-      <td><b>${fmt(totalHumedas || null, 2)}</b></td>
-      <td colspan="3"></td>
-      <td><b>${fmt(totalSecas || null, 2)}</b></td>
-      <td></td>
-      <td><b>${fmt(totalAu || null, 2)}</b></td></tr>
-    <tr class="grupo fila-ponderado">
-      <td colspan="8" class="izq"><b>TENOR PONDERADO CONSOLIDADO — PILAS EN STOCK (g/t)</b></td>
-      <td><b>${fmt(tenorPonderado, 3)}</b></td></tr>`;
+  const th = COLS_STOCK.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('');
 
-  zona.innerHTML = tituloTabla + barras + `<table class="patio tabla-stock"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+  const porProc = new Map();
+  lista.forEach(x=>{
+    if(!porProc.has(x.procId)) porProc.set(x.procId, []);
+    porProc.get(x.procId).push(x);
+  });
+  const ordenProc = PROCEDENCIAS.map(p=>p.id).filter(id => porProc.has(id));
+
+  let totalHumedasGen = 0, totalSecasGen = 0, totalAuGen = 0;
+  let cuerpo = '';
+
+  ordenProc.forEach(id=>{
+    const grupo = porProc.get(id);
+    let totalHumedas = 0, totalSecas = 0, totalAu = 0;
+    let filas = '';
+    grupo.forEach(x=>{
+      const g = x.grupo;
+      const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:''}];
+      const n = ms.length;
+      const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
+      totalHumedas += num(g.toneladasHumedas) || 0;
+      totalSecas += ts || 0;
+      totalAu += au || 0;
+      ms.forEach((m, k)=>{
+        const cabecera = k === 0 ? `
+          <td rowspan="${n+1}">${esc(g.pila)}</td>
+          <td rowspan="${n+1}">${g.toneladasHumedas === '' || g.toneladasHumedas == null ? '' : esc(g.toneladasHumedas)}</td>` : '';
+        const calculados = k === 0 ? `
+          <td rowspan="${n+1}">${fmt(ts, 2)}</td>
+          <td rowspan="${n+1}">${fmt(tp, 3)}</td>
+          <td rowspan="${n+1}">${fmt(au, 2)}</td>` : '';
+        filas += `<tr class="grupo">${cabecera}
+          <td>${esc(m.codigo)}</td>
+          <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
+          <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}</tr>`;
+      });
+      filas += `<tr class="grupo promedio">
+        <td>${rotuloCentro(g)}</td>
+        <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
+        <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
+    });
+    const tenorPonderadoProc = totalSecas ? totalAu / totalSecas : null;
+    filas += `<tr class="grupo fila-total">
+        <td class="izq"><b>TOTAL</b></td>
+        <td><b>${fmt(totalHumedas || null, 2)}</b></td>
+        <td colspan="3"></td>
+        <td><b>${fmt(totalSecas || null, 2)}</b></td>
+        <td></td>
+        <td><b>${fmt(totalAu || null, 2)}</b></td></tr>
+      <tr class="grupo fila-ponderado">
+        <td colspan="7" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
+        <td><b>${fmt(tenorPonderadoProc, 3)}</b></td></tr>`;
+
+    cuerpo += `<div class="fase">${esc(grupo[0].proc)}<span style="float:right;font-weight:normal">${grupo.length} pila${grupo.length===1?'':'s'} en stock</span></div>
+      <table class="patio tabla-stock"><thead><tr>${th}</tr></thead><tbody>${filas}</tbody></table>`;
+
+    totalHumedasGen += totalHumedas;
+    totalSecasGen += totalSecas;
+    totalAuGen += totalAu;
+  });
+
+  const tenorPonderadoGen = totalSecasGen ? totalAuGen / totalSecasGen : null;
+  cuerpo += `<table class="patio tabla-stock" style="margin-top:6px"><tbody>
+      <tr class="grupo fila-ponderado">
+        <td colspan="7" class="izq"><b>TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)</b></td>
+        <td><b>${fmt(tenorPonderadoGen, 3)}</b></td></tr>
+    </tbody></table>`;
+
+  zona.innerHTML = tituloTabla + barras + cuerpo;
   $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
   const totalM = lista.reduce((a,x)=> a + (x.grupo.muestras||[]).length, 0);
   ponerPie(`${lista.length} pila${lista.length===1?'':'s'} en stock · ${totalM} código${totalM===1?'':'s'}`);
