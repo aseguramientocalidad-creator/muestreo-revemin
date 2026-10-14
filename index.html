@@ -929,7 +929,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '14/10/2026-42';   // sirve para confirmar qué versión está cargada
+const VERSION = '14/10/2026-43';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1445,15 +1445,15 @@ function pintarPatio(){
         ms.forEach((m, k)=>{
           const cabecera = k === 0 ? `
             <td rowspan="${n+1}"><b>${esc(fechaLegible(g.fecha))}</b></td>
-            ${bi === 0 ? `<td rowspan="${filasBloque}" style="vertical-align:bottom"><b>MEZCLA (${pilas})</b></td>` : ''}
+            ${bi === 0 ? `<td rowspan="${filasBloque}" style="vertical-align:middle"><b>MEZCLA (${pilas})</b></td>` : ''}
             <td rowspan="${n+1}">${esc(g.turno)}</td>
             <td rowspan="${n+1}">${esc(g.orden)}</td>` : '';
           const fusionadas = (k === 0 && bi === 0) ? `
-            <td rowspan="${filasBloque}" style="vertical-align:bottom">${fmt(stats.totalHumedas, 2)}</td>` : '';
+            <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.totalHumedas, 2)}</td>` : '';
           const calculados = (k === 0 && bi === 0) ? `
-            <td rowspan="${filasBloque}" style="vertical-align:bottom">${fmt(stats.ts, 2)}</td>
-            <td rowspan="${filasBloque}" style="vertical-align:bottom">${fmt(stats.tp, 3)}</td>
-            <td rowspan="${filasBloque}" style="vertical-align:bottom">${fmt(stats.au, 2)}</td>` : '';
+            <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.ts, 2)}</td>
+            <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.tp, 3)}</td>
+            <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.au, 2)}</td>` : '';
           const acciones = k === 0 ? `<td rowspan="${n+1}" class="col-acc">
             <button class="mini" data-editar="${i}">Editar</button><br>
             <button class="mini borrar" data-borrar="${i}">Eliminar</button></td>` : '';
@@ -1600,13 +1600,13 @@ function pintarStockPatio(){
           const n = ms.length;
           ms.forEach((m, k)=>{
             const cabecera = (k === 0 && bi === 0)
-              ? `<td rowspan="${filasBloque}" style="vertical-align:bottom"><b>MEZCLA (${pilas})</b></td>` : '';
+              ? `<td rowspan="${filasBloque}" style="vertical-align:middle"><b>MEZCLA (${pilas})</b></td>` : '';
             const fusionadas = (k === 0 && bi === 0)
-              ? `<td rowspan="${filasBloque}" style="vertical-align:bottom">${fmt(stats.totalHumedas, 2)}</td>` : '';
+              ? `<td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.totalHumedas, 2)}</td>` : '';
             const calculados = (k === 0 && bi === 0)
-              ? `<td rowspan="${filasBloque}" style="vertical-align:bottom">${fmt(stats.ts, 2)}</td>
-                 <td rowspan="${filasBloque}" style="vertical-align:bottom">${fmt(stats.tp, 3)}</td>
-                 <td rowspan="${filasBloque}" style="vertical-align:bottom">${fmt(stats.au, 2)}</td>` : '';
+              ? `<td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.ts, 2)}</td>
+                 <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.tp, 3)}</td>
+                 <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.au, 2)}</td>` : '';
             filas += `<tr class="grupo">${cabecera}${fusionadas}
               <td>${esc(m.codigo)}</td>
               <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
