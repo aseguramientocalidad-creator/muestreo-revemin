@@ -232,7 +232,7 @@
   .opcion-export{display:flex; align-items:flex-start; gap:12px; border:2px solid var(--gris-suave);
     padding:12px 14px; margin-bottom:10px; cursor:pointer; background:#fff}
   .opcion-export:hover{background:var(--t-hover)}
-  .opcion-export input[type=radio]{width:18px !important; height:18px; flex:0 0 18px; margin:1px 0 0;
+  .opcion-export input[type=radio],.opcion-export input[type=checkbox]{width:18px !important; height:18px; flex:0 0 18px; margin:1px 0 0;
     accent-color:var(--t-acento); cursor:pointer}
   .opcion-export span{display:block}
   .opcion-export b{display:block; font-size:14px; color:#000}
@@ -367,6 +367,24 @@
     <footer>
       <button type="button" class="btn" id="export-cancelar">Cancelar</button>
       <button type="button" class="btn btn-primario" id="export-aceptar">Exportar</button>
+    </footer>
+  </div>
+</div>
+
+<div class="telon" id="telon-mezcla">
+  <div class="panel" style="max-width:640px">
+    <header>Mezclar pilas</header>
+    <div class="cuerpo">
+      <p style="margin:0 0 14px; font-size:13px">Seleccione dos o más pilas del mes abierto para combinarlas en un solo
+        registro de la tabla de tenores. Los datos de cada pila se conservan sin cambios y la mezcla se puede
+        revertir en cualquier momento, quedando cada pila de nuevo por separado.</p>
+      <div id="mezcla-lista"></div>
+      <div class="campo" style="margin-top:14px"><label>Fecha de la mezcla</label>
+        <input type="date" id="mezcla-fecha" min="2000-01-01" max="2099-12-31"></div>
+    </div>
+    <footer>
+      <button type="button" class="btn" id="mezcla-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-primario" id="mezcla-aceptar">Mezclar</button>
     </footer>
   </div>
 </div>
@@ -855,7 +873,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '10/10/2026-36';   // sirve para confirmar qué versión está cargada
+const VERSION = '10/10/2026-37';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -950,7 +968,7 @@ async function cargarDatos(){
   }else if(n === 'consolidado'){
     const filas = [];
     for(const p of PROCEDENCIAS){
-      (await leerPatio(p.id)).forEach(g =>
+      (await leerPatio(p.id)).filter(g => !g.ocultoPorMezcla).forEach(g =>
         (g.muestras||[]).forEach(m => filas.push({
           origen:'Patio', procedencia:p.nombre, fecha:g.fecha, referencia:`Pila ${g.pila||''}`,
           codigo:m.codigo, tenor:m.tenor, humedad:m.humedad
@@ -1003,6 +1021,7 @@ function pintar(){
 function carpetasMes(){
   const cuenta = {};
   ESTADO.datos.forEach(g=>{
+    if(g.ocultoPorMezcla) return;
     const m = (g.fecha || '').slice(0,7);
     if(m) cuenta[m] = (cuenta[m] || 0) + 1;
   });
@@ -1039,7 +1058,7 @@ function enlazarCarpetas(zona){
   if(bp) bp.addEventListener('click', ()=>{ ESTADO.panelAbierto = !ESTADO.panelAbierto; pintar(); });
   zona.querySelectorAll('[data-anio]').forEach(b => b.addEventListener('click', ()=>{
     // al cambiar de año se abre su mes más reciente
-    const meses = [...new Set(ESTADO.datos.map(g => (g.fecha||'').slice(0,7)).filter(Boolean))]
+    const meses = [...new Set(ESTADO.datos.filter(g => !g.ocultoPorMezcla).map(g => (g.fecha||'').slice(0,7)).filter(Boolean))]
       .filter(m => m.slice(0,4) === b.dataset.anio).sort();
     if(meses.length){ ESTADO.mesPatio = meses[meses.length - 1]; pintar(); }
   }));
@@ -1205,6 +1224,7 @@ async function calcularPanel(){
   for(const p of PROCEDENCIAS){
     const datos = await leerPatio(p.id);
     datos.forEach(g=>{
+      if(g.ocultoPorMezcla) return; // está combinada dentro de una mezcla: no se cuenta por separado
       const ms = g.muestras || [];
       const faltan = ms.filter(sinTenor).length;
       if(faltan){
@@ -1287,6 +1307,7 @@ function pintarPatio(){
   const folders = carpetasMes();
   const carpetas = panelPatio() + folders;
   const grupos = ESTADO.datos
+    .filter(g => !g.ocultoPorMezcla)
     .filter(g => !ESTADO.mesPatio || (g.fecha || '').slice(0,7) === ESTADO.mesPatio)
     .filter(coincide).slice()
     .sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
@@ -1305,13 +1326,19 @@ function pintarPatio(){
     ? `<button class="btn btn-vista" id="btn-stock-patio">📦 Pilas en stock (${ESTADO.stock.length})</button>`
     : '';
   const tituloTabla = `<div class="rotulo">TENORES DE PATIO DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>`;
+  const btnMezclar = (!vistaGraf && grupos.filter(g => !g.esMezcla).length >= 2)
+    ? `<button class="btn" id="btn-mezclar-pilas">🔀 Mezclar pilas</button>` : '';
   const barras = `<div class="barra-vista-patio">${btnStock}${btnVista}</div>
-    <div class="barra-accion"><button class="btn btn-primario" id="btn-otra-pila">+ Registrar otra pila</button></div>`;
+    <div class="barra-accion">${btnMezclar}<button class="btn btn-primario" id="btn-otra-pila">+ Registrar otra pila</button></div>`;
   const rotulo = carpetas + tituloTabla + barras;
 
   function enlazarBotonStock(){
     const b = $('#btn-stock-patio');
     if(b) b.addEventListener('click', ()=>{ ESTADO.vistaPatio = 'stock'; pintar(); });
+  }
+  function enlazarBotonMezclar(){
+    const b = $('#btn-mezclar-pilas');
+    if(b) b.addEventListener('click', abrirDialogoMezcla);
   }
 
   if(!grupos.length){
@@ -1367,9 +1394,11 @@ function pintarPatio(){
           <td rowspan="${filasBloque}">${fmt(stats.ts, 2)}</td>
           <td rowspan="${filasBloque}">${fmt(stats.tp, 3)}</td>
           <td rowspan="${filasBloque}">${fmt(stats.au, 2)}</td>` : '';
-        const acciones = k === 0 ? `<td rowspan="${n+1}" class="col-acc">
+        const acciones = k === 0 ? (g.esMezcla
+          ? `<td rowspan="${n+1}" class="col-acc"><button class="mini" data-revertir="${i}">↩️ Revertir mezcla</button></td>`
+          : `<td rowspan="${n+1}" class="col-acc">
           <button class="mini" data-editar="${i}">Editar</button><br>
-          <button class="mini borrar" data-borrar="${i}">Eliminar</button></td>` : '';
+          <button class="mini borrar" data-borrar="${i}">Eliminar</button></td>`) : '';
         cuerpo += `<tr class="grupo">${cabecera}${fusionadas}
           <td>${esc(m.codigo)}</td>
           <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
@@ -1399,6 +1428,7 @@ function pintarPatio(){
   $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
   $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'graficos'; pintar(); });
   enlazarBotonStock();
+  enlazarBotonMezclar();
   enlazarCarpetas(zona);
   enlazarAcciones(zona);
   const totalM = grupos.reduce((a,g)=> a + (g.muestras||[]).length, 0);
@@ -1551,6 +1581,7 @@ function pintarConsolidado(){
 function enlazarAcciones(zona){
   zona.querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', ()=> abrirFormulario(Number(b.dataset.editar))));
   zona.querySelectorAll('[data-borrar]').forEach(b => b.addEventListener('click', ()=> borrar(Number(b.dataset.borrar))));
+  zona.querySelectorAll('[data-revertir]').forEach(b => b.addEventListener('click', ()=> revertirMezcla(Number(b.dataset.revertir))));
 }
 
 /* ---------- formulario ---------- */
@@ -1592,10 +1623,98 @@ function listaPilasConocidas(){
   const vistos = new Set();
   const nombres = [];
   (ESTADO.datos || []).forEach(x=>{
+    if(x.esMezcla) return; // el nombre "MEZCLA (...)" no se sugiere como nombre de pila
     const clave = normalizaPila(x.pila);
     if(x.pila && !vistos.has(clave)){ vistos.add(clave); nombres.push(String(x.pila)); }
   });
   return nombres.sort((a,b)=> a.localeCompare(b));
+}
+
+/* ---------- mezcla de pilas ---------- */
+// pilas de la procedencia y mes abiertos que se pueden mezclar: ni ya están ocultas dentro de otra
+// mezcla, ni son ellas mismas una mezcla (no se admite mezclar una mezcla con otras pilas)
+function candidatosMezcla(){
+  return ESTADO.datos
+    .filter(g => !g.ocultoPorMezcla && !g.esMezcla)
+    .filter(g => !ESTADO.mesPatio || (g.fecha || '').slice(0,7) === ESTADO.mesPatio)
+    .slice()
+    .sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
+}
+
+// siguiente correlativo libre del mes de la fecha dada, para numerar la orden de la mezcla
+function siguienteCorrelativo(fecha){
+  const mes = mesDe(fecha);
+  let max = 0;
+  ESTADO.datos.forEach(g=>{
+    if(mesDe(g.fecha) !== mes) return;
+    const c = parseInt(correlativoDe(g), 10);
+    if(!isNaN(c) && c > max) max = c;
+  });
+  return String(max + 1);
+}
+
+function abrirDialogoMezcla(){
+  const candidatos = candidatosMezcla();
+  if(candidatos.length < 2){ avisar('Necesita al menos dos pilas en este mes para mezclar'); return; }
+  const lista = $('#mezcla-lista');
+  lista.innerHTML = candidatos.map(g=>{
+    const i = ESTADO.datos.indexOf(g);
+    const ton = g.toneladasHumedas === '' || g.toneladasHumedas == null ? '—' : esc(g.toneladasHumedas) + ' t';
+    return `<label class="opcion-export" style="display:block">
+      <input type="checkbox" value="${i}">
+      <span><b>${esc(g.pila)}</b> — ${esc(fechaLegible(g.fecha))} · ${ton}</span></label>`;
+  }).join('');
+  $('#mezcla-fecha').value = new Date().toISOString().slice(0,10);
+  $('#telon-mezcla').classList.add('activo');
+}
+function cerrarDialogoMezcla(){ $('#telon-mezcla').classList.remove('activo'); }
+$('#mezcla-cancelar').addEventListener('click', cerrarDialogoMezcla);
+
+$('#mezcla-aceptar').addEventListener('click', async ()=>{
+  const marcados = [...$('#mezcla-lista').querySelectorAll('input[type=checkbox]:checked')]
+    .map(c => Number(c.value));
+  if(marcados.length < 2){ avisar('Seleccione al menos dos pilas para mezclar'); return; }
+  const fecha = $('#mezcla-fecha').value;
+  if(!fecha){ avisar('Indique la fecha de la mezcla'); return; }
+
+  const miembros = marcados.map(i => ESTADO.datos[i]);
+  const muestras = [];
+  miembros.forEach(g => (g.muestras || []).forEach(m => muestras.push(Object.assign({}, m))));
+  const valores = miembros.map(g => num(g.toneladasHumedas)).filter(v => v !== null);
+  const totalHumedas = valores.length ? valores.reduce((a,v)=> a + v, 0) : null;
+  const correlativo = siguienteCorrelativo(fecha);
+
+  const mezcla = {
+    __id: Date.now().toString(36),
+    fecha, pila: `MEZCLA (${miembros.map(g => g.pila).join(', ')})`,
+    turno: '', correlativo, orden: armarOrden(ESTADO.procedencia, fecha, correlativo),
+    toneladasHumedas: totalHumedas === null ? '' : String(totalHumedas),
+    stock: 'no', estadistico: miembros[0].estadistico || 'media',
+    muestras, esMezcla: true, miembros: miembros.map(g => g.__id)
+  };
+  miembros.forEach(g => { g.ocultoPorMezcla = true; g.mezclaId = mezcla.__id; });
+  ESTADO.datos.push(mezcla);
+
+  const ok = await escribir(clavePatio(ESTADO.procedencia), ESTADO.datos);
+  avisar(ok ? 'Pilas mezcladas' : 'Mezcla hecha solo en esta sesión: descargue el Excel antes de cerrar');
+  cerrarDialogoMezcla();
+  refrescarPanel();
+  pintar();
+});
+
+async function revertirMezcla(i){
+  const mezcla = ESTADO.datos[i];
+  if(!mezcla || !mezcla.esMezcla) return;
+  if(!confirm(`¿Revertir la mezcla "${mezcla.pila}"? Cada pila volverá a aparecer por separado, tal como estaba antes de mezclarla.`)) return;
+  const idsMiembros = new Set(mezcla.miembros || []);
+  ESTADO.datos.forEach(g=>{
+    if(idsMiembros.has(g.__id)){ delete g.ocultoPorMezcla; delete g.mezclaId; }
+  });
+  ESTADO.datos = ESTADO.datos.filter(g => g !== mezcla);
+  const ok = await escribir(clavePatio(ESTADO.procedencia), ESTADO.datos);
+  avisar(ok ? 'Mezcla revertida: las pilas vuelven a verse por separado' : 'Cambio hecho solo en esta sesión: descargue el Excel antes de cerrar');
+  refrescarPanel();
+  pintar();
 }
 
 function formularioPatio(indice, base){
@@ -1823,6 +1942,7 @@ $('#formulario').addEventListener('submit', async e=>{
 
 async function borrar(i){
   const r = ESTADO.datos[i];
+  if(ESTADO.modulo === 'patio' && r && r.esMezcla){ revertirMezcla(i); return; }
   const ref = ESTADO.modulo==='carbon' ? `la orden ${r.orden||''}`
     : ESTADO.modulo==='patio' ? `la pila ${r.pila||''} del ${fechaLegible(r.fecha)}`
     : ESTADO.modulo==='proceso' ? `la muestra de ${nombrePunto(r.punto)} del ${fechaLegible(r.fecha)} ${r.hora||''}`
@@ -2465,6 +2585,7 @@ async function exportarExcelPatio(soloProc){
 
   for(const p of lista){
     const grupos = (await leerPatio(p.id))
+      .filter(g => !g.ocultoPorMezcla)
       .filter(g => !mesSel || (g.fecha || '').slice(0,7) === mesSel)
       .sort((a,b)=> claveOrden(a).localeCompare(claveOrden(b)));
     if(grupos.length) hayDatos = true;
