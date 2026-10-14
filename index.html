@@ -151,6 +151,7 @@
   .patio tr.promedio td{background:var(--t-cons-bg); font-weight:bold}
   .patio tr.fila-total td{background:var(--gris-cab); color:#fff; font-weight:bold}
   .patio tr.fila-ponderado td{background:var(--t-cons-bg); font-weight:bold; font-size:14px}
+  .patio tr.fila-ponderado-mezcla td{font-size:12px; border-top:2px solid var(--azul-oscuro,#1a4d7a)}
   /* tabla principal de tenores de patio: orden más ancha y en una sola línea;
      toneladas húmedas/secas y Au contenido más angostas, para que la tabla sea más compacta */
   .tabla-tenores{table-layout:fixed}
@@ -928,7 +929,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '14/10/2026-40';   // sirve para confirmar qué versión está cargada
+const VERSION = '14/10/2026-41';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1356,7 +1357,6 @@ function panelPatio(){
 
 function pintarPatio(){
   if(ESTADO.vistaPatio === 'stock'){ pintarStockPatio(); return; }
-  if(ESTADO.vistaPatio === 'mezclas'){ pintarMezclasPatio(); return; }
   // carpetasMes fija ESTADO.mesPatio, por eso se calcula antes que el panel
   const folders = carpetasMes();
   const carpetas = panelPatio() + folders;
@@ -1371,7 +1371,6 @@ function pintarPatio(){
 
   const vistaGraf = ESTADO.vistaPatio === 'graficos';
   const hayStock = ESTADO.stock && ESTADO.stock.length > 0;
-  const idsMezclas = new Set((ESTADO.datos || []).filter(g => g.mezclaId).map(g => g.mezclaId));
   const btnVista = grupos.length
     ? `<button class="btn btn-vista" id="btn-vista-patio">
          ${vistaGraf ? '📋 Ver tabla de tenores' : '📊 Ver gráficos y estadísticas'}</button>`
@@ -1379,21 +1378,16 @@ function pintarPatio(){
   const btnStock = hayStock
     ? `<button class="btn btn-vista" id="btn-stock-patio">📦 Pilas en stock (${ESTADO.stock.length})</button>`
     : '';
-  const btnVerMezclas = idsMezclas.size
-    ? `<button class="btn btn-vista" id="btn-ver-mezclas">🔀 Mezclas de ${esc(nombreProc(ESTADO.procedencia))} (${idsMezclas.size})</button>`
-    : '';
   const tituloTabla = `<div class="rotulo">TENORES DE PATIO DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>`;
   const btnMezclar = (!vistaGraf && grupos.length >= 2)
     ? `<button class="btn" id="btn-mezclar-pilas">🔀 Mezclar pilas</button>` : '';
-  const barras = `<div class="barra-vista-patio">${btnStock}${btnVerMezclas}${btnVista}</div>
+  const barras = `<div class="barra-vista-patio">${btnStock}${btnVista}</div>
     <div class="barra-accion">${btnMezclar}<button class="btn btn-primario" id="btn-otra-pila">+ Registrar otra pila</button></div>`;
   const rotulo = carpetas + tituloTabla + barras;
 
   function enlazarBotonStock(){
     const b = $('#btn-stock-patio');
     if(b) b.addEventListener('click', ()=>{ ESTADO.vistaPatio = 'stock'; pintar(); });
-    const bm = $('#btn-ver-mezclas');
-    if(bm) bm.addEventListener('click', ()=>{ ESTADO.vistaPatio = 'mezclas'; pintar(); });
   }
   function enlazarBotonMezclar(){
     const b = $('#btn-mezclar-pilas');
@@ -1432,10 +1426,60 @@ function pintarPatio(){
   bloques.forEach(bloque=>{
     const esMezclaManual = bloque.length > 1 && bloque[0].mezclaId;
     const stats = esMezclaManual ? statsMezcla(bloque) : statsBloque(bloque);
-    const filasBloque = bloque.reduce((a,g)=> a + ((g.muestras && g.muestras.length) ? g.muestras.length : 1) + 1, 0);
     totalHumedas += stats.totalHumedas || 0;
     totalSecas += stats.ts || 0;
     totalAu += stats.au || 0;
+
+    if(esMezclaManual){
+      // mezcla manual: cada pila conserva su fila tal cual sería sola (sin fusionar sus propias
+      // columnas de peso), y el cálculo combinado de la mezcla va en una fila aparte, justo
+      // después de la última pila mezclada — no desde el principio del bloque
+      bloque.forEach(g=>{
+        const i = ESTADO.datos.indexOf(g);
+        const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:'',obs:''}];
+        const n = ms.length;
+        ms.forEach((m, k)=>{
+          const cabecera = k === 0 ? `
+            <td rowspan="${n+1}"><b>${esc(fechaLegible(g.fecha))}</b></td>
+            <td rowspan="${n+1}">${esc(g.pila)}</td>
+            <td rowspan="${n+1}">${esc(g.turno)}</td>
+            <td rowspan="${n+1}">${esc(g.orden)}</td>
+            <td rowspan="${n+1}"></td>` : '';
+          const calculadosBlanco = k === 0 ? `
+            <td rowspan="${n+1}"></td>
+            <td rowspan="${n+1}"></td>
+            <td rowspan="${n+1}"></td>` : '';
+          const acciones = k === 0 ? `<td rowspan="${n+1}" class="col-acc">
+            <button class="mini" data-editar="${i}">Editar</button><br>
+            <button class="mini borrar" data-borrar="${i}">Eliminar</button></td>` : '';
+          cuerpo += `<tr class="grupo">${cabecera}
+            <td>${esc(m.codigo)}</td>
+            <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
+            <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculadosBlanco}${acciones}</tr>`;
+        });
+        cuerpo += `<tr class="grupo promedio">
+          <td>${rotuloCentro(g)}</td>
+          <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
+          <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
+      });
+      const enStock = String(bloque[0].stock||'').toLowerCase() === 'si';
+      const pilas = [...new Set(bloque.map(x=>x.pila))].map(esc).join(', ');
+      cuerpo += `<tr class="grupo fila-ponderado fila-ponderado-mezcla">
+        <td colspan="4" class="izq"><b>MEZCLA (${pilas}) — TENOR PONDERADO</b></td>
+        <td><b>${fmt(stats.totalHumedas, 2)}</b></td>
+        <td colspan="3"></td>
+        <td><b>${fmt(stats.ts, 2)}</b></td>
+        <td><b>${fmt(stats.tp, 3)}</b></td>
+        <td><b>${fmt(stats.au, 2)}</b></td>
+        <td class="col-acc">
+          <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}">↩️ Revertir</button><br>
+          <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>
+        </td></tr>`;
+      return;
+    }
+
+    // bloque normal: misma pila en varias fechas (sin cambios respecto a antes)
+    const filasBloque = bloque.reduce((a,g)=> a + ((g.muestras && g.muestras.length) ? g.muestras.length : 1) + 1, 0);
     bloque.forEach((g, bi)=>{
       const i = ESTADO.datos.indexOf(g);
       const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:'',obs:''}];
@@ -1447,13 +1491,9 @@ function pintarPatio(){
           <td rowspan="${n+1}">${esc(g.turno)}</td>
           <td rowspan="${n+1}">${esc(g.orden)}</td>` : '';
         // las columnas dependientes del peso (toneladas húmedas, secas, tenor promedio y Au contenido)
-        // se fusionan una sola vez por bloque: por fecha (misma pila) o por una mezcla manual de pilas
-        const enStock = esMezclaManual && String(bloque[0].stock||'').toLowerCase() === 'si';
+        // se fusionan una sola vez por bloque, para las fechas de una misma pila
         const fusionadas = (k === 0 && bi === 0) ? `
-          <td rowspan="${filasBloque}">${fmt(stats.totalHumedas, 2) === '—' ? '' : fmt(stats.totalHumedas, 2)}
-          ${esMezclaManual ? `<br><small class="nota-mezcla">MEZCLA (${[...new Set(bloque.map(x=>x.pila))].map(esc).join(', ')})
-            <br><button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}">↩️ Revertir mezcla</button>
-            <br><button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button></small>` : ''}</td>` : '';
+          <td rowspan="${filasBloque}">${fmt(stats.totalHumedas, 2) === '—' ? '' : fmt(stats.totalHumedas, 2)}</td>` : '';
         const calculados = (k === 0 && bi === 0) ? `
           <td rowspan="${filasBloque}">${fmt(stats.ts, 2)}</td>
           <td rowspan="${filasBloque}">${fmt(stats.tp, 3)}</td>
@@ -1541,11 +1581,49 @@ function pintarStockPatio(){
       const bloque = bloqueX.map(x=>x.grupo);
       const esMezclaManual = bloque.length > 1 && bloque[0].mezclaId;
       const stats = esMezclaManual ? statsMezcla(bloque) : statsBloque(bloque);
-      const filasBloque = bloque.reduce((a,g)=> a + ((g.muestras && g.muestras.length) ? g.muestras.length : 1) + 1, 0);
-      const enStock = esMezclaManual && String(bloque[0].stock||'').toLowerCase() === 'si';
       totalHumedas += stats.totalHumedas || 0;
       totalSecas += stats.ts || 0;
       totalAu += stats.au || 0;
+
+      if(esMezclaManual){
+        // igual que en la tabla de tenores: cada pila conserva su propia fila y el cálculo
+        // combinado de la mezcla va en una fila aparte, después de la última pila mezclada
+        bloque.forEach(g=>{
+          const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:''}];
+          const n = ms.length;
+          ms.forEach((m, k)=>{
+            const cabecera = k === 0
+              ? `<td rowspan="${n+1}">${esc(g.pila)}</td><td rowspan="${n+1}"></td>` : '';
+            const calculadosBlanco = k === 0
+              ? `<td rowspan="${n+1}"></td><td rowspan="${n+1}"></td><td rowspan="${n+1}"></td>` : '';
+            filas += `<tr class="grupo">${cabecera}
+              <td>${esc(m.codigo)}</td>
+              <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
+              <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculadosBlanco}</tr>`;
+          });
+          filas += `<tr class="grupo promedio">
+            <td>${rotuloCentro(g)}</td>
+            <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
+            <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
+        });
+        const enStock = String(bloque[0].stock||'').toLowerCase() === 'si';
+        const pilas = [...new Set(bloque.map(x=>x.pila))].map(esc).join(', ');
+        filas += `<tr class="grupo fila-ponderado fila-ponderado-mezcla">
+          <td class="izq"><b>MEZCLA (${pilas})</b></td>
+          <td><b>${fmt(stats.totalHumedas, 2)}</b></td>
+          <td colspan="3"></td>
+          <td><b>${fmt(stats.ts, 2)}</b></td>
+          <td><b>${fmt(stats.tp, 3)}</b></td>
+          <td><b>${fmt(stats.au, 2)}</b></td></tr>
+        <tr class="grupo">
+          <td colspan="8" class="col-acc" style="text-align:left">
+            <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(id)}">↩️ Revertir mezcla</button>
+            <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(id)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>
+          </td></tr>`;
+        return;
+      }
+
+      const filasBloque = bloque.reduce((a,g)=> a + ((g.muestras && g.muestras.length) ? g.muestras.length : 1) + 1, 0);
       bloque.forEach((g, bi)=>{
         const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:''}];
         const n = ms.length;
@@ -1553,12 +1631,9 @@ function pintarStockPatio(){
           const cabecera = k === 0 ? `
             <td rowspan="${n+1}">${esc(g.pila)}</td>` : '';
           // igual que en la tabla de tenores: las toneladas húmedas, secas, el tenor promedio y el Au
-          // contenido se fusionan una sola vez por bloque (misma pila en varias fechas, o mezcla manual)
+          // contenido se fusionan una sola vez por bloque, para las fechas de una misma pila
           const fusionadas = (k === 0 && bi === 0) ? `
-            <td rowspan="${filasBloque}">${fmt(stats.totalHumedas, 2) === '—' ? '' : fmt(stats.totalHumedas, 2)}
-            ${esMezclaManual ? `<br><small class="nota-mezcla">MEZCLA (${[...new Set(bloque.map(x=>x.pila))].map(esc).join(', ')})
-              <br><button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(id)}">↩️ Revertir mezcla</button>
-              <br><button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(id)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button></small>` : ''}</td>` : '';
+            <td rowspan="${filasBloque}">${fmt(stats.totalHumedas, 2) === '—' ? '' : fmt(stats.totalHumedas, 2)}</td>` : '';
           const calculados = (k === 0 && bi === 0) ? `
             <td rowspan="${filasBloque}">${fmt(stats.ts, 2)}</td>
             <td rowspan="${filasBloque}">${fmt(stats.tp, 3)}</td>
@@ -1606,77 +1681,6 @@ function pintarStockPatio(){
   enlazarAcciones(zona);
   const totalM = lista.reduce((a,x)=> a + (x.grupo.muestras||[]).length, 0);
   ponerPie(`${lista.length} pila${lista.length===1?'':'s'} en stock · ${totalM} código${totalM===1?'':'s'}`);
-}
-
-// sección aparte con solo las mezclas manuales creadas en la procedencia abierta (de todos los
-// meses a la vez, no solo el mes de la carpeta), cada una con su tenor ponderado ya calculado
-function pintarMezclasPatio(){
-  const zona = $('#zona-tabla');
-  const tituloTabla = `<div class="rotulo">MEZCLAS DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II</small></div>`;
-  const barras = `<div class="barra-vista-patio">
-      <button class="btn btn-vista" id="btn-vista-patio">📋 Ver tabla de tenores</button>
-    </div>`;
-
-  const idsMezclas = [...new Set((ESTADO.datos || []).filter(g => g.mezclaId).map(g => g.mezclaId))];
-  // cada mezcla aparece en el orden de su primer miembro, de la más antigua a la más reciente
-  const mezclas = idsMezclas.map(id=>{
-    const miembros = ESTADO.datos.filter(g => g.mezclaId === id)
-      .slice().sort((a,b)=> (a.fecha||'').localeCompare(b.fecha||''));
-    return {id, miembros};
-  }).sort((a,b)=> (a.miembros[0].fecha||'').localeCompare(b.miembros[0].fecha||''));
-
-  if(!mezclas.length){
-    zona.innerHTML = tituloTabla + barras + `<div class="vacio">
-      <strong>Todavía no hay mezclas creadas en esta procedencia</strong>
-      Use “Mezclar pilas” desde la tabla de tenores para combinar dos o más pilas.</div>`;
-    $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
-    ponerPie('0 mezclas');
-    return;
-  }
-
-  const th = ['PILAS', 'FECHAS', 'TONELADAS HUMEDAS', 'TONELADAS SECAS', 'TENOR PROMEDIO (g/t)', 'Au CONTENIDO (g)', 'EN STOCK']
-    .map(t=>`<th>${t}</th>`).join('');
-
-  let totalHumedas = 0, totalSecas = 0, totalAu = 0;
-  const filas = mezclas.map(({id, miembros})=>{
-    const stats = statsMezcla(miembros);
-    totalHumedas += stats.totalHumedas || 0;
-    totalSecas += stats.ts || 0;
-    totalAu += stats.au || 0;
-    const pilas = [...new Set(miembros.map(g => g.pila))].map(esc).join(', ');
-    const fechas = miembros.map(g => fechaLegible(g.fecha)).join(', ');
-    const enStock = String(miembros[0].stock||'').toLowerCase() === 'si';
-    return `<tr class="grupo">
-      <td><b>MEZCLA (${pilas})</b></td>
-      <td>${esc(fechas)}</td>
-      <td>${fmt(stats.totalHumedas, 2)}</td>
-      <td>${fmt(stats.ts, 2)}</td>
-      <td>${fmt(stats.tp, 3)}</td>
-      <td>${fmt(stats.au, 2)}</td>
-      <td>${enStock ? 'Si' : 'No'}</td>
-      <td class="col-acc">
-        <button type="button" class="mini" data-revertir-mezcla="${esc(id)}">↩️ Revertir</button><br>
-        <button type="button" class="mini" data-stock-mezcla="${esc(id)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>
-      </td></tr>`;
-  }).join('');
-
-  const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
-  const filaTotal = `<tr class="grupo fila-total">
-      <td class="izq" colspan="2"><b>TOTAL DE MEZCLAS</b></td>
-      <td><b>${fmt(totalHumedas || null, 2)}</b></td>
-      <td><b>${fmt(totalSecas || null, 2)}</b></td>
-      <td></td>
-      <td><b>${fmt(totalAu || null, 2)}</b></td>
-      <td colspan="2"></td></tr>
-    <tr class="grupo fila-ponderado">
-      <td colspan="6" class="izq"><b>TENOR PONDERADO DE LAS MEZCLAS DE ${esc(nombreProc(ESTADO.procedencia))} (g/t)</b></td>
-      <td colspan="2"><b>${fmt(tenorPonderado, 3)}</b></td></tr>`;
-
-  zona.innerHTML = tituloTabla + barras +
-    `<table class="patio tabla-tenores"><thead><tr>${th}</tr></thead><tbody>${filas}${filaTotal}</tbody></table>`;
-  $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
-  enlazarAcciones(zona);
-  ponerPie(`${mezclas.length} mezcla${mezclas.length===1?'':'s'}`);
 }
 
 function pintarGenerico(){
