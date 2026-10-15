@@ -915,7 +915,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '15/10/2026-51';   // sirve para confirmar qué versión está cargada
+const VERSION = '15/10/2026-52';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2180,6 +2180,7 @@ $('#export-aceptar').addEventListener('click', async ()=>{
 $('#btn-csv').addEventListener('click', async ()=>{
   if(ESTADO.modulo === 'patio'){
     if(ESTADO.vistaPatio === 'stock'){ await exportarExcelStock(); return; }
+    if(ESTADO.vistaPatio === 'mezclas'){ await exportarExcelMezclas(); return; }
     abrirDialogoExport(); return;
   }
   if(ESTADO.modulo === 'proceso'){ await exportarExcelProceso(); return; }
@@ -3064,6 +3065,34 @@ async function exportarExcelStock(){
     'TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)');
 
   await descargarLibro(wb, `PILAS EN STOCK PLANTA REVEMIN ${rotuloMes}.xlsx`);
+}
+
+// exporta SOLO las mezclas (no las pilas sueltas) de la procedencia que está abierta en pantalla,
+// respetando el mismo mes/filtro que se ve en la vista Mezclas — a diferencia de Stock, que junta
+// todas las procedencias, aquí se genera una sola hoja con las mezclas de la procedencia seleccionada
+async function exportarExcelMezclas(){
+  if(typeof ExcelJS === 'undefined'){ avisar('No se pudo cargar el generador de Excel. Revise la conexión.'); return; }
+  const grupos = ESTADO.datos
+    .filter(g => !ESTADO.mesPatio || (g.fecha || '').slice(0,7) === ESTADO.mesPatio)
+    .filter(coincide)
+    .filter(g => g.mezclaId);
+  if(!grupos.length){ avisar('No hay mezclas creadas en esta procedencia'); return; }
+  avisar('Generando el archivo…');
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Control de Muestreo — Planta Revemin';
+  const proc = nombreProc(ESTADO.procedencia);
+  const mes = ESTADO.mesPatio
+    ? `${MESES[Number(ESTADO.mesPatio.slice(5,7))-1]} ${ESTADO.mesPatio.slice(0,4)}`
+    : periodo(grupos);
+
+  const lista = grupos.map(g => ({procId: ESTADO.procedencia, proc, grupo: g}));
+  const ws = wb.addWorksheet('MEZCLAS');
+  escribirHojaStock(ws, lista, false,
+    `MEZCLAS DE ${proc}`, `PLANTA REVEMIN PIM II${mes ? '-' + mes : ''}`,
+    `TENOR PONDERADO — ${proc} (g/t)`);
+
+  await descargarLibro(wb, `MEZCLAS ${proc}${mes ? ' ' + mes : ''}.xlsx`);
 }
 
 async function exportarExcelProceso(){
