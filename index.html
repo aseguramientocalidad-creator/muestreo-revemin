@@ -831,14 +831,26 @@ function clavePilaFuzzy(p){
     .join('');
 }
 
+// agrupa TODOS los registros que comparten el mismo nombre de pila dentro de la lista recibida
+// (normalmente ya filtrada a una sola procedencia), sin importar si están uno al lado del otro o
+// separados por otras pilas en medio — antes solo se fusionaban si quedaban consecutivos, por lo
+// que una misma pila con una orden/correlativo fuera de secuencia (ej. "004" con una orden mucho
+// más alta cargada después) aparecía como un bloque aparte en vez de unirse al resto de "004".
+// Una pila sin nombre nunca se fusiona con otra (cada registro sin pila es su propio bloque).
+// Dentro de cada bloque, las fechas se muestran en orden cronológico real (no por el orden en que
+// se cargaron los registros), para que una fecha no quede "fuera de secuencia" tras unificar.
 function agruparPorPila(grupos){
-  const bloques = [];
-  grupos.forEach(g=>{
-    const ultimo = bloques[bloques.length - 1];
-    if(ultimo && normalizaPila(ultimo[0].pila) === normalizaPila(g.pila) && normalizaPila(g.pila) !== '') ultimo.push(g);
-    else bloques.push([g]);
+  const indiceOriginal = new Map(grupos.map((g,i)=>[g,i]));
+  const porClave = new Map();
+  const ordenClaves = [];
+  grupos.forEach((g,i)=>{
+    const base = normalizaPila(g.pila);
+    const clave = base === '' ? `__sin_pila_${i}` : base;
+    if(!porClave.has(clave)){ porClave.set(clave, []); ordenClaves.push(clave); }
+    porClave.get(clave).push(g);
   });
-  return bloques;
+  return ordenClaves.map(clave => porClave.get(clave).slice().sort((a,b)=>
+    (a.fecha || '').localeCompare(b.fecha || '') || indiceOriginal.get(a) - indiceOriginal.get(b)));
 }
 
 // como agruparPorPila, pero además respeta las mezclas manuales (varias pilas de distinto número,
@@ -853,7 +865,7 @@ function agruparBloques(grupos){
     const filas = grupos.filter(g => g.mezclaId === id);
     return {filas, orden: Math.min(...filas.map(g => indiceOriginal.get(g)))};
   });
-  const bloquesNormales = agruparPorPila(restantes).map(filas=>({filas, orden: indiceOriginal.get(filas[0])}));
+  const bloquesNormales = agruparPorPila(restantes).map(filas=>({filas, orden: Math.min(...filas.map(g => indiceOriginal.get(g)))}));
 
   return [...bloquesMezcla, ...bloquesNormales].sort((a,b)=> a.orden - b.orden).map(b => b.filas);
 }
@@ -915,7 +927,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '15/10/2026-52';   // sirve para confirmar qué versión está cargada
+const VERSION = '15/10/2026-53';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
