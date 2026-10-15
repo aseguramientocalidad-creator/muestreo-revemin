@@ -175,14 +175,15 @@
   .tabla-stock{table-layout:fixed}
   .tabla-stock thead th{white-space:normal; word-break:normal; overflow-wrap:normal; hyphens:none; font-size:11px; padding:8px 4px; line-height:1.3}
   .tabla-stock td{padding:7px 5px; overflow-wrap:break-word}
-  .tabla-stock th:nth-child(1),.tabla-stock td:nth-child(1){width:18%}
-  .tabla-stock th:nth-child(2),.tabla-stock td:nth-child(2){width:14%}
+  .tabla-stock th:nth-child(1),.tabla-stock td:nth-child(1){width:12%}
+  .tabla-stock th:nth-child(2),.tabla-stock td:nth-child(2){width:13%}
   .tabla-stock th:nth-child(3),.tabla-stock td:nth-child(3){width:12%}
-  .tabla-stock th:nth-child(4),.tabla-stock td:nth-child(4){width:12%}
-  .tabla-stock th:nth-child(5),.tabla-stock td:nth-child(5){width:12%}
+  .tabla-stock th:nth-child(4),.tabla-stock td:nth-child(4){width:11%}
+  .tabla-stock th:nth-child(5),.tabla-stock td:nth-child(5){width:13%}
   .tabla-stock th:nth-child(6),.tabla-stock td:nth-child(6){width:12%}
-  .tabla-stock th:nth-child(7),.tabla-stock td:nth-child(7){width:10%}
+  .tabla-stock th:nth-child(7),.tabla-stock td:nth-child(7){width:11%}
   .tabla-stock th:nth-child(8),.tabla-stock td:nth-child(8){width:10%}
+  .tabla-stock th:nth-child(9),.tabla-stock td:nth-child(9){width:6%}
   .fase{margin:20px 0 8px; font-weight:bold; font-size:13px; color:#000; border-bottom:2px solid var(--t-acento); padding-bottom:5px}
   .graficos{display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:14px}
   .graf{border:1px solid var(--t-acento); background:#fff; padding:12px}
@@ -470,7 +471,7 @@ const PROCEDENCIAS = [
   {id:'colas_caratal',   nombre:'ARENAS COLAS PLANTA CARATAL', prefijo:'Colas'},
   {id:'mina_isidora',    nombre:'MINA ISIDORA',         prefijo:'TIR'},
   {id:'pequena_mineria', nombre:'PEQUEÑA MINERIA',      prefijo:'TPM'},
-  {id:'arenas_laguna_cola_revemin', nombre:'ARENAS LAGUNA DE COLA REVEMIN', prefijo:'ALC'}
+  {id:'arenas_laguna_cola_revemin', nombre:'ARENAS LAGUNA DE COLA REVEMIN', prefijo:'TPM'}
 ];
 
 const PUNTOS = [
@@ -891,46 +892,21 @@ function statsMezcla(bloque){
   return {totalHumedas, ts, tp, au};
 }
 
-// humedad promedio/mediana de TODAS las muestras de un bloque (una sola pila en varias fechas, o
-// una mezcla manual de varias pilas): junta todas las muestras del bloque en un solo pozo, igual
-// que hace statsBloque para el tenor y la humedad — se usa para la columna HUMEDAD (%) de la vista
-// y el Excel de Stock (que muestra esta columna además del detalle de HUMEDAD MUESTRA por código)
-function humedadPromedioBloque(bloque){
-  const todas = [];
-  bloque.forEach(g => (g.muestras || []).forEach(m => todas.push(m)));
-  return centro(bloque[0], todas.map(m => m.humedad));
-}
-
-// arma las filas (HTML) de un bloque de mezcla manual con la forma completa de 12 columnas de la
-// igual que agruparPorPila pero para listas de stock (cada elemento x trae procId y x.grupo):
-// solo se fusionan filas consecutivas que además pertenezcan a la misma procedencia
-function agruparXPorPila(lista){
-  const bloques = [];
-  lista.forEach(x=>{
-    const ultimo = bloques[bloques.length - 1];
-    const mismo = ultimo && ultimo[0].procId === x.procId &&
-      normalizaPila(ultimo[0].grupo.pila) === normalizaPila(x.grupo.pila) && normalizaPila(x.grupo.pila) !== '';
-    if(ultimo && mismo) ultimo.push(x);
-    else bloques.push([x]);
-  });
-  return bloques;
-}
-
-// como agruparXPorPila, pero respeta además las mezclas manuales de pilas (ver agruparBloques):
-// los elementos cuyo registro (x.grupo) comparta un mismo mezclaId se agrupan en un solo bloque
-// aunque no sean consecutivos ni compartan nombre de pila
-function agruparXBloques(lista){
+// agrupa una lista de stock (cada elemento x trae procId, proc y x.grupo) SOLO por mezclaId: los
+// registros que comparten una mezcla manual se juntan en un bloque; cualquier otro registro queda
+// como bloque individual aunque comparta nombre de pila con otro — cada fecha de una misma pila se
+// muestra y se calcula por separado, sin fusionar (así lo pidió la usuaria para Stock y Mezclas)
+function agruparXSinFusion(lista){
   const enMezcla = new Set(lista.filter(x => x.grupo.mezclaId).map(x => x.grupo.mezclaId));
-  const restantes = lista.filter(x => !x.grupo.mezclaId);
   const indiceOriginal = new Map(lista.map((x,i)=>[x,i]));
 
   const bloquesMezcla = [...enMezcla].map(id=>{
     const filas = lista.filter(x => x.grupo.mezclaId === id);
     return {filas, orden: Math.min(...filas.map(x => indiceOriginal.get(x)))};
   });
-  const bloquesNormales = agruparXPorPila(restantes).map(filas=>({filas, orden: indiceOriginal.get(filas[0])}));
+  const bloquesSueltos = lista.filter(x => !x.grupo.mezclaId).map(x => ({filas:[x], orden: indiceOriginal.get(x)}));
 
-  return [...bloquesMezcla, ...bloquesNormales].sort((a,b)=> a.orden - b.orden).map(b => b.filas);
+  return [...bloquesMezcla, ...bloquesSueltos].sort((a,b)=> a.orden - b.orden).map(b => b.filas);
 }
 
 function promedio(lista){
@@ -939,7 +915,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '15/10/2026-47';   // sirve para confirmar qué versión está cargada
+const VERSION = '15/10/2026-49';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1565,19 +1541,18 @@ function pintarMezclasPatio(){
   ponerPie(`${idsMezclas.length} mezcla${idsMezclas.length===1?'':'s'} · ${totalPilas} pila${totalPilas===1?'':'s'} mezclada${totalPilas===1?'':'s'}`);
 }
 
-// columnas de la tabla/Excel de Stock, en el estilo del libro TENOR DE PATIO: sin columna de CODIGO,
-// y con una columna adicional de HUMEDAD (%) (promedio/ponderada de toda la pila) junto al TENOR
-// PROMEDIO — las columnas PILA, TONELADAS HUMEDAS, TONELADAS SECAS, TENOR PROMEDIO, HUMEDAD (%) y
-// Au CONTENIDO se fusionan en una sola celda para TODA la pila (todas sus fechas), y solo TENOR
-// MUESTRA y HUMEDAD MUESTRA muestran el detalle de cada código, uno por fila, sin fila de PROMEDIO
+// columnas de la tabla/Excel de Stock: igual que COLS_PATIO pero sin TURNO ni ORDEN — cada fecha de
+// una pila se muestra y se calcula por separado (sin fusionar varias fechas de la misma pila en un
+// solo total); solo una mezcla manual de pilas agrega al final una fila de cierre con el ponderado
 const COLS_STOCK = [
+  {id:'fechaMuestreo', etiqueta:'FECHA DE INGRESO'},
   {id:'pila', etiqueta:'PILA'},
   {id:'toneladasHumedas', etiqueta:'TONELADAS HUMEDAS'},
+  {id:'codigo', etiqueta:'CODIGO'},
   {id:'tenor', etiqueta:'TENOR MUESTRA (g/Ton)'},
   {id:'humedad', etiqueta:'HUMEDAD MUESTRA (%)'},
   {id:'toneladasSecas', etiqueta:'TONELADAS SECAS'},
   {id:'tenorPromedio', etiqueta:'TENOR PROMEDIO (g/t)'},
-  {id:'humedadProm', etiqueta:'HUMEDAD (%)'},
   {id:'auContenido', etiqueta:'Au CONTENIDO (g)'}
 ];
 
@@ -1585,45 +1560,50 @@ function tituloStockPatio(){
   return `PILAS EN STOCK<small>PLANTA REVEMIN PIM II-${esc(nombreMes(mesCalendario()))}</small>`;
 }
 
-// arma las filas (HTML) de un bloque de Stock (una pila en varias fechas, o una mezcla manual) con
-// las 8 columnas de COLS_STOCK: PILA/TONELADAS HUMEDAS/TONELADAS SECAS/TENOR PROMEDIO/HUMEDAD (%)/
-// Au CONTENIDO fusionadas en una sola celda para todo el bloque, y una fila por cada código de
-// muestra (TENOR MUESTRA, HUMEDAD MUESTRA), sin fila de PROMEDIO aparte — la reutilizan tanto la
-// vista en pantalla (pintarStockPatio) como el Excel (escribirHojaStock los calcula por su cuenta,
-// pero sigue la misma estructura)
+// arma las filas (HTML) de un bloque de Stock (una sola fecha de una pila, o varias pilas distintas
+// unidas en una mezcla manual) con las 9 columnas de COLS_STOCK. Cada registro (una fecha de una
+// pila) se muestra y se calcula por su cuenta — FECHA/PILA/TONELADAS HUMEDAS/TONELADAS SECAS/TENOR
+// PROMEDIO/Au CONTENIDO fusionados solo sobre SUS propias muestras (CODIGO/TENOR/HUMEDAD, una fila
+// por código) — y si son varios registros de una mezcla manual, se agrega al final una fila de
+// cierre con el tenor ponderado de todo el conjunto y los botones de revertir/stock. La reutilizan
+// tanto la vista en pantalla (pintarStockPatio, pintarMezclasPatio) como el Excel (escribirHojaStock)
 function filasBloqueStock(bloque, esMezclaManual, procId){
-  const stats = esMezclaManual ? statsMezcla(bloque) : statsBloque(bloque);
-  const hProm = humedadPromedioBloque(bloque);
-  const etiquetaPila = esMezclaManual
-    ? `MEZCLA (${[...new Set(bloque.map(g=>g.pila))].map(esc).join(', ')})`
-    : esc(bloque[0].pila);
-  const filasBloque = bloque.reduce((a,g)=> a + ((g.muestras && g.muestras.length) ? g.muestras.length : 1), 0);
   let filas = '';
-  let primera = true;
   bloque.forEach(g=>{
-    const ms = (g.muestras && g.muestras.length) ? g.muestras : [{tenor:'',humedad:''}];
-    ms.forEach(m=>{
-      const cabecera = primera ? `
-        <td rowspan="${filasBloque}">${etiquetaPila}</td>
-        <td rowspan="${filasBloque}">${fmt(stats.totalHumedas, 2) === '—' ? '' : fmt(stats.totalHumedas, 2)}</td>` : '';
-      const final = primera ? `
-        <td rowspan="${filasBloque}">${fmt(stats.ts, 2)}</td>
-        <td rowspan="${filasBloque}">${fmt(stats.tp, 3)}</td>
-        <td rowspan="${filasBloque}">${fmt(hProm, 2)}</td>
-        <td rowspan="${filasBloque}">${fmt(stats.au, 2)}</td>` : '';
+    const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:''}];
+    const n = ms.length;
+    const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
+    ms.forEach((m,k)=>{
+      const cabecera = k === 0 ? `
+        <td rowspan="${n}"><b>${esc(fechaLegible(g.fecha))}</b></td>
+        <td rowspan="${n}">${esc(g.pila)}</td>
+        <td rowspan="${n}">${g.toneladasHumedas === '' || g.toneladasHumedas == null ? '' : esc(g.toneladasHumedas)}</td>` : '';
+      const calculados = k === 0 ? `
+        <td rowspan="${n}">${fmt(ts, 2)}</td>
+        <td rowspan="${n}">${fmt(tp, 3)}</td>
+        <td rowspan="${n}">${fmt(au, 2)}</td>` : '';
       filas += `<tr class="grupo">${cabecera}
+        <td>${esc(m.codigo)}</td>
         <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
-        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${final}</tr>`;
-      primera = false;
+        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}</tr>`;
     });
   });
+  const stats = statsMezcla(bloque);
   if(esMezclaManual){
+    const pilas = [...new Set(bloque.map(g=>g.pila))].map(esc).join(', ');
     const enStock = String(bloque[0].stock||'').toLowerCase() === 'si';
-    filas += `<tr class="grupo">
-      <td colspan="8" class="col-acc" style="text-align:left">
-        <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">↩️ Revertir mezcla</button>
-        <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>
-      </td></tr>`;
+    filas += `<tr class="grupo fila-ponderado">
+        <td colspan="2" class="izq"><b>MEZCLA (${pilas}) — TENOR PONDERADO</b></td>
+        <td><b>${fmt(stats.totalHumedas, 2)}</b></td>
+        <td colspan="3"></td>
+        <td><b>${fmt(stats.ts, 2)}</b></td>
+        <td><b>${fmt(stats.tp, 3)}</b></td>
+        <td><b>${fmt(stats.au, 2)}</b></td></tr>
+      <tr class="grupo">
+        <td colspan="9" class="col-acc" style="text-align:left">
+          <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">↩️ Revertir mezcla</button>
+          <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>
+        </td></tr>`;
   }
   return {filas, stats};
 }
@@ -1661,7 +1641,7 @@ function pintarStockPatio(){
     const grupo = porProc.get(id);
     let totalHumedas = 0, totalSecas = 0, totalAu = 0;
     let filas = '';
-    const bloquesX = agruparXBloques(grupo);
+    const bloquesX = agruparXSinFusion(grupo);
     bloquesX.forEach(bloqueX=>{
       const bloque = bloqueX.map(x=>x.grupo);
       const esMezclaManual = bloque.length > 1 && bloque[0].mezclaId;
@@ -1673,18 +1653,15 @@ function pintarStockPatio(){
     });
     const tenorPonderadoProc = totalSecas ? totalAu / totalSecas : null;
     filas += `<tr class="grupo fila-total">
-        <td><b>TOTAL</b></td>
+        <td colspan="2"><b>TOTAL</b></td>
         <td><b>${fmt(totalHumedas || null, 2)}</b></td>
-        <td></td>
-        <td></td>
+        <td colspan="3"></td>
         <td><b>${fmt(totalSecas || null, 2)}</b></td>
-        <td></td>
         <td></td>
         <td><b>${fmt(totalAu || null, 2)}</b></td></tr>
       <tr class="grupo fila-ponderado">
-        <td colspan="4" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
-        <td><b>${fmt(tenorPonderadoProc, 3)}</b></td>
-        <td></td><td></td><td></td></tr>`;
+        <td colspan="8" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
+        <td><b>${fmt(tenorPonderadoProc, 3)}</b></td></tr>`;
 
     cuerpo += `<div class="fase">${esc(grupo[0].proc)}<span style="float:right;font-weight:normal">${grupo.length} pila${grupo.length===1?'':'s'} en stock</span></div>
       <table class="patio tabla-stock"><thead><tr>${th}</tr></thead><tbody>${filas}</tbody></table>`;
@@ -1697,9 +1674,8 @@ function pintarStockPatio(){
   const tenorPonderadoGen = totalSecasGen ? totalAuGen / totalSecasGen : null;
   cuerpo += `<table class="patio tabla-stock" style="margin-top:6px"><tbody>
       <tr class="grupo fila-ponderado">
-        <td colspan="4" class="izq"><b>TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)</b></td>
-        <td><b>${fmt(tenorPonderadoGen, 3)}</b></td>
-        <td></td><td></td><td></td></tr>
+        <td colspan="8" class="izq"><b>TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)</b></td>
+        <td><b>${fmt(tenorPonderadoGen, 3)}</b></td></tr>
     </tbody></table>`;
 
   zona.innerHTML = tituloTabla + barras + cuerpo;
@@ -2887,84 +2863,111 @@ async function exportarExcelPatio(soloProc){
 // false la omite porque la hoja ya es de una sola procedencia
 function escribirHojaStock(ws, lista, conProcedencia, tituloTxt, subtituloTxt, rotuloPonderado){
   const offset = conProcedencia ? 1 : 0;
-  const anchos = (conProcedencia ? [19] : []).concat([16,15,17,15,14,14,13,16]);
+  const anchos = (conProcedencia ? [19] : []).concat([14,16,16,14,17,15,14,14,16]);
   anchos.forEach((w,i)=> ws.getColumn(i+1).width = w);
   const NC = anchos.length;
   const col = i => String.fromCharCode(64+i);
-  const cPila = 1+offset, cHumedas = 2+offset, cTenor = 3+offset, cHumedad = 4+offset,
-        cSecas = 5+offset, cProm = 6+offset, cHumedadProm = 7+offset, cAu = 8+offset;
+  const cFecha = 1+offset, cPila = 2+offset, cHumedas = 3+offset, cCodigo = 4+offset,
+        cTenor = 5+offset, cHumedad = 6+offset, cSecas = 7+offset, cProm = 8+offset, cAu = 9+offset;
 
   tituloHoja(ws, NC, tituloTxt, subtituloTxt);
   const etiquetas = (conProcedencia ? ['PROCEDENCIA'] : []).concat(COLS_STOCK.map(c => c.etiqueta));
   encabezadoHoja(ws, 4, etiquetas, GRIS_CAB_FILL, 'FFFFFFFF');
 
   let n = 5;
+  // fila representativa de cada bloque (la única con el total de ese bloque), para sumar en el
+  // TOTAL general sin duplicar lo que ya se sumó dentro de una mezcla manual
+  const filasRepresentativas = [];
   let totalHumedas = 0, totalSecas = 0, totalAu = 0;
-  const bloques = agruparXBloques(lista);
+
+  const bloques = agruparXSinFusion(lista);
   bloques.forEach(bloqueX=>{
     const bloque = bloqueX.map(x=>x.grupo);
     const esMezclaManual = bloque.length > 1 && bloque[0].mezclaId;
-    const stats = esMezclaManual ? statsMezcla(bloque) : statsBloque(bloque);
-    const hProm = humedadPromedioBloque(bloque);
     const estadistico0 = bloque[0].estadistico === 'mediana' ? 'MEDIAN' : 'AVERAGE';
-    const etiquetaPila = esMezclaManual
-      ? `MEZCLA (${[...new Set(bloque.map(g=>g.pila))].join(', ')})`
-      : String(bloque[0].pila ?? '');
-    const ini = n;
+    const iniBloque = n;
 
-    totalHumedas += stats.totalHumedas || 0;
-    totalSecas += stats.ts || 0;
-    totalAu += stats.au || 0;
-
+    // cada registro (una fecha de una pila) se escribe y se calcula por su cuenta, sin fusionar
+    // con otras fechas de la misma pila — las fórmulas son siempre vivas, para cualquier registro
     bloqueX.forEach(x=>{
       const g = x.grupo;
       const ms = (g.muestras && g.muestras.length) ? g.muestras : [{}];
+      const ini = n;
       ms.forEach(m=>{
         const f = formatearFila(ws, n, NC, {negrita:true});
         if(conProcedencia) f.getCell(1).value = n === ini ? x.proc : null;
-        f.getCell(cPila).value = n === ini ? etiquetaPila : null;
-        f.getCell(cHumedas).value = n === ini ? (stats.totalHumedas === null ? null : Number(stats.totalHumedas.toFixed(2))) : null;
+        f.getCell(cFecha).value = n === ini ? fechaLegible(g.fecha) : null;
+        f.getCell(cPila).value = n === ini ? String(g.pila ?? '') : null;
+        f.getCell(cHumedas).value = n === ini ? celda(g.toneladasHumedas) : null;
+        f.getCell(cCodigo).value = celda(m.codigo);
         f.getCell(cTenor).value = celda(m.tenor);
         f.getCell(cHumedad).value = celda(m.humedad);
         n++;
       });
-    });
-    const fin = n - 1;
+      const fin = n - 1;
+      const colsRegistro = (conProcedencia ? [1, cFecha, cPila, cHumedas] : [cFecha, cPila, cHumedas]).concat([cSecas, cProm, cAu]);
+      colsRegistro.forEach(c => { if(fin > ini) ws.mergeCells(ini, c, fin, c); });
 
-    // PILA, TONELADAS HUMEDAS y las columnas calculadas se fusionan en todo el bloque
-    // (una sola pila, con una o varias fechas, o una mezcla manual de varias pilas)
-    const colsBloque = (conProcedencia ? [1, cPila, cHumedas] : [cPila, cHumedas]).concat([cSecas, cProm, cHumedadProm, cAu]);
-    colsBloque.forEach(c => { if(fin > ini) ws.mergeCells(ini, c, fin, c); });
+      ws.getCell(ini, cProm).value = {formula:`${estadistico0}(${col(cTenor)}${ini}:${col(cTenor)}${fin})`, result: Number((tenorPromedioDe(g) ?? 0).toFixed(3))};
+      ws.getCell(ini, cSecas).value = {formula:`IFERROR(${col(cHumedas)}${ini}*(1-${estadistico0}(${col(cHumedad)}${ini}:${col(cHumedad)}${fin})/100),0)`, result: Number((toneladasSecasDe(g) ?? 0).toFixed(2))};
+      ws.getCell(ini, cAu).value = {formula:`IFERROR(${col(cSecas)}${ini}*${col(cProm)}${ini},0)`, result: Number((auContenidoDe(g) ?? 0).toFixed(2))};
+      ws.getCell(ini, cProm).numFmt = '0.000';
+      ws.getCell(ini, cSecas).numFmt = '0.00';
+      ws.getCell(ini, cAu).numFmt = '0.00';
+
+      if(!esMezclaManual){
+        filasRepresentativas.push(ini);
+        totalHumedas += num(g.toneladasHumedas) || 0;
+        totalSecas += toneladasSecasDe(g) || 0;
+        totalAu += auContenidoDe(g) || 0;
+      }
+    });
 
     if(esMezclaManual){
-      // mezcla manual de varias pilas: el tenor y la humedad ponderados son valores fijos,
-      // ya calculados a partir del peso de cada pila que la compone
-      ws.getCell(ini, cProm).value = stats.tp === null ? null : Number(stats.tp.toFixed(3));
-      ws.getCell(ini, cHumedadProm).value = hProm === null ? null : Number(hProm.toFixed(2));
-      ws.getCell(ini, cSecas).value = stats.ts === null ? null : Number(stats.ts.toFixed(2));
-    } else {
-      // pila individual (una o varias fechas): fórmulas vivas sobre las muestras del bloque,
-      // para que se recalculen si se editan toneladas húmedas, tenor o humedad
-      ws.getCell(ini, cProm).value = {formula:`${estadistico0}(${col(cTenor)}${ini}:${col(cTenor)}${fin})`, result: stats.tp === null ? 0 : Number(stats.tp.toFixed(3))};
-      ws.getCell(ini, cHumedadProm).value = {formula:`${estadistico0}(${col(cHumedad)}${ini}:${col(cHumedad)}${fin})`, result: hProm === null ? 0 : Number(hProm.toFixed(2))};
-      ws.getCell(ini, cSecas).value = {formula:`IFERROR(${col(cHumedas)}${ini}*(1-${col(cHumedadProm)}${ini}/100),0)`, result: stats.ts === null ? 0 : Number(stats.ts.toFixed(2))};
+      // mezcla manual de varias pilas: una fila de cierre aparte suma (con fórmulas vivas, sin
+      // duplicar lo ya escrito arriba) las toneladas y el Au de cada pila que la compone, y calcula
+      // el tenor ponderado real de la mezcla
+      const stats = statsMezcla(bloque);
+      const pilas = [...new Set(bloque.map(g=>g.pila))].join(', ');
+      const fc = formatearFila(ws, n, NC, {negrita:true});
+      const cLabelDesde = conProcedencia ? 1 : cFecha;
+      ws.mergeCells(n, cLabelDesde, n, cPila);
+      fc.getCell(cLabelDesde).value = `MEZCLA (${pilas}) — TENOR PONDERADO`;
+      fc.getCell(cLabelDesde).alignment = {horizontal:'left', vertical:'middle'};
+
+      let fila = iniBloque;
+      const refsHumedas = [], refsSecas = [], refsAu = [];
+      bloqueX.forEach(x=>{
+        const ms = (x.grupo.muestras && x.grupo.muestras.length) ? x.grupo.muestras : [{}];
+        refsHumedas.push(col(cHumedas)+fila); refsSecas.push(col(cSecas)+fila); refsAu.push(col(cAu)+fila);
+        fila += ms.length;
+      });
+      fc.getCell(cHumedas).value = {formula:`SUM(${refsHumedas.join(',')})`, result: stats.totalHumedas === null ? 0 : Number(stats.totalHumedas.toFixed(2))};
+      fc.getCell(cSecas).value = {formula:`SUM(${refsSecas.join(',')})`, result: stats.ts === null ? 0 : Number(stats.ts.toFixed(2))};
+      fc.getCell(cAu).value = {formula:`SUM(${refsAu.join(',')})`, result: stats.au === null ? 0 : Number(stats.au.toFixed(2))};
+      fc.getCell(cProm).value = {formula:`IFERROR(${col(cAu)}${n}/${col(cSecas)}${n},0)`, result: stats.tp === null ? 0 : Number(stats.tp.toFixed(3))};
+      fc.getCell(cHumedas).numFmt = '0.00'; fc.getCell(cSecas).numFmt = '0.00';
+      fc.getCell(cAu).numFmt = '0.00'; fc.getCell(cProm).numFmt = '0.000';
+
+      totalHumedas += stats.totalHumedas || 0;
+      totalSecas += stats.ts || 0;
+      totalAu += stats.au || 0;
+      filasRepresentativas.push(n);
+      n++;
     }
-    ws.getCell(ini, cAu).value = {formula:`IFERROR(${col(cSecas)}${ini}*${col(cProm)}${ini},0)`, result: stats.au === null ? 0 : Number(stats.au.toFixed(2))};
-    ws.getCell(ini, cProm).numFmt = '0.000';
-    ws.getCell(ini, cHumedadProm).numFmt = '0.00';
-    ws.getCell(ini, cSecas).numFmt = '0.00';
-    ws.getCell(ini, cAu).numFmt = '0.00';
   });
 
-  const filaDesde = 5, filaHasta = n - 1;
+  const refHumedasTotal = filasRepresentativas.map(f => col(cHumedas)+f).join(',');
+  const refSecasTotal = filasRepresentativas.map(f => col(cSecas)+f).join(',');
+  const refAuTotal = filasRepresentativas.map(f => col(cAu)+f).join(',');
   const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
 
   const ft = formatearFila(ws, n, NC, {negrita:true});
-  if(conProcedencia) ws.mergeCells(n, 1, n, cPila);
+  if(conProcedencia) ws.mergeCells(n, 1, n, cPila); else ws.mergeCells(n, cFecha, n, cPila);
   ft.getCell(1).value = 'TOTAL';
-  ft.getCell(cHumedas).value = {formula:`SUM(${col(cHumedas)}${filaDesde}:${col(cHumedas)}${filaHasta})`, result: Number(totalHumedas.toFixed(2))};
-  ft.getCell(cSecas).value = {formula:`SUM(${col(cSecas)}${filaDesde}:${col(cSecas)}${filaHasta})`, result: Number(totalSecas.toFixed(2))};
-  ft.getCell(cAu).value = {formula:`SUM(${col(cAu)}${filaDesde}:${col(cAu)}${filaHasta})`, result: Number(totalAu.toFixed(2))};
+  ft.getCell(cHumedas).value = {formula:`SUM(${refHumedasTotal})`, result: Number(totalHumedas.toFixed(2))};
+  ft.getCell(cSecas).value = {formula:`SUM(${refSecasTotal})`, result: Number(totalSecas.toFixed(2))};
+  ft.getCell(cAu).value = {formula:`SUM(${refAuTotal})`, result: Number(totalAu.toFixed(2))};
   ft.getCell(cHumedas).numFmt = '0.00';
   ft.getCell(cSecas).numFmt = '0.00';
   ft.getCell(cAu).numFmt = '0.00';
@@ -2974,11 +2977,11 @@ function escribirHojaStock(ws, lista, conProcedencia, tituloTxt, subtituloTxt, r
   n++;
 
   const fp = formatearFila(ws, n, NC, {negrita:true});
-  ws.mergeCells(n, 1, n, cHumedad);
+  ws.mergeCells(n, 1, n, cProm);
   fp.getCell(1).value = rotuloPonderado;
   fp.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
-  fp.getCell(cSecas).value = {formula:`IFERROR(${col(cAu)}${filaTotal}/${col(cSecas)}${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
-  fp.getCell(cSecas).numFmt = '0.000';
+  fp.getCell(cAu).value = {formula:`IFERROR(${col(cAu)}${filaTotal}/${col(cSecas)}${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
+  fp.getCell(cAu).numFmt = '0.000';
   fp.font = {bold:true, size:11, name:'Arial', color:{argb:'FF262626'}};
   fp.eachCell({includeEmpty:true}, c=> c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFBFBFBF'}});
 
