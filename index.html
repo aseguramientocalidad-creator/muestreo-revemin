@@ -902,61 +902,6 @@ function humedadPromedioBloque(bloque){
 }
 
 // arma las filas (HTML) de un bloque de mezcla manual con la forma completa de 12 columnas de la
-// tabla principal de tenores (FECHA, PILA, TURNO, ORDEN, TONELADAS HUMEDAS, CODIGO, TENOR, HUMEDAD,
-// TONELADAS SECAS, TENOR PROMEDIO, Au CONTENIDO, acción): la columna PILA y las columnas dependientes
-// del peso se fusionan una sola vez para todo el bloque, centradas verticalmente, y al final se repite
-// el cálculo en una fila de cierre con el tenor ponderado y los botones de revertir/stock. La reutilizan
-// tanto pintarPatio() (bloques de mezcla dentro de la tabla de tenores) como pintarMezclasPatio()
-// (la sub-tabla exclusiva de mezclas).
-function filasBloqueMezcla(bloque){
-  const stats = statsMezcla(bloque);
-  const filasBloque = bloque.reduce((a,g)=> a + ((g.muestras && g.muestras.length) ? g.muestras.length : 1) + 1, 0);
-  const pilas = [...new Set(bloque.map(x=>x.pila))].map(esc).join(', ');
-  let html = '';
-  bloque.forEach((g, bi)=>{
-    const i = ESTADO.datos.indexOf(g);
-    const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:'',obs:''}];
-    const n = ms.length;
-    ms.forEach((m, k)=>{
-      const cabecera = k === 0 ? `
-        <td rowspan="${n+1}"><b>${esc(fechaLegible(g.fecha))}</b></td>
-        ${bi === 0 ? `<td rowspan="${filasBloque}" style="vertical-align:middle"><b>MEZCLA (${pilas})</b></td>` : ''}
-        <td rowspan="${n+1}">${esc(g.turno)}</td>
-        <td rowspan="${n+1}">${esc(g.orden)}</td>` : '';
-      const fusionadas = (k === 0 && bi === 0) ? `
-        <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.totalHumedas, 2)}</td>` : '';
-      const calculados = (k === 0 && bi === 0) ? `
-        <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.ts, 2)}</td>
-        <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.tp, 3)}</td>
-        <td rowspan="${filasBloque}" style="vertical-align:middle">${fmt(stats.au, 2)}</td>` : '';
-      const acciones = k === 0 ? `<td rowspan="${n+1}" class="col-acc">
-        <button class="mini" data-editar="${i}">Editar</button><br>
-        <button class="mini borrar" data-borrar="${i}">Eliminar</button></td>` : '';
-      html += `<tr class="grupo">${cabecera}${fusionadas}
-        <td>${esc(m.codigo)}</td>
-        <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
-        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}${acciones}</tr>`;
-    });
-    html += `<tr class="grupo promedio">
-      <td>${rotuloCentro(g)}</td>
-      <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
-      <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
-  });
-  const enStock = String(bloque[0].stock||'').toLowerCase() === 'si';
-  html += `<tr class="grupo fila-ponderado fila-ponderado-mezcla">
-    <td colspan="4" class="izq"><b>MEZCLA (${pilas}) — TENOR PONDERADO</b></td>
-    <td><b>${fmt(stats.totalHumedas, 2)}</b></td>
-    <td colspan="3"></td>
-    <td><b>${fmt(stats.ts, 2)}</b></td>
-    <td><b>${fmt(stats.tp, 3)}</b></td>
-    <td><b>${fmt(stats.au, 2)}</b></td>
-    <td class="col-acc">
-      <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}">↩️ Revertir</button><br>
-      <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>
-    </td></tr>`;
-  return html;
-}
-
 // igual que agruparPorPila pero para listas de stock (cada elemento x trae procId y x.grupo):
 // solo se fusionan filas consecutivas que además pertenezcan a la misma procedencia
 function agruparXPorPila(lista){
@@ -994,7 +939,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '15/10/2026-46';   // sirve para confirmar qué versión está cargada
+const VERSION = '15/10/2026-47';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1605,15 +1550,15 @@ function pintarMezclasPatio(){
     return {filas, orden: Math.min(...filas.map(g => indiceOriginal.get(g)))};
   }).sort((a,b)=> a.orden - b.orden).map(b => b.filas);
 
-  const th = COLS_PATIO.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('') + '<th></th>';
+  const th = COLS_STOCK.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('');
   let cuerpo = '';
   let totalPilas = 0;
   bloques.forEach(bloque=>{
-    cuerpo += filasBloqueMezcla(bloque);
+    cuerpo += filasBloqueStock(bloque, true, ESTADO.procedencia).filas;
     totalPilas += new Set(bloque.map(g=>g.pila)).size;
   });
 
-  zona.innerHTML = rotulo + `<table class="patio tabla-tenores"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+  zona.innerHTML = rotulo + `<table class="patio tabla-stock"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
   $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
   enlazarCarpetas(zona);
   enlazarAcciones(zona);
