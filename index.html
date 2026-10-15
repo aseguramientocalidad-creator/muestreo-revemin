@@ -985,7 +985,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '15/10/2026-44';   // sirve para confirmar qué versión está cargada
+const VERSION = '15/10/2026-45';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1489,22 +1489,16 @@ function pintarPatio(){
   const th = COLS_PATIO.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('') + '<th></th>';
   let cuerpo = '';
   let totalHumedas = 0, totalSecas = 0, totalAu = 0;
-  const bloques = agruparBloques(grupos);
+  // la tabla principal de tenores agrupa SOLO por nombre de pila (igual que antes de la función de
+  // mezclas): aunque una pila esté marcada con mezclaId, aquí se ve individual, como cualquier otra;
+  // la fusión por mezcla solo existe dentro del botón MEZCLAS (pintarMezclasPatio)
+  const bloques = agruparPorPila(grupos);
   bloques.forEach(bloque=>{
-    const esMezclaManual = bloque.length > 1 && bloque[0].mezclaId;
-    const stats = esMezclaManual ? statsMezcla(bloque) : statsBloque(bloque);
+    const stats = statsBloque(bloque);
     totalHumedas += stats.totalHumedas || 0;
     totalSecas += stats.ts || 0;
     totalAu += stats.au || 0;
 
-    if(esMezclaManual){
-      // mezcla manual: se arma con la misma función que usa la sub-tabla exclusiva de mezclas
-      // (filasBloqueMezcla), así ambas vistas se ven y calculan exactamente igual
-      cuerpo += filasBloqueMezcla(bloque);
-      return;
-    }
-
-    // bloque normal: misma pila en varias fechas (sin cambios respecto a antes)
     const filasBloque = bloque.reduce((a,g)=> a + ((g.muestras && g.muestras.length) ? g.muestras.length : 1) + 1, 0);
     bloque.forEach((g, bi)=>{
       const i = ESTADO.datos.indexOf(g);
