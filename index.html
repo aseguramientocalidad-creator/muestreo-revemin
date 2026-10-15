@@ -915,7 +915,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '15/10/2026-49';   // sirve para confirmar qué versión está cargada
+const VERSION = '15/10/2026-50';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1576,7 +1576,7 @@ function filasBloqueStock(bloque, esMezclaManual, procId){
     ms.forEach((m,k)=>{
       const cabecera = k === 0 ? `
         <td rowspan="${n}"><b>${esc(fechaLegible(g.fecha))}</b></td>
-        <td rowspan="${n}">${esc(g.pila)}</td>
+        <td rowspan="${n}">${esc(g.pila)}${esMezclaManual ? ` <button type="button" class="mini borrar quitar-de-mezcla" data-quitar-pila-mezcla="${esc(g.__id)}" data-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Quitar esta pila de la mezcla">✕</button>` : ''}</td>
         <td rowspan="${n}">${g.toneladasHumedas === '' || g.toneladasHumedas == null ? '' : esc(g.toneladasHumedas)}</td>` : '';
       const calculados = k === 0 ? `
         <td rowspan="${n}">${fmt(ts, 2)}</td>
@@ -1729,6 +1729,7 @@ function enlazarAcciones(zona){
   zona.querySelectorAll('[data-borrar]').forEach(b => b.addEventListener('click', ()=> borrar(Number(b.dataset.borrar))));
   zona.querySelectorAll('[data-revertir-mezcla]').forEach(b => b.addEventListener('click', ()=> revertirMezclaId(b.dataset.revertirMezcla, b.dataset.proc)));
   zona.querySelectorAll('[data-stock-mezcla]').forEach(b => b.addEventListener('click', ()=> alternarStockMezcla(b.dataset.stockMezcla, b.dataset.proc)));
+  zona.querySelectorAll('[data-quitar-pila-mezcla]').forEach(b => b.addEventListener('click', ()=> quitarPilaDeMezcla(b.dataset.quitarPilaMezcla, b.dataset.mezcla, b.dataset.proc)));
 }
 
 /* ---------- formulario ---------- */
@@ -1857,6 +1858,34 @@ async function alternarStockMezcla(mezclaId, procId){
   avisar(ok
     ? (enStock ? 'Mezcla quitada del stock de patio' : 'Mezcla agregada al stock de patio')
     : 'Cambio hecho solo en esta sesión: descargue el Excel antes de cerrar');
+  refrescarPanel();
+  pintar();
+}
+
+// quita UNA sola pila (identificada por su __id, estable aunque se edite) de una mezcla,
+// dejando el resto de la mezcla igual; si tras quitarla solo quedaría una pila en la mezcla,
+// una mezcla de una sola pila no tiene sentido, así que se revierte la mezcla completa en su
+// lugar (cada pila vuelve a verse por separado) y se avisa de eso antes de hacerlo
+async function quitarPilaDeMezcla(registroId, mezclaId, procId){
+  if(!registroId || !mezclaId) return;
+  const proc = procId || ESTADO.procedencia;
+  const esElActual = proc === ESTADO.procedencia;
+  const datos = esElActual ? ESTADO.datos : await leerPatio(proc);
+  const miembros = datos.filter(g => g.mezclaId === mezclaId);
+  const objetivo = miembros.find(g => g.__id === registroId);
+  if(!objetivo) return;
+
+  if(miembros.length <= 2){
+    if(!confirm('Al quitar esta pila solo quedaría una pila en la mezcla, así que se revertirá la mezcla completa: cada pila volverá a verse por separado. ¿Continuar?')) return;
+    miembros.forEach(g => { delete g.mezclaId; });
+    const ok = await escribir(clavePatio(proc), datos);
+    avisar(ok ? 'Mezcla revertida: cada pila vuelve a verse por separado' : 'Cambio hecho solo en esta sesión: descargue el Excel antes de cerrar');
+  } else {
+    if(!confirm(`¿Quitar la pila "${objetivo.pila}" (${fechaLegible(objetivo.fecha)}) de esta mezcla? El resto de la mezcla seguirá igual.`)) return;
+    delete objetivo.mezclaId;
+    const ok = await escribir(clavePatio(proc), datos);
+    avisar(ok ? 'Pila quitada de la mezcla' : 'Cambio hecho solo en esta sesión: descargue el Excel antes de cerrar');
+  }
   refrescarPanel();
   pintar();
 }
