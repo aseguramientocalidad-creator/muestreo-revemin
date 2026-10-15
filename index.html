@@ -942,7 +942,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '15/10/2026-54';   // sirve para confirmar qué versión está cargada
+const VERSION = '15/10/2026-56';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1291,6 +1291,15 @@ async function calcularPanel(){
   const stock = [];
   for(const p of PROCEDENCIAS){
     const datos = await leerPatio(p.id);
+    // "en stock" es la PILA completa, no solo la fecha marcada "Stock: Sí": si una pila entra en
+    // varias fechas, basta con que una de ellas esté marcada para que TODAS sus fechas se consideren
+    // en stock (es la misma pila física), igual que la tabla de tenores las fusiona como una sola
+    // entidad. Las mezclas manuales se marcan siempre en bloque (ver alternarStockMezcla), así que
+    // para ellas basta con mirar su propio campo stock.
+    const pilasEnStock = new Set(
+      datos.filter(g => !g.mezclaId && normalizaPila(g.pila) !== '' && String(g.stock||'').toLowerCase() === 'si')
+           .map(g => normalizaPila(g.pila))
+    );
     datos.forEach(g=>{
       const ms = g.muestras || [];
       const faltan = ms.filter(sinTenor).length;
@@ -1301,7 +1310,11 @@ async function calcularPanel(){
           faltan, total:ms.length, clave:claveOrden(g)
         });
       }
-      if(String(g.stock||'').toLowerCase() === 'si'){
+      const clave = normalizaPila(g.pila);
+      const enStock = g.mezclaId
+        ? String(g.stock||'').toLowerCase() === 'si'
+        : (clave !== '' ? pilasEnStock.has(clave) : String(g.stock||'').toLowerCase() === 'si');
+      if(enStock){
         stock.push({procId:p.id, proc:p.nombre, grupo:g});
       }
     });
@@ -1596,10 +1609,15 @@ function tituloStockPatio(){
 // tanto la vista en pantalla (pintarStockPatio, pintarMezclasPatio) como el Excel (escribirHojaStock)
 function filasBloqueStock(bloque, tieneMezclaId, procId){
   let filas = '';
-  const stats = statsMezcla(bloque);
+  // una mezcla manual real junta pilas de nombres distintos, cada una con su propio peso: ahí se
+  // pondera con statsMezcla (suma el TS de cada registro con su propia tonelada). Una pila repetida
+  // en varias fechas SIN mezcla es la misma pila física, así que se trata como una sola entidad con
+  // todas sus muestras juntas (statsBloque) — igual que la tabla de tenores — para que ambas vistas
+  // den siempre el mismo total.
+  const stats = tieneMezclaId ? statsMezcla(bloque) : statsBloque(bloque);
   // cuando el bloque tiene más de un registro — una mezcla manual, o varias fechas de la misma pila
   // sin mezcla — TONELADAS HUMEDAS/SECAS/TENOR PROMEDIO/Au CONTENIDO se fusionan en una sola celda
-  // para TODO el bloque (con el peso real del conjunto, vía statsMezcla); FECHA/PILA y las muestras
+  // para TODO el bloque (con el peso real del conjunto); FECHA/PILA y las muestras
   // (CODIGO/TENOR MUESTRA/HUMEDAD MUESTRA) siguen mostrándose cada una por su cuenta, sin fusionar.
   // La fila "MEZCLA (...)" con los botones de revertir/stock solo aparece cuando es una mezcla manual
   // real (tieneMezclaId): una simple repetición de la misma pila no tiene nada que "revertir".
@@ -1643,9 +1661,14 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
   if(tieneMezclaId){
     const pilas = [...new Set(bloque.map(g=>g.pila))].map(esc).join(', ');
     const enStock = String(bloque[0].stock||'').toLowerCase() === 'si';
+    // el total ya se ve arriba, fusionado en la primera fecha del bloque (puede quedar lejos si la
+    // mezcla tiene muchas muestras), así que aquí se repite junto a la fila de cierre para que no
+    // haya que desplazarse hacia arriba a buscarlo
     filas += `<tr class="grupo fila-ponderado">
         <td colspan="9" class="col-acc" style="text-align:left">
-          <b>MEZCLA (${pilas})</b> &nbsp;
+          <b>MEZCLA (${pilas})</b> — Toneladas húmedas: ${fmt(stats.totalHumedas, 2)} ·
+          Secas: ${fmt(stats.ts, 2)} · Tenor promedio: ${fmt(stats.tp, 3)} g/t · Au contenido: ${fmt(stats.au, 2)} g
+          &nbsp;
           <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">↩️ Revertir mezcla</button>
           <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>
         </td></tr>`;
@@ -3004,12 +3027,13 @@ function escribirHojaStock(ws, lista, conProcedencia, tituloTxt, subtituloTxt, r
     });
 
     if(fusionar){
-      // mezcla manual de varias pilas, o varias fechas de la misma pila sin mezcla: las columnas
-      // TONELADAS HUMEDAS/SECAS/TENOR PROMEDIO/Au CONTENIDO se fusionan en una sola celda para TODO
-      // el bloque, con el peso real del conjunto (statsMezcla). Cuando además es una mezcla manual
-      // real (tieneMezclaId), una fila de cierre aparte muestra qué pilas la componen (los botones
-      // de revertir/stock de la vista en pantalla no aplican al Excel)
-      const stats = statsMezcla(bloque);
+      // mezcla manual de varias pilas (statsMezcla, cada una con su propio peso), o varias fechas de
+      // la misma pila sin mezcla (statsBloque, igual que la tabla de tenores, para dar el mismo
+      // total en ambos lados): las columnas TONELADAS HUMEDAS/SECAS/TENOR PROMEDIO/Au CONTENIDO se
+      // fusionan en una sola celda para TODO el bloque. Cuando además es una mezcla manual real
+      // (tieneMezclaId), una fila de cierre aparte muestra qué pilas la componen (los botones de
+      // revertir/stock de la vista en pantalla no aplican al Excel)
+      const stats = tieneMezclaId ? statsMezcla(bloque) : statsBloque(bloque);
       const finBloque = n - 1;
       const colsFusion = [cHumedas, cSecas, cProm, cAu];
       colsFusion.forEach(c => { if(finBloque > iniBloque) ws.mergeCells(iniBloque, c, finBloque, c); });
