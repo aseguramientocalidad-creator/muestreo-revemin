@@ -942,7 +942,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '15/10/2026-56';   // sirve para confirmar qué versión está cargada
+const VERSION = '18/10/2026-57';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2404,19 +2404,46 @@ function parsearReporte(items){
   return res;
 }
 
-async function leerPdfReporte(archivo){
+// orden del formulario que se está registrando/editando (para elegir, en un PDF de varias páginas,
+// la página cuyo N° de Orden coincide), o '' si la fecha/correlativo todavía no están completos
+function ordenEsperadaFormulario(){
+  const cuerpo = $('#form-cuerpo');
+  if(!cuerpo) return '';
+  const fecha = cuerpo.querySelector('[name=fecha]').value;
+  const corr = cuerpo.querySelector('[name=correlativo]').value;
+  const completa = armarOrden(ESTADO.procedencia, fecha, corr);
+  if(!completa || /yyy/i.test(completa)) return '';
+  return normOrden(completa);
+}
+
+async function leerPdfReporte(archivo, ordenEsperada){
   const lib = await cargarPdfJs();
   const pdf = await lib.getDocument({data: await archivo.arrayBuffer()}).promise;
-  let ultimo = null;
+  const paginas = [];
   for(let n = 1; n <= pdf.numPages; n++){
     const pag = await pdf.getPage(n);
     const cont = await pag.getTextContent();
     const items = cont.items.map(i => ({str: i.str, x: i.transform[4], w: i.width || 0, y: -i.transform[5]}));
-    const r = parsearReporte(items);
-    ultimo = ultimo || r;
-    if(r.filas.length && r.orden) return r;
+    paginas.push({n, r: parsearReporte(items)});
   }
-  return ultimo;
+  if(!paginas.length) return {orden:'', procedencia:'', recibidas:null, filas:[], errores:['El PDF no tiene páginas legibles.'], avisos:[]};
+
+  // un PDF puede traer varias órdenes, una por página (p. ej. TCR-10-518 en la página 1 y
+  // TCR-10-519 en la página 2): si se conoce la orden que se está registrando, se usa la página
+  // cuyo N° de Orden coincide con ella, en vez de limitarse siempre a la primera página con datos
+  let elegida = ordenEsperada ? paginas.find(p => p.r.orden === ordenEsperada) : null;
+  if(!elegida) elegida = paginas.find(p => p.r.filas.length && p.r.orden) || paginas[0];
+
+  const r = elegida.r;
+  if(paginas.length > 1){
+    const resumen = paginas.map(p => `página ${p.n}: orden ${p.r.orden || '(no se leyó)'}`).join(' · ');
+    const aviso = `El PDF tiene ${paginas.length} páginas (${resumen}). Se usó la página ${elegida.n}` +
+      (ordenEsperada && r.orden !== ordenEsperada
+        ? ` (ninguna página coincide con la orden de esta pila, ${ordenEsperada}; verifique que el PDF corresponda).`
+        : '.');
+    r.avisos = (r.avisos || []).concat([aviso]);
+  }
+  return r;
 }
 
 /* cruce con la pila que se está registrando/editando en el diálogo */
@@ -2538,7 +2565,7 @@ async function importarArchivoReporte(archivo){
   cuerpo.innerHTML = `<p>Leyendo “${esc(archivo.name)}”…</p>`;
   $('#telon-import').classList.add('activo');
   try{
-    const rep = await leerPdfReporte(archivo);
+    const rep = await leerPdfReporte(archivo, ordenEsperadaFormulario());
     IMPORTACION = cruzarReporteConFormulario(rep);
   }catch(e){
     IMPORTACION = {errores: [String(e && e.message || e)], avisos: [], filas: []};
