@@ -120,6 +120,7 @@
     background:var(--t-cons-bg); border-bottom:2px solid var(--t-acento); padding:10px 14px}
   .panel-pend-cab b{font-size:14px}
   .panel-pend-cab small{display:block; font-size:12px; font-weight:bold}
+  .panel-pend-cab-min{justify-content:flex-end; padding:6px 10px}
   .panel-pend-caja{padding:14px 16px 18px}
   .panel-pend table.tabla-pend{margin-top:4px; font-size:12px; max-width:900px}
   .panel-pend .patio th,.panel-pend .patio td{padding:6px 8px; font-size:12px}
@@ -139,26 +140,36 @@
   .marca.medio{background:var(--aviso); color:#fff}
   .barra-prom{display:block; height:9px; background:var(--t-acento); min-width:2px}
 
-  /* ---- fila de paneles de patio: pendientes por tenor (más compacto) + dashboard de tenores ---- */
-  .paneles-patio{display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; margin:18px 0 4px}
-  .paneles-patio .panel-pend{flex:1 1 360px; margin:0; min-width:0}
-  .paneles-patio .panel-pend-caja{padding:10px 12px 14px}
-  .paneles-patio .cifras{gap:8px; margin:0 0 10px}
-  .paneles-patio .cifra{padding:5px 10px; min-width:76px}
-  .paneles-patio .cifra b{font-size:15px}
-  .paneles-patio table.tabla-pend{max-width:none; font-size:11px}
-  .paneles-patio .fase{margin:14px 0 6px; font-size:12px}
-  .panel-dash{flex:1 1 360px; border:2px solid var(--t-acento); background:#fff; min-width:0; overflow-x:auto}
-  .panel-dash-cab{background:var(--t-cons-bg); border-bottom:2px solid var(--t-acento); padding:10px 14px; font-size:14px; font-weight:bold}
-  /* una procedencia debajo de la otra, compactas */
-  .panel-dash-caja{padding:8px}
-  table.tabla-dash{width:100%; font-size:10.5px; margin:0 0 8px; border-collapse:collapse}
-  table.tabla-dash:last-child{margin-bottom:0}
-  .tabla-dash th{background:var(--t-cons-bg); color:#000; border:1px solid var(--t-acento); text-align:center; padding:4px 5px; font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .tabla-dash td{border:1px solid var(--gris-suave); padding:3px 5px; vertical-align:middle}
-  .tabla-dash td.dash-label{color:var(--azul-oscuro,#1a4d7a); font-weight:bold; width:62%; line-height:1.15}
-  .tabla-dash td.dash-val{text-align:right; font-weight:bold; white-space:nowrap}
-  .panel-dash .vacio{padding:18px 4px; font-size:13px}
+  /* ---- resumen de patio: cabecera de pendientes + dashboard de tarjetas por procedencia ---- */
+  .paneles-patio{margin:18px 0 4px}
+  .paneles-patio .panel-pend{margin:0 0 14px}
+
+  .dash-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:14px}
+  .dash-card{
+    border:1px solid var(--gris-suave); border-left:5px solid var(--dc-color, var(--t-acento));
+    background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.08); display:flex; flex-direction:column; min-width:0;
+  }
+  .dash-card-head{
+    background:var(--dc-color, var(--t-acento)); color:#fff; font-weight:bold; font-size:13px;
+    padding:9px 12px; letter-spacing:.2px;
+  }
+  table.dc-tenor{width:100%; font-size:12px; border-collapse:collapse; margin:0}
+  table.dc-tenor td{padding:6px 12px; border-bottom:1px solid #f0f0f0}
+  table.dc-tenor tr:last-child td{border-bottom:1px solid var(--gris-suave)}
+  .dc-label{color:var(--dc-color, var(--azul-oscuro,#1a4d7a)); font-weight:bold}
+  .dc-val{text-align:right; font-weight:bold; white-space:nowrap}
+  .dc-vacio{padding:10px 12px; font-size:12px; color:var(--gris); text-align:center}
+  .dash-card-pend-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:#FAFAFA; border-top:1px solid var(--gris-suave); border-bottom:1px solid var(--gris-suave);
+    padding:6px 12px; font-size:11.5px; font-weight:bold; color:#555;
+  }
+  .dc-badge{background:var(--alerta); color:#fff; border-radius:10px; font-size:11px; font-weight:bold; padding:1px 8px}
+  table.dc-pend{width:100%; font-size:11.5px; border-collapse:collapse}
+  table.dc-pend th{background:#FAFAFA; color:#666; font-size:10.5px; text-align:left; padding:4px 12px; font-weight:bold}
+  table.dc-pend td{padding:4px 12px; border-top:1px solid #f5f5f5}
+  table.dc-pend tr:nth-child(even) td{background:#FDFDFD}
+  .dc-ok{padding:10px 12px; font-size:12px; color:#0F6E56; font-weight:bold; text-align:center}
 
   table{border-collapse:collapse; width:100%; font-size:13px; margin-top:14px}
   thead th{position:sticky; top:0; background:var(--gris-cab); color:#fff; border-bottom:2px solid var(--t-acento); text-align:left; padding:10px; font-size:12px; white-space:nowrap}
@@ -966,7 +977,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '20/10/2026-65';   // sirve para confirmar qué versión está cargada
+const VERSION = '20/10/2026-68';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1428,50 +1439,49 @@ async function calcularPanel(){
   ESTADO.stock = stock.sort((a,b)=> a.proc.localeCompare(b.proc) || claveOrden(a.grupo).localeCompare(claveOrden(b.grupo)));
 }
 
-function tablaPendientes(lista){
-  const porProc = new Map();
-  lista.forEach(x=>{
-    if(!porProc.has(x.procId)) porProc.set(x.procId, []);
-    porProc.get(x.procId).push(x);
-  });
-  const ordenProc = PROCEDENCIAS.map(p=>p.id).filter(id => porProc.has(id));
+// paleta de acentos que rotan por procedencia (en el mismo orden del array PROCEDENCIAS), para
+// que cada tarjeta del dashboard se distinga a simple vista
+const PALETA_DASH = ['#1a4d7a', '#2e7d32', '#b45309', '#6d28d9', '#0e7490', '#9d174d', '#4d7c0f'];
 
-  return ordenProc.map(id=>{
-    const grupo = porProc.get(id);
-    const codigos = grupo.reduce((a,x)=> a + x.faltan, 0);
-    return `<div class="fase">${esc(grupo[0].proc)}<span style="float:right;font-weight:normal">${grupo.length} pila${grupo.length===1?'':'s'} · ${codigos} código${codigos===1?'':'s'} sin tenor</span></div>
-      <table class="patio tabla-pend"><thead><tr>
-        <th>FECHA</th><th>PILA</th><th>ORDEN</th><th>FALTAN</th><th>ESTADO</th>
-      </tr></thead><tbody>` +
-      grupo.map(x=>{
-        const total = x.faltan === x.total;
-        return `<tr class="${total ? 'fila-falta' : 'fila-parcial'}">
-          <td>${esc(fechaLegible(x.fecha))}</td>
-          <td>${esc(x.pila)}</td>
-          <td><b>${esc(x.orden)}</b></td>
-          <td>${x.faltan} de ${x.total}</td>
-          <td><span class="marca ${total ? 'mal' : 'medio'}">${total ? 'SIN TENOR' : 'INCOMPLETA'}</span></td>
-        </tr>`;
-      }).join('') + `</tbody></table>`;
-  }).join('');
-}
-
-// cuadro "estilo dashboard" con el tenor ponderado y el rango (máximo/mínimo de los promedios de
-// sus pilas) de cada procedencia, para el mes abierto en las carpetas — un vistazo rápido al lado
-// del panel de pilas pendientes, sin tener que entrar a cada procedencia por separado
-function panelDashboard(mes){
+// una tarjeta compacta por procedencia: tenor ponderado + rango arriba, y debajo solo pila/orden
+// de lo que le falta tenor ese mes (sin fecha ni estado, para que quepa de un vistazo)
+function tarjetasProcedencia(mes, listaPendientes){
   const porMes = (ESTADO.panel && ESTADO.panel.dashboard) ? ESTADO.panel.dashboard[mes] : null;
-  const filas = PROCEDENCIAS.map(p => porMes && porMes[p.id]).filter(Boolean);
-  const cuerpo = filas.length
-    ? filas.map(d => `<table class="tabla-dash"><tbody>
-          <tr><th colspan="2">${esc(d.proc)}</th></tr>
-          <tr><td class="dash-label">TENOR PONDERADO</td><td class="dash-val">${fmt(d.ponderado,3)} g/t</td></tr>
-          <tr><td class="dash-label">TENOR PROMEDIO MAXIMO</td><td class="dash-val">${fmt(d.max,3)} g/t</td></tr>
-          <tr><td class="dash-label">TENOR PROMEDIO MINIMO</td><td class="dash-val">${fmt(d.min,3)} g/t</td></tr>
-        </tbody></table>`).join('')
-    : `<div class="vacio">Sin pilas cargadas este mes</div>`;
-  return `<div class="panel-dash"><div class="panel-dash-cab">TENORES POR PROCEDENCIA</div>
-    <div class="panel-dash-caja">${cuerpo}</div></div>`;
+  const pendPorProc = new Map();
+  listaPendientes.forEach(x=>{
+    if(!pendPorProc.has(x.procId)) pendPorProc.set(x.procId, []);
+    pendPorProc.get(x.procId).push(x);
+  });
+
+  const tarjetas = PROCEDENCIAS.map((p, i)=>{
+    const d = porMes && porMes[p.id];
+    const pend = pendPorProc.get(p.id) || [];
+    if(!d && !pend.length) return '';
+    const color = PALETA_DASH[i % PALETA_DASH.length];
+
+    const filasTenor = d
+      ? `<tr><td class="dc-label">TENOR PONDERADO</td><td class="dc-val">${fmt(d.ponderado,3)} g/t</td></tr>
+         <tr><td class="dc-label">TENOR PROMEDIO MINIMO</td><td class="dc-val">${fmt(d.min,3)} g/t</td></tr>
+         <tr><td class="dc-label">TENOR PROMEDIO MAXIMO</td><td class="dc-val">${fmt(d.max,3)} g/t</td></tr>`
+      : `<tr><td class="dc-vacio" colspan="2">Sin tenores cargados este mes</td></tr>`;
+
+    const cuerpoPend = pend.length
+      ? `<table class="dc-pend"><thead><tr><th>PILA</th><th>ORDEN</th></tr></thead><tbody>${
+          pend.map(x=> `<tr><td>${esc(x.pila)}</td><td><b>${esc(x.orden)}</b></td></tr>`).join('')
+        }</tbody></table>`
+      : `<div class="dc-ok">✓ Todas con tenor</div>`;
+
+    return `<div class="dash-card" style="--dc-color:${color}">
+        <div class="dash-card-head">${esc(p.nombre)}</div>
+        <table class="dc-tenor"><tbody>${filasTenor}</tbody></table>
+        <div class="dash-card-pend-head"><span>ÓRDENES PENDIENTES</span>${pend.length ? `<span class="dc-badge">${pend.length}</span>` : ''}</div>
+        ${cuerpoPend}
+      </div>`;
+  }).filter(Boolean).join('');
+
+  return tarjetas
+    ? `<div class="dash-grid">${tarjetas}</div>`
+    : `<div class="vacio">Sin datos cargados este mes</div>`;
 }
 
 function panelPatio(){
@@ -1481,25 +1491,12 @@ function panelPatio(){
   const mes = ESTADO.mesPatio || pan.mesHoy;
   const lista = pan.pendientes.filter(x => x.mes === mes)
                               .sort((a,b)=> a.clave.localeCompare(b.clave));
-  const pilas = lista.length;
-  const codigos = lista.reduce((a,x)=> a + x.faltan, 0);
-  const rotuloMes = nombreMes(mes) + (mes === pan.mesHoy ? ' — MES EN CURSO' : '');
-
-  const cab = `<div class="panel-pend-cab">
-      <div><b>PILAS QUE FALTAN POR TENOR — ${esc(rotuloMes)}</b>
-        <small>${pilas ? `${pilas} pila${pilas===1?'':'s'} pendiente${pilas===1?'':'s'} · ${codigos} código${codigos===1?'':'s'} sin tenor`
-                       : 'Todas las pilas del mes tienen sus tenores cargados'}</small></div>
+  const cab = `<div class="panel-pend-cab panel-pend-cab-min">
       <button class="btn" id="btn-panel">${ESTADO.panelAbierto ? 'Ocultar panel' : 'Mostrar panel'}</button>
     </div>`;
-  if(!ESTADO.panelAbierto) return `<div class="paneles-patio"><div class="panel-pend">${cab}</div>${panelDashboard(mes)}</div>`;
+  if(!ESTADO.panelAbierto) return `<div class="paneles-patio"><div class="panel-pend">${cab}</div></div>`;
 
-  const cuerpo = pilas
-    ? `<div class="cifras">
-         <div class="cifra mal"><b>${pilas}</b><span>PILAS PENDIENTES</span></div>
-         <div class="cifra mal"><b>${codigos}</b><span>CÓDIGOS SIN TENOR</span></div>
-       </div>${tablaPendientes(lista)}`
-    : `<div class="ok">Todas las pilas de ${esc(nombreMes(mes))} tienen sus tenores cargados</div>`;
-  return `<div class="paneles-patio"><div class="panel-pend">${cab}<div class="panel-pend-caja">${cuerpo}</div></div>${panelDashboard(mes)}</div>`;
+  return `<div class="paneles-patio"><div class="panel-pend">${cab}</div>${tarjetasProcedencia(mes, lista)}</div>`;
 }
 
 // resumen general de Patio: solo el panel de pilas pendientes por tenor y el dashboard de tenores
@@ -1509,7 +1506,7 @@ function pintarInicioPatio(){
   const zona = $('#zona-tabla');
   const folders = carpetasMesInicio();
   const tituloTabla = `<div class="rotulo">MUESTREO EN PATIO<small>PLANTA REVEMIN PIM II — Resumen general</small></div>`;
-  zona.innerHTML = panelPatio() + folders + tituloTabla +
+  zona.innerHTML = folders + panelPatio() + tituloTabla +
     `<div class="vacio" style="padding:30px 10px">Elija una procedencia arriba para ver su tabla de tenores.</div>`;
   enlazarCarpetasInicio(zona);
   ponerPie('Resumen general · elija una procedencia para ver sus pilas');
