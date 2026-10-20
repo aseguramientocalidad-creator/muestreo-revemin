@@ -148,12 +148,12 @@
   .paneles-patio .cifra b{font-size:15px}
   .paneles-patio table.tabla-pend{max-width:none; font-size:11px}
   .paneles-patio .fase{margin:14px 0 6px; font-size:12px}
-  .panel-dash{flex:2 1 460px; border:2px solid var(--t-acento); background:#fff; min-width:0; overflow-x:auto}
+  .panel-dash{flex:1 1 360px; border:2px solid var(--t-acento); background:#fff; min-width:0; overflow-x:auto}
   .panel-dash-cab{background:var(--t-cons-bg); border-bottom:2px solid var(--t-acento); padding:10px 14px; font-size:14px; font-weight:bold}
-  /* una procedencia al lado de la otra (no apiladas), compactas, para que quepan todas; si no caben
-     todas en una fila, las siguientes bajan a la fila de abajo (flex-wrap) */
-  .panel-dash-caja{padding:8px; display:flex; flex-wrap:wrap; gap:8px}
-  table.tabla-dash{width:auto; flex:0 0 168px; font-size:10.5px; margin:0; border-collapse:collapse}
+  /* una procedencia debajo de la otra, compactas */
+  .panel-dash-caja{padding:8px}
+  table.tabla-dash{width:100%; font-size:10.5px; margin:0 0 8px; border-collapse:collapse}
+  table.tabla-dash:last-child{margin-bottom:0}
   .tabla-dash th{background:var(--t-cons-bg); color:#000; border:1px solid var(--t-acento); text-align:center; padding:4px 5px; font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .tabla-dash td{border:1px solid var(--gris-suave); padding:3px 5px; vertical-align:middle}
   .tabla-dash td.dash-label{color:var(--azul-oscuro,#1a4d7a); font-weight:bold; width:62%; line-height:1.15}
@@ -966,7 +966,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '20/10/2026-61';   // sirve para confirmar qué versión está cargada
+const VERSION = '20/10/2026-62';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
