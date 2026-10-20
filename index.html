@@ -139,6 +139,27 @@
   .marca.medio{background:var(--aviso); color:#fff}
   .barra-prom{display:block; height:9px; background:var(--t-acento); min-width:2px}
 
+  /* ---- fila de paneles de patio: pendientes por tenor (más compacto) + dashboard de tenores ---- */
+  .paneles-patio{display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; margin:18px 0 4px}
+  .paneles-patio .panel-pend{flex:1 1 360px; margin:0; min-width:0}
+  .paneles-patio .panel-pend-caja{padding:10px 12px 14px}
+  .paneles-patio .cifras{gap:8px; margin:0 0 10px}
+  .paneles-patio .cifra{padding:5px 10px; min-width:76px}
+  .paneles-patio .cifra b{font-size:15px}
+  .paneles-patio table.tabla-pend{max-width:none; font-size:11px}
+  .paneles-patio .fase{margin:14px 0 6px; font-size:12px}
+  .panel-dash{flex:2 1 460px; border:2px solid var(--t-acento); background:#fff; min-width:0; overflow-x:auto}
+  .panel-dash-cab{background:var(--t-cons-bg); border-bottom:2px solid var(--t-acento); padding:10px 14px; font-size:14px; font-weight:bold}
+  /* una procedencia al lado de la otra (no apiladas), compactas, para que quepan todas; si no caben
+     todas en una fila, las siguientes bajan a la fila de abajo (flex-wrap) */
+  .panel-dash-caja{padding:8px; display:flex; flex-wrap:wrap; gap:8px}
+  table.tabla-dash{width:auto; flex:0 0 168px; font-size:10.5px; margin:0; border-collapse:collapse}
+  .tabla-dash th{background:var(--t-cons-bg); color:#000; border:1px solid var(--t-acento); text-align:center; padding:4px 5px; font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .tabla-dash td{border:1px solid var(--gris-suave); padding:3px 5px; vertical-align:middle}
+  .tabla-dash td.dash-label{color:var(--azul-oscuro,#1a4d7a); font-weight:bold; width:62%; line-height:1.15}
+  .tabla-dash td.dash-val{text-align:right; font-weight:bold; white-space:nowrap}
+  .panel-dash .vacio{padding:18px 4px; font-size:13px}
+
   table{border-collapse:collapse; width:100%; font-size:13px; margin-top:14px}
   thead th{position:sticky; top:0; background:var(--gris-cab); color:#fff; border-bottom:2px solid var(--t-acento); text-align:left; padding:10px; font-size:12px; white-space:nowrap}
   tbody td{border-bottom:1px solid var(--gris-suave); padding:9px 10px; vertical-align:top}
@@ -557,6 +578,9 @@ const COLS_PATIO = [
   {id:'tenorPromedio', etiqueta:'TENOR PROMEDIO (g/t)'},
   {id:'auContenido', etiqueta:'Au CONTENIDO (g)'}
 ];
+// igual que COLS_PATIO pero sin TURNO: columnas de la hoja Excel "TENORES DE PATIO" (la tabla en
+// pantalla sí conserva TURNO; solo se pidió quitarlo de la exportación)
+const COLS_PATIO_EXPORT = COLS_PATIO.filter(c => c.id !== 'turno');
 
 const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, panelAbierto:true, vistaPatio:'datos'};
 
@@ -942,7 +966,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '18/10/2026-57';   // sirve para confirmar qué versión está cargada
+const VERSION = '20/10/2026-61';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1289,6 +1313,7 @@ async function calcularPanel(){
   const mesHoy = mesCalendario();
   const pendientes = [];
   const stock = [];
+  const dashboard = {}; // dashboard[mes][procId] = {proc, ponderado, max, min}
   for(const p of PROCEDENCIAS){
     const datos = await leerPatio(p.id);
     // "en stock" es la PILA completa, no solo la fecha marcada "Stock: Sí": si una pila entra en
@@ -1318,10 +1343,35 @@ async function calcularPanel(){
         stock.push({procId:p.id, proc:p.nombre, grupo:g});
       }
     });
+
+    // dashboard de tenores por mes: mismo cálculo (agruparBloques + statsBloque/statsMezcla) que la
+    // tabla de tenores, aplicado mes por mes, para ver de un vistazo el tenor ponderado de cada
+    // procedencia y el rango (máximo/mínimo) de los promedios de sus pilas ese mes
+    const mesesProc = [...new Set(datos.map(g => (g.fecha||'').slice(0,7)).filter(Boolean))];
+    mesesProc.forEach(mes=>{
+      const grupos = datos.filter(g => (g.fecha||'').slice(0,7) === mes);
+      const bloques = agruparBloques(grupos);
+      let totalSecas = 0, totalAu = 0;
+      const promedios = [];
+      bloques.forEach(bloque=>{
+        const esMezclaManual = bloque.length > 1 && bloque[0].mezclaId;
+        const stats = esMezclaManual ? statsMezcla(bloque) : statsBloque(bloque);
+        if(stats.ts !== null) totalSecas += stats.ts;
+        if(stats.au !== null) totalAu += stats.au;
+        if(stats.tp !== null) promedios.push(stats.tp);
+      });
+      if(!dashboard[mes]) dashboard[mes] = {};
+      dashboard[mes][p.id] = {
+        proc: p.nombre,
+        ponderado: totalSecas ? totalAu / totalSecas : null,
+        max: promedios.length ? Math.max(...promedios) : null,
+        min: promedios.length ? Math.min(...promedios) : null
+      };
+    });
   }
   // todos los meses que tengan pilas sin tenor, del más reciente al más antiguo
   const meses = [...new Set(pendientes.map(x => x.mes).filter(Boolean))].sort().reverse();
-  ESTADO.panel = {mesHoy, meses, pendientes};
+  ESTADO.panel = {mesHoy, meses, pendientes, dashboard};
   ESTADO.stock = stock.sort((a,b)=> a.proc.localeCompare(b.proc) || claveOrden(a.grupo).localeCompare(claveOrden(b.grupo)));
 }
 
@@ -1353,6 +1403,24 @@ function tablaPendientes(lista){
   }).join('');
 }
 
+// cuadro "estilo dashboard" con el tenor ponderado y el rango (máximo/mínimo de los promedios de
+// sus pilas) de cada procedencia, para el mes abierto en las carpetas — un vistazo rápido al lado
+// del panel de pilas pendientes, sin tener que entrar a cada procedencia por separado
+function panelDashboard(mes){
+  const porMes = (ESTADO.panel && ESTADO.panel.dashboard) ? ESTADO.panel.dashboard[mes] : null;
+  const filas = PROCEDENCIAS.map(p => porMes && porMes[p.id]).filter(Boolean);
+  const cuerpo = filas.length
+    ? filas.map(d => `<table class="tabla-dash"><tbody>
+          <tr><th colspan="2">${esc(d.proc)}</th></tr>
+          <tr><td class="dash-label">TENOR PONDERADO</td><td class="dash-val">${fmt(d.ponderado,3)} g/t</td></tr>
+          <tr><td class="dash-label">TENOR PROMEDIO MAXIMO</td><td class="dash-val">${fmt(d.max,3)} g/t</td></tr>
+          <tr><td class="dash-label">TENOR PROMEDIO MINIMO</td><td class="dash-val">${fmt(d.min,3)} g/t</td></tr>
+        </tbody></table>`).join('')
+    : `<div class="vacio">Sin pilas cargadas este mes</div>`;
+  return `<div class="panel-dash"><div class="panel-dash-cab">TENORES POR PROCEDENCIA</div>
+    <div class="panel-dash-caja">${cuerpo}</div></div>`;
+}
+
 function panelPatio(){
   const pan = ESTADO.panel;
   if(!pan) return '';
@@ -1370,7 +1438,7 @@ function panelPatio(){
                        : 'Todas las pilas del mes tienen sus tenores cargados'}</small></div>
       <button class="btn" id="btn-panel">${ESTADO.panelAbierto ? 'Ocultar panel' : 'Mostrar panel'}</button>
     </div>`;
-  if(!ESTADO.panelAbierto) return `<div class="panel-pend">${cab}</div>`;
+  if(!ESTADO.panelAbierto) return `<div class="paneles-patio"><div class="panel-pend">${cab}</div>${panelDashboard(mes)}</div>`;
 
   const cuerpo = pilas
     ? `<div class="cifras">
@@ -1378,7 +1446,7 @@ function panelPatio(){
          <div class="cifra mal"><b>${codigos}</b><span>CÓDIGOS SIN TENOR</span></div>
        </div>${tablaPendientes(lista)}`
     : `<div class="ok">Todas las pilas de ${esc(nombreMes(mes))} tienen sus tenores cargados</div>`;
-  return `<div class="panel-pend">${cab}<div class="panel-pend-caja">${cuerpo}</div></div>`;
+  return `<div class="paneles-patio"><div class="panel-pend">${cab}<div class="panel-pend-caja">${cuerpo}</div></div>${panelDashboard(mes)}</div>`;
 }
 
 function pintarPatio(){
@@ -1993,6 +2061,7 @@ function formularioPatio(indice, base){
     </div>
     <div class="subtitulo">Códigos de la pila
       <button type="button" class="btn" id="btn-agregar-codigo">Agregar código</button>
+      <button type="button" class="btn" id="btn-rellenar-codigos" title="Escriba el código de la primera fila y presione aquí para completar los demás, continuando la serie">🔢 Rellenar códigos en serie</button>
       <button type="button" class="btn" id="btn-importar-form">📥 Importar reporte de laboratorio</button>
       <label class="opcion"><input type="checkbox" name="usarMediana" id="usar-mediana" ${g.estadistico === 'mediana' ? 'checked' : ''}>
         Usar mediana en vez de promedio</label></div>
@@ -2022,6 +2091,30 @@ function formularioPatio(indice, base){
   $('#btn-agregar-codigo').addEventListener('click', ()=>{
     tbody.insertAdjacentHTML('beforeend', filaMuestra({}));
     engancharFilas(); calcularVivo();
+  });
+  // "123" → {prefijo:'', numero:123, ancho:3} ; "P-0998" → {prefijo:'P-', numero:998, ancho:4}
+  // (ancho conserva los ceros a la izquierda al continuar la serie); sin números al final → null
+  function analizarCodigoSerie(cod){
+    const m = String(cod).trim().match(/^(.*?)(\d+)$/);
+    return m ? {prefijo: m[1], numero: Number(m[2]), ancho: m[2].length} : null;
+  }
+  $('#btn-rellenar-codigos').addEventListener('click', ()=>{
+    const filas = [...tbody.querySelectorAll('tr')];
+    if(filas.length < 2){ avisar('Agregue más filas para poder rellenar en serie'); return; }
+    const inPrimero = filas[0].querySelector('[name=codigo]');
+    const primero = inPrimero.value.trim();
+    if(!primero){ avisar('Escriba primero el código de la primera fila'); return; }
+    const info = analizarCodigoSerie(primero);
+    if(!info){ avisar('Ese código no termina en números: no se puede continuar la serie automáticamente'); return; }
+    const resto = filas.slice(1);
+    const yaEscritos = resto.filter(tr => tr.querySelector('[name=codigo]').value.trim() !== '').length;
+    if(yaEscritos && !confirm(`${yaEscritos} fila(s) ya tienen un código escrito. ¿Sobrescribirlos continuando la serie desde ${primero}?`)) return;
+    resto.forEach((tr, i)=>{
+      const numero = info.numero + i + 1;
+      tr.querySelector('[name=codigo]').value = info.prefijo + String(numero).padStart(info.ancho, '0');
+    });
+    calcularVivo();
+    avisar('Códigos rellenados en serie');
   });
   engancharFilas(); calcularVivo();
 
@@ -2858,14 +2951,14 @@ async function exportarExcelPatio(soloProc){
     if(grupos.length) hayDatos = true;
 
     const ws = wb.addWorksheet(p.nombre.slice(0,31));
-    const anchos = [19,14,10,17,16,12,16,16,16,16,16];
+    const anchos = [19,14,17,16,12,16,16,16,16,16];
     anchos.forEach((w,i)=> ws.getColumn(i+1).width = w);
     const NC = anchos.length;
 
     const mes = periodo(grupos);
     tituloHoja(ws, NC, `TENORES DE PATIO DE ${p.nombre}`,
                        `PLANTA REVEMIN PIM II${mes ? '-' + mes : ''}`);
-    encabezadoHoja(ws, 4, COLS_PATIO.map(c => c.etiqueta));
+    encabezadoHoja(ws, 4, COLS_PATIO_EXPORT.map(c => c.etiqueta));
 
     let n = 5;
     let totalHumedas = 0, totalSecas = 0, totalAu = 0;
@@ -2888,41 +2981,40 @@ async function exportarExcelPatio(soloProc){
           const f = formatearFila(ws, n, NC);
           f.getCell(1).value = ini === n ? fechaLegible(g.fecha) : null;
           f.getCell(2).value = ini === n ? String(g.pila ?? '') : null;
-          f.getCell(3).value = ini === n ? (g.turno || '') : null;
-          f.getCell(4).value = ini === n ? (g.orden || '') : null;
+          f.getCell(3).value = ini === n ? (g.orden || '') : null;
           // las toneladas húmedas solo se escriben una vez por bloque (más abajo), no por cada fecha
-          f.getCell(5).value = (!esBloqueMultiple && ini === n) ? celda(g.toneladasHumedas) : null;
-          f.getCell(6).value = celda(m.codigo);
-          f.getCell(7).value = celda(m.tenor);
-          f.getCell(8).value = celda(m.humedad);
+          f.getCell(4).value = (!esBloqueMultiple && ini === n) ? celda(g.toneladasHumedas) : null;
+          f.getCell(5).value = celda(m.codigo);
+          f.getCell(6).value = celda(m.tenor);
+          f.getCell(7).value = celda(m.humedad);
           n++;
         });
         const fin = n - 1;
 
         // los datos de la pila abarcan todas sus filas
-        const colsFecha = esBloqueMultiple ? [1,2,3,4] : [1,2,3,4,5];
+        const colsFecha = esBloqueMultiple ? [1,2,3] : [1,2,3,4];
         colsFecha.forEach(col => { if(fin > ini) ws.mergeCells(ini, col, fin, col); });
 
         const f = formatearFila(ws, n, NC, {negrita:true});
-        ws.mergeCells(n, 1, n, esBloqueMultiple ? 4 : 5);
+        ws.mergeCells(n, 1, n, esBloqueMultiple ? 3 : 4);
         const fn = g.estadistico === 'mediana' ? 'MEDIAN' : 'AVERAGE';
-        f.getCell(6).value = rotuloCentro(g);
-        f.getCell(7).value = {formula:`${fn}(G${ini}:G${fin})`, result: centro(g, ms.map(m=>m.tenor))};
-        f.getCell(8).value = {formula:`${fn}(H${ini}:H${fin})`, result: centro(g, ms.map(m=>m.humedad))};
-        f.getCell(7).numFmt = '0.000';
-        f.getCell(8).numFmt = '0.00';
+        f.getCell(5).value = rotuloCentro(g);
+        f.getCell(6).value = {formula:`${fn}(F${ini}:F${fin})`, result: centro(g, ms.map(m=>m.tenor))};
+        f.getCell(7).value = {formula:`${fn}(G${ini}:G${fin})`, result: centro(g, ms.map(m=>m.humedad))};
+        f.getCell(6).numFmt = '0.000';
+        f.getCell(7).numFmt = '0.00';
 
         if(!esBloqueMultiple){
           // una sola fecha: fórmulas vivas sobre las celdas de la misma hoja, para que se recalculen
           // si se edita toneladas húmedas, tenor o humedad
           const prom = n; // fila de PROMEDIO de esta pila, ya calculada arriba
-          ws.getCell(ini, 9).value = {formula:`E${ini}*(1-H${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
-          ws.getCell(ini, 10).value = {formula:`G${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
-          ws.getCell(ini, 11).value = {formula:`I${ini}*J${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
-          ws.getCell(ini, 9).numFmt = '0.00';
-          ws.getCell(ini, 10).numFmt = '0.000';
-          ws.getCell(ini, 11).numFmt = '0.00';
-          [9,10,11].forEach(col => ws.mergeCells(ini, col, n, col));
+          ws.getCell(ini, 8).value = {formula:`D${ini}*(1-G${prom}/100)`, result: ts === null ? 0 : Number(ts.toFixed(2))};
+          ws.getCell(ini, 9).value = {formula:`F${prom}`, result: tp === null ? 0 : Number(tp.toFixed(3))};
+          ws.getCell(ini, 10).value = {formula:`H${ini}*I${ini}`, result: au === null ? 0 : Number(au.toFixed(2))};
+          ws.getCell(ini, 8).numFmt = '0.00';
+          ws.getCell(ini, 9).numFmt = '0.000';
+          ws.getCell(ini, 10).numFmt = '0.00';
+          [8,9,10].forEach(col => ws.mergeCells(ini, col, n, col));
         }
         n++;
       });
@@ -2932,14 +3024,14 @@ async function exportarExcelPatio(soloProc){
         // promedio y el Au contenido se calculan con el peso total y todas las muestras juntas, y se
         // escriben una sola vez, fusionadas en todo el bloque (no son fórmulas vivas en este caso)
         const finBloque = n - 1;
-        ws.getCell(inicioBloque, 5).value = stats.totalHumedas === null ? null : Number(stats.totalHumedas.toFixed(2));
-        ws.getCell(inicioBloque, 9).value = stats.ts === null ? null : Number(stats.ts.toFixed(2));
-        ws.getCell(inicioBloque, 10).value = stats.tp === null ? null : Number(stats.tp.toFixed(3));
-        ws.getCell(inicioBloque, 11).value = stats.au === null ? null : Number(stats.au.toFixed(2));
-        ws.getCell(inicioBloque, 9).numFmt = '0.00';
-        ws.getCell(inicioBloque, 10).numFmt = '0.000';
-        ws.getCell(inicioBloque, 11).numFmt = '0.00';
-        [5,9,10,11].forEach(col => ws.mergeCells(inicioBloque, col, finBloque, col));
+        ws.getCell(inicioBloque, 4).value = stats.totalHumedas === null ? null : Number(stats.totalHumedas.toFixed(2));
+        ws.getCell(inicioBloque, 8).value = stats.ts === null ? null : Number(stats.ts.toFixed(2));
+        ws.getCell(inicioBloque, 9).value = stats.tp === null ? null : Number(stats.tp.toFixed(3));
+        ws.getCell(inicioBloque, 10).value = stats.au === null ? null : Number(stats.au.toFixed(2));
+        ws.getCell(inicioBloque, 8).numFmt = '0.00';
+        ws.getCell(inicioBloque, 9).numFmt = '0.000';
+        ws.getCell(inicioBloque, 10).numFmt = '0.00';
+        [4,8,9,10].forEach(col => ws.mergeCells(inicioBloque, col, finBloque, col));
       }
     });
 
@@ -2947,25 +3039,25 @@ async function exportarExcelPatio(soloProc){
       const filaDesde = 5, filaHasta = n - 1;
       const tenorPonderado = totalSecas ? totalAu / totalSecas : null;
       const ft = formatearFila(ws, n, NC, {negrita:true});
-      ws.mergeCells(n, 1, n, 4);
+      ws.mergeCells(n, 1, n, 3);
       ft.getCell(1).value = 'TOTAL';
-      ft.getCell(5).value = {formula:`SUM(E${filaDesde}:E${filaHasta})`, result: Number(totalHumedas.toFixed(2))};
-      ft.getCell(9).value = {formula:`SUM(I${filaDesde}:I${filaHasta})`, result: Number(totalSecas.toFixed(2))};
-      ft.getCell(11).value = {formula:`SUM(K${filaDesde}:K${filaHasta})`, result: Number(totalAu.toFixed(2))};
-      ft.getCell(5).numFmt = '0.00';
-      ft.getCell(9).numFmt = '0.00';
-      ft.getCell(11).numFmt = '0.00';
+      ft.getCell(4).value = {formula:`SUM(D${filaDesde}:D${filaHasta})`, result: Number(totalHumedas.toFixed(2))};
+      ft.getCell(8).value = {formula:`SUM(H${filaDesde}:H${filaHasta})`, result: Number(totalSecas.toFixed(2))};
+      ft.getCell(10).value = {formula:`SUM(J${filaDesde}:J${filaHasta})`, result: Number(totalAu.toFixed(2))};
+      ft.getCell(4).numFmt = '0.00';
+      ft.getCell(8).numFmt = '0.00';
+      ft.getCell(10).numFmt = '0.00';
       ft.eachCell({includeEmpty:true}, c=> c.fill = GRIS_CAB_FILL);
       ft.font = {bold:true, size:10, name:'Arial', color:{argb:'FFFFFFFF'}};
       const filaTotal = n;
       n++;
 
       const fp = formatearFila(ws, n, NC, {negrita:true});
-      ws.mergeCells(n, 1, n, 10);
+      ws.mergeCells(n, 1, n, 9);
       fp.getCell(1).value = `TENOR PONDERADO ${p.nombre} (g/t)`;
       fp.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
-      fp.getCell(11).value = {formula:`IFERROR(K${filaTotal}/I${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
-      fp.getCell(11).numFmt = '0.000';
+      fp.getCell(10).value = {formula:`IFERROR(J${filaTotal}/H${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
+      fp.getCell(10).numFmt = '0.000';
       fp.eachCell({includeEmpty:true}, c=> c.fill = AZUL);
       n++;
     }
