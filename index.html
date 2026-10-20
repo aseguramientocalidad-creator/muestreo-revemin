@@ -582,7 +582,7 @@ const COLS_PATIO = [
 // pantalla sí conserva TURNO; solo se pidió quitarlo de la exportación)
 const COLS_PATIO_EXPORT = COLS_PATIO.filter(c => c.id !== 'turno');
 
-const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, panelAbierto:true, vistaPatio:'datos'};
+const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, panelAbierto:true, vistaPatio:'datos', patioInicio:true};
 
 const $ = s => document.querySelector(s);
 const clavePatio = p => 'revemin_patio_' + p;
@@ -966,7 +966,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '20/10/2026-62';   // sirve para confirmar qué versión está cargada
+const VERSION = '20/10/2026-65';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -997,10 +997,15 @@ async function abrir(nombre){
 
   const zonaProc = $('#procedencias');
   if(esPatio){
-    zonaProc.innerHTML = PROCEDENCIAS.map(p =>
-      `<button class="proc-btn" data-proc="${p.id}">${esc(p.nombre)}</button>`).join('');
+    // al abrir la sección de Patio, lo primero que se ve es el resumen general (Inicio): el panel de
+    // pilas pendientes por tenor y el dashboard de tenores ponderados, separado de la tabla de tenores
+    // de cada procedencia, que queda detrás de su propia pestaña
+    ESTADO.patioInicio = true;
+    zonaProc.innerHTML = `<button class="proc-btn" data-proc-inicio="1">🏠 Inicio</button>` +
+      PROCEDENCIAS.map(p => `<button class="proc-btn" data-proc="${p.id}">${esc(p.nombre)}</button>`).join('');
     zonaProc.querySelectorAll('[data-proc]').forEach(b =>
       b.addEventListener('click', ()=> elegirProcedencia(b.dataset.proc)));
+    zonaProc.querySelector('[data-proc-inicio]').addEventListener('click', irInicioPatio);
     marcarProcedencia();
   }else if(esProc){
     zonaProc.innerHTML = `<div class="fila-controles">
@@ -1086,15 +1091,26 @@ async function cargarDatos(){
 
 function marcarProcedencia(){
   document.querySelectorAll('[data-proc]').forEach(b =>
-    b.setAttribute('aria-pressed', b.dataset.proc === ESTADO.procedencia ? 'true' : 'false'));
+    b.setAttribute('aria-pressed', (!ESTADO.patioInicio && b.dataset.proc === ESTADO.procedencia) ? 'true' : 'false'));
+  const btnInicio = document.querySelector('[data-proc-inicio]');
+  if(btnInicio) btnInicio.setAttribute('aria-pressed', ESTADO.patioInicio ? 'true' : 'false');
 }
 async function elegirProcedencia(id){
   ESTADO.procedencia = id;
+  ESTADO.patioInicio = false;
   ESTADO.mesPatio = '';
   ESTADO.vistaPatio = 'datos';
   marcarProcedencia();
   await cargarDatos();
   escucharClave(clavePatio(id), datos =>{ ESTADO.datos = datos; pintar(); refrescarPanel(); });
+}
+// vuelve al resumen general de Patio (pendientes por tenor + dashboard de tenores), sin tener que
+// elegir ninguna procedencia; los datos de todas las procedencias ya están cargados en ESTADO.panel
+function irInicioPatio(){
+  ESTADO.patioInicio = true;
+  ESTADO.mesPatio = '';
+  marcarProcedencia();
+  pintar();
 }
 
 /* ---------- pintado ---------- */
@@ -1140,6 +1156,43 @@ function carpetasMes(){
     ).join('') + `</div>`;
 
   return filaAnios + filaMeses;
+}
+
+// carpetas AÑO/MES para la pantalla de Inicio de Patio: a diferencia de carpetasMes() (que lee los
+// meses de ESTADO.datos, la procedencia abierta), aquí los meses salen del dashboard ya calculado
+// para TODAS las procedencias (ESTADO.panel.dashboard), ya que Inicio no tiene una sola procedencia
+function carpetasMesInicio(){
+  if(!ESTADO.panel) return '';
+  const meses = Object.keys(ESTADO.panel.dashboard || {}).sort();
+  if(!meses.length){ ESTADO.mesPatio = ''; return ''; }
+
+  if(!ESTADO.mesPatio || !meses.includes(ESTADO.mesPatio)) ESTADO.mesPatio = meses[meses.length - 1];
+  const anio = ESTADO.mesPatio.slice(0,4);
+  const anios = [...new Set(meses.map(m => m.slice(0,4)))].sort();
+
+  const filaAnios = `<div class="carpetas">` + anios.map(a =>
+    `<button class="carpeta carpeta-anio" data-anio-inicio="${a}" aria-pressed="${a === anio}">AÑO ${a}</button>`
+  ).join('') + `</div>`;
+
+  const nombre = m => MESES[Number(m.slice(5,7)) - 1];
+  const filaMeses = `<div class="carpetas carpetas-mes">` +
+    meses.filter(m => m.slice(0,4) === anio).map(m =>
+      `<button class="carpeta" data-mes-inicio="${m}" aria-pressed="${m === ESTADO.mesPatio}">${esc(nombre(m))}</button>`
+    ).join('') + `</div>`;
+
+  return filaAnios + filaMeses;
+}
+function enlazarCarpetasInicio(zona){
+  zona.querySelectorAll('[data-mes-inicio]').forEach(b => b.addEventListener('click', ()=>{
+    ESTADO.mesPatio = b.dataset.mesInicio; pintar();
+  }));
+  const bp = zona.querySelector('#btn-panel');
+  if(bp) bp.addEventListener('click', ()=>{ ESTADO.panelAbierto = !ESTADO.panelAbierto; pintar(); });
+  zona.querySelectorAll('[data-anio-inicio]').forEach(b => b.addEventListener('click', ()=>{
+    // al cambiar de año se abre su mes más reciente (de entre los que tienen datos en cualquier procedencia)
+    const meses = Object.keys(ESTADO.panel.dashboard || {}).filter(m => m.slice(0,4) === b.dataset.anioInicio).sort();
+    if(meses.length){ ESTADO.mesPatio = meses[meses.length - 1]; pintar(); }
+  }));
 }
 
 function enlazarCarpetas(zona){
@@ -1449,7 +1502,21 @@ function panelPatio(){
   return `<div class="paneles-patio"><div class="panel-pend">${cab}<div class="panel-pend-caja">${cuerpo}</div></div>${panelDashboard(mes)}</div>`;
 }
 
+// resumen general de Patio: solo el panel de pilas pendientes por tenor y el dashboard de tenores
+// ponderados (de TODAS las procedencias), separado de la tabla de tenores de una procedencia en
+// particular, que queda detrás de su propia pestaña arriba
+function pintarInicioPatio(){
+  const zona = $('#zona-tabla');
+  const folders = carpetasMesInicio();
+  const tituloTabla = `<div class="rotulo">MUESTREO EN PATIO<small>PLANTA REVEMIN PIM II — Resumen general</small></div>`;
+  zona.innerHTML = panelPatio() + folders + tituloTabla +
+    `<div class="vacio" style="padding:30px 10px">Elija una procedencia arriba para ver su tabla de tenores.</div>`;
+  enlazarCarpetasInicio(zona);
+  ponerPie('Resumen general · elija una procedencia para ver sus pilas');
+}
+
 function pintarPatio(){
+  if(ESTADO.patioInicio){ pintarInicioPatio(); return; }
   if(ESTADO.vistaPatio === 'stock'){ pintarStockPatio(); return; }
   if(ESTADO.vistaPatio === 'mezclas'){ pintarMezclasPatio(); return; }
   // carpetasMes fija ESTADO.mesPatio, por eso se calcula antes que el panel
@@ -1698,9 +1765,15 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
     const n = ms.length;
     const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
     ms.forEach((m,k)=>{
+      // botón para sacar la pila COMPLETA del stock (todas sus fechas), sin pasar por el formulario de
+      // edición; solo se muestra una vez, en la primera fecha del bloque (no repetido por cada fecha).
+      // Las mezclas manuales tienen su propio botón de stock en la fila de cierre "MEZCLA (...)".
+      const quitarStockBtn = (!tieneMezclaId && primeraFilaBloque)
+        ? ` <button type="button" class="mini borrar quitar-de-stock" data-quitar-pila-stock="${esc(normalizaPila(g.pila))}" data-proc="${esc(procId)}" title="Quitar esta pila (todas sus fechas) del stock de patio">📦✕</button>`
+        : '';
       const cabecera = k === 0 ? `
         <td rowspan="${n}"><b>${esc(fechaLegible(g.fecha))}</b></td>
-        <td rowspan="${n}">${esc(g.pila)}${tieneMezclaId ? ` <button type="button" class="mini borrar quitar-de-mezcla" data-quitar-pila-mezcla="${esc(g.__id)}" data-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Quitar esta pila de la mezcla">✕</button>` : ''}</td>` : '';
+        <td rowspan="${n}">${esc(g.pila)}${tieneMezclaId ? ` <button type="button" class="mini borrar quitar-de-mezcla" data-quitar-pila-mezcla="${esc(g.__id)}" data-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Quitar esta pila de la mezcla">✕</button>` : quitarStockBtn}</td>` : '';
 
       let humedasCelda = '', calculados = '';
       if(fusionar){
@@ -1866,6 +1939,7 @@ function enlazarAcciones(zona){
   zona.querySelectorAll('[data-revertir-mezcla]').forEach(b => b.addEventListener('click', ()=> revertirMezclaId(b.dataset.revertirMezcla, b.dataset.proc)));
   zona.querySelectorAll('[data-stock-mezcla]').forEach(b => b.addEventListener('click', ()=> alternarStockMezcla(b.dataset.stockMezcla, b.dataset.proc)));
   zona.querySelectorAll('[data-quitar-pila-mezcla]').forEach(b => b.addEventListener('click', ()=> quitarPilaDeMezcla(b.dataset.quitarPilaMezcla, b.dataset.mezcla, b.dataset.proc)));
+  zona.querySelectorAll('[data-quitar-pila-stock]').forEach(b => b.addEventListener('click', ()=> quitarPilaDeStockPatio(b.dataset.quitarPilaStock, b.dataset.proc)));
 }
 
 /* ---------- formulario ---------- */
@@ -1974,6 +2048,31 @@ async function revertirMezclaId(mezclaId, procId){
   });
   const ok = await escribir(clavePatio(proc), datos);
   avisar(ok ? 'Mezcla revertida: las pilas vuelven a verse por separado' : 'Cambio hecho solo en esta sesión: descargue el Excel antes de cerrar');
+  refrescarPanel();
+  pintar();
+}
+
+// quita del stock de patio una pila SIN mezcla (identificada por su nombre normalizado, no por un
+// solo registro): "estar en stock" es la pila completa, no una fecha suelta — basta con que una
+// fecha esté marcada "Stock: Sí" para que toda la pila aparezca en esta vista (ver calcularPanel) —
+// así que al quitarla hay que desmarcar TODAS sus fechas dentro de esta procedencia, no solo una.
+// Las mezclas manuales usan su propio botón (alternarStockMezcla), ya que ahí sí se marcan en bloque.
+async function quitarPilaDeStockPatio(claveNormalizada, procId){
+  if(!claveNormalizada) return;
+  const proc = procId || ESTADO.procedencia;
+  if(!confirm('¿Quitar esta pila del stock de patio? Se desmarcará "Stock: Sí" en todas sus fechas.')) return;
+  const esElActual = proc === ESTADO.procedencia;
+  const datos = esElActual ? ESTADO.datos : await leerPatio(proc);
+  let cambios = 0;
+  datos.forEach(g=>{
+    if(!g.mezclaId && normalizaPila(g.pila) === claveNormalizada && String(g.stock||'').toLowerCase() === 'si'){
+      g.stock = 'no'; cambios++;
+    }
+  });
+  const ok = cambios ? await escribir(clavePatio(proc), datos) : true;
+  avisar(cambios
+    ? (ok ? 'Pila quitada del stock de patio' : 'Cambio hecho solo en esta sesión: descargue el Excel antes de cerrar')
+    : 'Esta pila ya no estaba en stock');
   refrescarPanel();
   pintar();
 }
