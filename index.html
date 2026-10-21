@@ -1011,7 +1011,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '21/10/2026-86';   // sirve para confirmar qué versión está cargada
+const VERSION = '21/10/2026-87';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2631,7 +2631,17 @@ function ordenEsperadaFormulario(){
   return normOrden(completa);
 }
 
-async function leerPdfReporte(archivo, ordenEsperada){
+// códigos ya escritos en la pila que se está registrando/editando (para elegir, en un PDF de
+// varias páginas, la página cuyos códigos realmente coinciden, cuando ninguna coincide por N° de
+// Orden — p. ej. porque el laboratorio transpuso el prefijo, "CRM" en vez de "CMR")
+function codigosPilaFormulario(){
+  const cuerpo = $('#form-cuerpo');
+  if(!cuerpo) return [];
+  return [...cuerpo.querySelectorAll('#tabla-muestras tbody tr [name=codigo]')]
+    .map(i => i.value.trim()).filter(Boolean);
+}
+
+async function leerPdfReporte(archivo, ordenEsperada, codigosPila){
   const lib = await cargarPdfJs();
   const pdf = await lib.getDocument({data: await archivo.arrayBuffer()}).promise;
   const paginas = [];
@@ -2647,15 +2657,36 @@ async function leerPdfReporte(archivo, ordenEsperada){
   // TCR-10-519 en la página 2): si se conoce la orden que se está registrando, se usa la página
   // cuyo N° de Orden coincide con ella, en vez de limitarse siempre a la primera página con datos
   let elegida = ordenEsperada ? paginas.find(p => p.r.orden === ordenEsperada) : null;
+  let porCodigos = false;
+
+  // si ninguna página coincide por N° de Orden (el laboratorio a veces lo transcribe con el
+  // prefijo trastocado, p. ej. "CRM" en vez de "CMR"), no hay que conformarse con tomar la primera
+  // página del PDF al azar: se busca, entre todas las páginas con tabla, la que tenga más códigos
+  // en común con los que ya están escritos en esta pila
+  if(!elegida && (codigosPila || []).length){
+    const set = new Set(codigosPila);
+    let mejor = null, mejorCant = 0;
+    paginas.forEach(p=>{
+      const cant = p.r.filas.filter(f => set.has(f.codigo)).length;
+      if(cant > mejorCant){ mejor = p; mejorCant = cant; }
+    });
+    if(mejor){ elegida = mejor; porCodigos = true; }
+  }
+
   if(!elegida) elegida = paginas.find(p => p.r.filas.length && p.r.orden) || paginas[0];
 
   const r = elegida.r;
   if(paginas.length > 1){
     const resumen = paginas.map(p => `página ${p.n}: orden ${p.r.orden || '(no se leyó)'}`).join(' · ');
-    const aviso = `El PDF tiene ${paginas.length} páginas (${resumen}). Se usó la página ${elegida.n}` +
-      (ordenEsperada && r.orden !== ordenEsperada
-        ? ` (ninguna página coincide con la orden de esta pila, ${ordenEsperada}; verifique que el PDF corresponda).`
-        : '.');
+    let detalle;
+    if(porCodigos){
+      detalle = ` (ninguna página coincide con la orden de esta pila, ${ordenEsperada}; se eligió por ser la que más códigos tiene en común con los ya escritos — verifique que el PDF corresponda).`;
+    } else if(ordenEsperada && r.orden !== ordenEsperada){
+      detalle = ` (ninguna página coincide con la orden de esta pila, ${ordenEsperada}; verifique que el PDF corresponda).`;
+    } else {
+      detalle = '.';
+    }
+    const aviso = `El PDF tiene ${paginas.length} páginas (${resumen}). Se usó la página ${elegida.n}${detalle}`;
     r.avisos = (r.avisos || []).concat([aviso]);
   }
   return r;
@@ -2780,7 +2811,7 @@ async function importarArchivoReporte(archivo){
   cuerpo.innerHTML = `<p>Leyendo “${esc(archivo.name)}”…</p>`;
   $('#telon-import').classList.add('activo');
   try{
-    const rep = await leerPdfReporte(archivo, ordenEsperadaFormulario());
+    const rep = await leerPdfReporte(archivo, ordenEsperadaFormulario(), codigosPilaFormulario());
     IMPORTACION = cruzarReporteConFormulario(rep);
   }catch(e){
     IMPORTACION = {errores: [String(e && e.message || e)], avisos: [], filas: []};
