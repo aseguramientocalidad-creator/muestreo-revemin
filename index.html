@@ -220,10 +220,13 @@
   .tabla-tenores th:nth-child(12),.tabla-tenores td:nth-child(12){width:9%}
   /* tabla consolidada de pilas en stock: igual a la tabla principal pero sin fecha/turno/orden,
      con una columna de PROCEDENCIA a la izquierda */
-  /* la tabla de stock se limita a un ancho máximo para que no se estire a todo lo ancho de la
-     pantalla: así las columnas quedan angostas y los títulos envuelven en 2 líneas en vez de forzar
-     cada columna a ser tan ancha como su título completo en una sola línea */
-  .tabla-stock{table-layout:fixed; max-width:1080px}
+  /* el título y la tabla de cada procedencia (bloque-stock-proc) se limitan a un ancho máximo y se
+     centran con margin:auto, para que no se estiren a todo lo ancho de la pantalla ni queden
+     pegados a la izquierda con un hueco vacío a la derecha; así las columnas de la tabla quedan
+     angostas y los títulos envuelven en 2 líneas en vez de forzar cada columna a ser tan ancha como
+     su título completo en una sola línea */
+  .bloque-stock-proc{max-width:1080px; margin:0 auto 24px}
+  .tabla-stock{table-layout:fixed}
   .tabla-stock thead th{white-space:normal; word-break:normal; overflow-wrap:normal; hyphens:none; font-size:11px; padding:8px 4px; line-height:1.3}
   .tabla-stock td{padding:7px 5px; overflow-wrap:break-word}
   .tabla-stock th:nth-child(1),.tabla-stock td:nth-child(1){width:14%}
@@ -1008,7 +1011,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '21/10/2026-81';   // sirve para confirmar qué versión está cargada
+const VERSION = '21/10/2026-83';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1878,8 +1881,12 @@ function cuerpoStockPatio(lista){
         <td><b>${fmt(tenorPonderadoProc, 3)}</b></td>
         <td></td></tr>`;
 
-    cuerpo += `<div class="fase">${esc(grupo[0].proc)}<span style="float:right;font-weight:normal">${grupo.length} pila${grupo.length===1?'':'s'} en stock</span></div>
-      <table class="patio tabla-stock"><thead><tr>${th}<th></th></tr></thead><tbody>${filas}</tbody></table>`;
+    // el título y la tabla de cada procedencia van en un mismo div "bloque-stock-proc": así, al
+    // exportar a PDF, se captura y se coloca como una sola unidad y nunca queda ni el título separado
+    // de su tabla ni la tabla cortada a la mitad entre dos páginas
+    cuerpo += `<div class="bloque-stock-proc">
+      <div class="fase">${esc(grupo[0].proc)}<span style="float:right;font-weight:normal">${grupo.length} pila${grupo.length===1?'':'s'} en stock</span></div>
+      <table class="patio tabla-stock"><thead><tr>${th}<th></th></tr></thead><tbody>${filas}</tbody></table></div>`;
 
     totalHumedasGen += totalHumedas;
     totalSecasGen += totalSecas;
@@ -1887,11 +1894,11 @@ function cuerpoStockPatio(lista){
   });
 
   const tenorPonderadoGen = totalSecasGen ? totalAuGen / totalSecasGen : null;
-  cuerpo += `<table class="patio tabla-stock" style="margin-top:6px"><tbody>
+  cuerpo += `<div class="bloque-stock-proc"><table class="patio tabla-stock" style="margin-top:6px"><tbody>
       <tr class="grupo fila-ponderado">
         <td colspan="8" class="izq"><b>TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)</b></td>
         <td><b>${fmt(tenorPonderadoGen, 3)}</b></td></tr>
-    </tbody></table>`;
+    </tbody></table></div>`;
 
   return cuerpo;
 }
@@ -3324,7 +3331,11 @@ function escribirHojaStock(ws, lista, conProcedencia, tituloTxt, subtituloTxt, r
 
 // exporta en PDF el resumen de Inicio: las tarjetas por procedencia (pilas pendientes por tenor)
 // más las tablas de stock de patio, tal como se ven en pantalla — se arma una copia oculta del
-// mismo HTML (misma hoja de estilos) y se captura con html2canvas para que el PDF salga idéntico
+// mismo HTML (misma hoja de estilos) y se captura con html2canvas, PERO por bloques separados (las
+// tarjetas por un lado, y cada tabla de procedencia —con su título— por otro) en vez de una sola
+// captura larga cortada por altura de página fija: así ninguna tabla ni ninguna fila queda partida
+// entre dos páginas; cada bloque se coloca completo y, si no cabe en lo que resta de la página
+// actual, se empieza una página nueva para él.
 async function exportarPdfInicio(){
   if(typeof html2canvas === 'undefined' || !window.jspdf){
     avisar('No se pudo cargar el generador de PDF. Revise la conexión.'); return;
@@ -3339,35 +3350,64 @@ async function exportarPdfInicio(){
   const rotuloMes = nombreMes(mes);
 
   const cont = document.createElement('div');
-  cont.style.cssText = 'position:absolute; left:-10000px; top:0; width:1600px; background:#fff; padding:24px; font-family:Arial, sans-serif';
+  cont.style.cssText = 'position:absolute; left:-10000px; top:0; width:1000px; background:#fff; padding:0; font-family:Arial, sans-serif';
   cont.innerHTML = `
-    <div class="rotulo">RESUMEN GENERAL DE PATIO<small>PLANTA REVEMIN PIM II${rotuloMes ? '-' + esc(rotuloMes) : ''}</small></div>
-    ${tarjetasProcedencia(mes, lista)}
-    <div class="rotulo" style="margin-top:34px">${tituloStockPatio()}</div>
-    ${cuerpoStockPatio(stockLista)}
+    <div id="pdf-titulo"><div class="rotulo">RESUMEN GENERAL DE PATIO<small>PLANTA REVEMIN PIM II${rotuloMes ? '-' + esc(rotuloMes) : ''}</small></div></div>
+    <div id="pdf-tarjetas">${tarjetasProcedencia(mes, lista)}</div>
+    <div id="pdf-stock-titulo"><div class="rotulo" style="margin-top:34px">${tituloStockPatio()}</div></div>
+    <div id="pdf-stock">${cuerpoStockPatio(stockLista)}</div>
   `;
   document.body.appendChild(cont);
 
   try{
-    const canvas = await html2canvas(cont, {scale:2, backgroundColor:'#ffffff', useCORS:true});
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
+    const margen = 24;
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const imgW = pageW;
-    const imgH = canvas.height * (imgW / canvas.width);
-    const imgData = canvas.toDataURL('image/png');
+    const anchoUtil = pageW - margen * 2;
+    const altoUtil = pageH - margen * 2;
+    let y = margen;
 
-    let yRestante = imgH;
-    let posicion = 0;
-    let primera = true;
-    while(yRestante > 0){
-      if(!primera) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, posicion, imgW, imgH);
-      yRestante -= pageH;
-      posicion -= pageH;
-      primera = false;
+    // bloques, en orden: el título general, las tarjetas, el título de stock y luego cada tabla de
+    // procedencia (título+tabla ya vienen juntos en un mismo div "bloque-stock-proc")
+    const bloques = [
+      cont.querySelector('#pdf-titulo'),
+      cont.querySelector('#pdf-tarjetas'),
+      cont.querySelector('#pdf-stock-titulo'),
+      ...Array.from(cont.querySelector('#pdf-stock').children)
+    ].filter(Boolean);
+
+    for(const bloque of bloques){
+      const canvas = await html2canvas(bloque, {scale:2, backgroundColor:'#ffffff', useCORS:true});
+      const imgW = anchoUtil;
+      const imgH = canvas.height * (imgW / canvas.width);
+      const imgData = canvas.toDataURL('image/png');
+
+      if(imgH > altoUtil){
+        // caso excepcional: un bloque (una tarjeta o una tabla) más alto que una página completa —
+        // ahí sí hay que cortarlo por páginas, empezando siempre en una página nueva
+        if(y > margen){ pdf.addPage(); y = margen; }
+        let restante = imgH, pos = 0, primeraParte = true;
+        while(restante > 0){
+          if(!primeraParte){ pdf.addPage(); y = margen; }
+          pdf.addImage(imgData, 'PNG', margen, margen - pos, imgW, imgH);
+          restante -= altoUtil;
+          pos += altoUtil;
+          primeraParte = false;
+        }
+        y = pageH;
+        continue;
+      }
+
+      if(y > margen && y + imgH > pageH - margen){
+        pdf.addPage();
+        y = margen;
+      }
+      pdf.addImage(imgData, 'PNG', margen, y, imgW, imgH);
+      y += imgH + 14;
     }
+
     pdf.save(`RESUMEN DE PATIO${rotuloMes ? ' ' + rotuloMes : ''}.pdf`);
   } catch(e){
     avisar('No se pudo generar el PDF');
