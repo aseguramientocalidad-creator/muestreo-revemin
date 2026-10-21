@@ -1011,7 +1011,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '21/10/2026-83';   // sirve para confirmar qué versión está cargada
+const VERSION = '21/10/2026-85';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1856,7 +1856,10 @@ function cuerpoStockPatio(lista){
   ordenProc.forEach(id=>{
     const grupo = porProc.get(id);
     let totalHumedas = 0, totalSecas = 0, totalAu = 0;
-    let filas = '';
+    // cada pila (o mezcla) va en su propio <tbody class="grupo-pila">, en vez de un único <tbody>
+    // gigante: para el PDF, al exportar, esto permite cortar la tabla ÚNICAMENTE entre dos pilas
+    // completas cuando no cabe entera en una página, sin partir nunca una pila a la mitad
+    let tbodies = '';
     const bloquesX = agruparXSinFusion(grupo);
     bloquesX.forEach(bloqueX=>{
       const bloque = bloqueX.map(x=>x.grupo);
@@ -1865,10 +1868,10 @@ function cuerpoStockPatio(lista){
       totalHumedas += r.stats.totalHumedas || 0;
       totalSecas += r.stats.ts || 0;
       totalAu += r.stats.au || 0;
-      filas += r.filas;
+      tbodies += `<tbody class="grupo-pila">${r.filas}</tbody>`;
     });
     const tenorPonderadoProc = totalSecas ? totalAu / totalSecas : null;
-    filas += `<tr class="grupo fila-total">
+    const filaCierre = `<tr class="grupo fila-total">
         <td colspan="2"><b>TOTAL</b></td>
         <td><b>${fmt(totalHumedas || null, 2)}</b></td>
         <td colspan="3"></td>
@@ -1880,13 +1883,16 @@ function cuerpoStockPatio(lista){
         <td colspan="8" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
         <td><b>${fmt(tenorPonderadoProc, 3)}</b></td>
         <td></td></tr>`;
+    tbodies += `<tbody class="fila-cierre">${filaCierre}</tbody>`;
 
     // el título y la tabla de cada procedencia van en un mismo div "bloque-stock-proc": así, al
     // exportar a PDF, se captura y se coloca como una sola unidad y nunca queda ni el título separado
-    // de su tabla ni la tabla cortada a la mitad entre dos páginas
+    // de su tabla ni la tabla cortada a la mitad entre dos páginas (y si la tabla completa no cabe en
+    // una sola página, exportarPdfInicio la corta por sus <tbody class="grupo-pila"> — nunca a la
+    // mitad de una pila)
     cuerpo += `<div class="bloque-stock-proc">
       <div class="fase">${esc(grupo[0].proc)}<span style="float:right;font-weight:normal">${grupo.length} pila${grupo.length===1?'':'s'} en stock</span></div>
-      <table class="patio tabla-stock"><thead><tr>${th}<th></th></tr></thead><tbody>${filas}</tbody></table></div>`;
+      <table class="patio tabla-stock"><thead><tr>${th}<th></th></tr></thead>${tbodies}</table></div>`;
 
     totalHumedasGen += totalHumedas;
     totalSecasGen += totalSecas;
@@ -3369,14 +3375,74 @@ async function exportarPdfInicio(){
     const altoUtil = pageH - margen * 2;
     let y = margen;
 
+    // alto máximo, en píxeles del contenedor oculto (1000px de ancho), que cabe en una página
+    // completa del PDF — se usa para decidir dónde partir una tabla de stock demasiado larga
+    const limitePx = Math.floor((altoUtil * 1000 / anchoUtil)) - 20;
+
+    // si un "bloque-stock-proc" (título + tabla de una procedencia) no cabe entero en una página,
+    // se corta por sus <tbody class="grupo-pila"> — es decir, SIEMPRE entre dos pilas completas,
+    // nunca a la mitad de una — repitiendo el encabezado de columnas en cada trozo y dejando la fila
+    // de TOTAL/TENOR PONDERADO (<tbody class="fila-cierre">) únicamente en el último trozo
+    function dividirBloqueStock(divBloque){
+      if(divBloque.getBoundingClientRect().height <= limitePx) return [divBloque];
+
+      const tabla = divBloque.querySelector('table');
+      if(!tabla) return [divBloque];
+      const theadEl = tabla.querySelector('thead');
+      const theadHtml = theadEl ? theadEl.outerHTML : '';
+      const gruposPila = Array.from(tabla.querySelectorAll('tbody.grupo-pila'));
+      const cierreEl = tabla.querySelector('tbody.fila-cierre');
+      const faseEl = divBloque.querySelector('.fase');
+      const tituloBase = faseEl
+        ? faseEl.textContent.replace(/\s*\d+\s*pilas?\s*en\s*stock\s*$/i, '').trim()
+        : '';
+
+      // el presupuesto de altura para las pilas de CADA trozo debe descontar el encabezado y el
+      // título (que se repiten en todos los trozos) y también la fila de cierre (TOTAL/TENOR
+      // PONDERADO), por si termina cayendo en el último trozo — si solo se mide el alto de las
+      // pilas sin este descuento, un trozo puede "caber" justo pero, ya armado con su título,
+      // encabezado y cierre, terminar pasándose de la página de todos modos
+      const theadH = theadEl ? theadEl.getBoundingClientRect().height : 0;
+      const tituloH = faseEl ? faseEl.getBoundingClientRect().height : 0;
+      const cierreH = cierreEl ? cierreEl.getBoundingClientRect().height : 0;
+      const presupuestoFilas = Math.max(limitePx - theadH - tituloH - cierreH, 200);
+
+      const grupos = [];
+      let actual = [], altoActual = 0;
+      gruposPila.forEach(tb=>{
+        const h = tb.getBoundingClientRect().height;
+        if(altoActual + h > presupuestoFilas && actual.length){
+          grupos.push(actual);
+          actual = []; altoActual = 0;
+        }
+        actual.push(tb);
+        altoActual += h;
+      });
+      if(actual.length) grupos.push(actual);
+      if(!grupos.length) grupos.push([]);
+      if(cierreEl) grupos[grupos.length - 1].push(cierreEl);
+
+      return grupos.map((tbodies, i)=>{
+        const wrap = document.createElement('div');
+        const tituloTxt = i === 0 ? tituloBase : `${tituloBase} (continuación)`;
+        wrap.innerHTML = `<div class="fase">${esc(tituloTxt)}</div>
+          <table class="patio tabla-stock">${theadHtml}${tbodies.map(tb=>tb.outerHTML).join('')}</table>`;
+        cont.appendChild(wrap);
+        return wrap;
+      });
+    }
+
     // bloques, en orden: el título general, las tarjetas, el título de stock y luego cada tabla de
-    // procedencia (título+tabla ya vienen juntos en un mismo div "bloque-stock-proc")
+    // procedencia (título+tabla ya vienen juntos en un mismo div "bloque-stock-proc", partido en
+    // varios trozos cuando hace falta)
     const bloques = [
       cont.querySelector('#pdf-titulo'),
       cont.querySelector('#pdf-tarjetas'),
-      cont.querySelector('#pdf-stock-titulo'),
-      ...Array.from(cont.querySelector('#pdf-stock').children)
+      cont.querySelector('#pdf-stock-titulo')
     ].filter(Boolean);
+    Array.from(cont.querySelector('#pdf-stock').children).forEach(hijo=>{
+      bloques.push(...dividirBloqueStock(hijo));
+    });
 
     for(const bloque of bloques){
       const canvas = await html2canvas(bloque, {scale:2, backgroundColor:'#ffffff', useCORS:true});
