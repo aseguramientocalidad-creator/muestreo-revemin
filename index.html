@@ -1011,7 +1011,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '21/10/2026-85';   // sirve para confirmar qué versión está cargada
+const VERSION = '21/10/2026-86';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -3382,12 +3382,19 @@ async function exportarPdfInicio(){
     // si un "bloque-stock-proc" (título + tabla de una procedencia) no cabe entero en una página,
     // se corta por sus <tbody class="grupo-pila"> — es decir, SIEMPRE entre dos pilas completas,
     // nunca a la mitad de una — repitiendo el encabezado de columnas en cada trozo y dejando la fila
-    // de TOTAL/TENOR PONDERADO (<tbody class="fila-cierre">) únicamente en el último trozo
-    function dividirBloqueStock(divBloque){
-      if(divBloque.getBoundingClientRect().height <= limitePx) return [divBloque];
-
+    // de TOTAL/TENOR PONDERADO (<tbody class="fila-cierre">) únicamente en el último trozo.
+    // "extraTopEl", cuando se pasa (solo para la primera tabla de stock), es el rótulo general
+    // "PILAS EN STOCK" — se fusiona dentro del primer trozo para que SIEMPRE se capture y se
+    // coloque junto con su tabla, nunca como bloque aparte que pueda quedar huérfano al final de
+    // una página mientras la tabla empieza en la siguiente.
+    function dividirBloqueStock(divBloque, extraTopEl){
+      const extraTopH = extraTopEl ? extraTopEl.getBoundingClientRect().height : 0;
       const tabla = divBloque.querySelector('table');
-      if(!tabla) return [divBloque];
+      if(!tabla || divBloque.getBoundingClientRect().height + extraTopH <= limitePx){
+        if(extraTopEl) divBloque.insertBefore(extraTopEl, divBloque.firstChild);
+        return [divBloque];
+      }
+
       const theadEl = tabla.querySelector('thead');
       const theadHtml = theadEl ? theadEl.outerHTML : '';
       const gruposPila = Array.from(tabla.querySelectorAll('tbody.grupo-pila'));
@@ -3398,14 +3405,15 @@ async function exportarPdfInicio(){
         : '';
 
       // el presupuesto de altura para las pilas de CADA trozo debe descontar el encabezado y el
-      // título (que se repiten en todos los trozos) y también la fila de cierre (TOTAL/TENOR
-      // PONDERADO), por si termina cayendo en el último trozo — si solo se mide el alto de las
-      // pilas sin este descuento, un trozo puede "caber" justo pero, ya armado con su título,
-      // encabezado y cierre, terminar pasándose de la página de todos modos
+      // título (que se repiten en todos los trozos), la fila de cierre (TOTAL/TENOR PONDERADO),
+      // por si termina cayendo en el último trozo, y el rótulo general "PILAS EN STOCK" (si va
+      // fusionado en el primer trozo) — si solo se mide el alto de las pilas sin este descuento,
+      // un trozo puede "caber" justo pero, ya armado con su título, encabezado y cierre, terminar
+      // pasándose de la página de todos modos
       const theadH = theadEl ? theadEl.getBoundingClientRect().height : 0;
       const tituloH = faseEl ? faseEl.getBoundingClientRect().height : 0;
       const cierreH = cierreEl ? cierreEl.getBoundingClientRect().height : 0;
-      const presupuestoFilas = Math.max(limitePx - theadH - tituloH - cierreH, 200);
+      const presupuestoFilas = Math.max(limitePx - theadH - tituloH - cierreH - extraTopH, 200);
 
       const grupos = [];
       let actual = [], altoActual = 0;
@@ -3428,20 +3436,23 @@ async function exportarPdfInicio(){
         wrap.innerHTML = `<div class="fase">${esc(tituloTxt)}</div>
           <table class="patio tabla-stock">${theadHtml}${tbodies.map(tb=>tb.outerHTML).join('')}</table>`;
         cont.appendChild(wrap);
+        if(i === 0 && extraTopEl) wrap.insertBefore(extraTopEl, wrap.firstChild);
         return wrap;
       });
     }
 
-    // bloques, en orden: el título general, las tarjetas, el título de stock y luego cada tabla de
-    // procedencia (título+tabla ya vienen juntos en un mismo div "bloque-stock-proc", partido en
-    // varios trozos cuando hace falta)
+    // bloques, en orden: el título general, las tarjetas, y luego cada tabla de procedencia
+    // (título+tabla ya vienen juntos en un mismo div "bloque-stock-proc", partido en varios trozos
+    // cuando hace falta). El rótulo "PILAS EN STOCK" se fusiona dentro del primer trozo de la
+    // primera tabla (ver dividirBloqueStock) en vez de ir como bloque aparte, para que nunca quede
+    // separado de su tabla por un salto de página.
     const bloques = [
       cont.querySelector('#pdf-titulo'),
-      cont.querySelector('#pdf-tarjetas'),
-      cont.querySelector('#pdf-stock-titulo')
+      cont.querySelector('#pdf-tarjetas')
     ].filter(Boolean);
-    Array.from(cont.querySelector('#pdf-stock').children).forEach(hijo=>{
-      bloques.push(...dividirBloqueStock(hijo));
+    const tituloStockEl = cont.querySelector('#pdf-stock-titulo');
+    Array.from(cont.querySelector('#pdf-stock').children).forEach((hijo, idx)=>{
+      bloques.push(...dividirBloqueStock(hijo, idx === 0 ? tituloStockEl : null));
     });
 
     for(const bloque of bloques){
