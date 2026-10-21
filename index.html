@@ -85,6 +85,7 @@
   .proc-btn:hover{background:var(--t-hover)}
   .proc-btn[aria-pressed="true"]{background:var(--t-cons-bg)}
   .btn-excel{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
+  .btn-pdf{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
   .btn{border:1px solid var(--t-acento); background:#fff; color:#000; padding:8px 14px; font-size:13px; cursor:pointer}
   .btn:hover{background:var(--t-hover)}
   .btn-primario{background:var(--t-cons-bg); border:2px solid var(--t-acento); font-weight:bold}
@@ -383,6 +384,15 @@
         </svg>
         Exportar
       </button>
+      <button class="btn btn-pdf" id="btn-pdf" style="display:none">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14 2H6.5A1.5 1.5 0 0 0 5 3.5v17A1.5 1.5 0 0 0 6.5 22h11a1.5 1.5 0 0 0 1.5-1.5V7z" fill="#fff" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M14 2v5h5" fill="#E2E2DE" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
+          <rect x="6" y="10.4" width="10.4" height="8.2" rx="0.8" fill="#C0392B"/>
+          <text x="11.2" y="16.6" text-anchor="middle" font-size="5.6" font-weight="bold" fill="#fff" font-family="Arial">PDF</text>
+        </svg>
+        Exportar PDF
+      </button>
     </div>
   </div>
 
@@ -464,6 +474,8 @@
 <div class="aviso" id="aviso"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="firebase-config.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -992,7 +1004,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '21/10/2026-75';   // sirve para confirmar qué versión está cargada
+const VERSION = '21/10/2026-80';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1146,6 +1158,9 @@ function coincide(obj){
   return JSON.stringify(obj).toLowerCase().includes(f);
 }
 function pintar(){
+  // el botón de PDF solo tiene sentido en el resumen de Inicio de Patio (tarjetas + stock); en
+  // cualquier otra pantalla se oculta y el botón de Excel sigue siendo el único export disponible
+  $('#btn-pdf').style.display = (ESTADO.modulo === 'patio' && ESTADO.patioInicio) ? '' : 'none';
   if(ESTADO.modulo === 'patio') return pintarPatio();
   if(ESTADO.modulo === 'proceso') return pintarProceso();
   if(ESTADO.modulo === 'carbon') return pintarCarbon();
@@ -1184,42 +1199,6 @@ function carpetasMes(){
   return filaAnios + filaMeses;
 }
 
-// carpetas AÑO/MES para la pantalla de Inicio de Patio: a diferencia de carpetasMes() (que lee los
-// meses de ESTADO.datos, la procedencia abierta), aquí los meses salen del dashboard ya calculado
-// para TODAS las procedencias (ESTADO.panel.dashboard), ya que Inicio no tiene una sola procedencia
-function carpetasMesInicio(){
-  if(!ESTADO.panel) return '';
-  const meses = Object.keys(ESTADO.panel.dashboard || {}).sort();
-  if(!meses.length){ ESTADO.mesPatio = ''; return ''; }
-
-  if(!ESTADO.mesPatio || !meses.includes(ESTADO.mesPatio)) ESTADO.mesPatio = meses[meses.length - 1];
-  const anio = ESTADO.mesPatio.slice(0,4);
-  const anios = [...new Set(meses.map(m => m.slice(0,4)))].sort();
-
-  const filaAnios = `<div class="carpetas">` + anios.map(a =>
-    `<button class="carpeta carpeta-anio" data-anio-inicio="${a}" aria-pressed="${a === anio}">AÑO ${a}</button>`
-  ).join('') + `</div>`;
-
-  const nombre = m => MESES[Number(m.slice(5,7)) - 1];
-  const filaMeses = `<div class="carpetas carpetas-mes">` +
-    meses.filter(m => m.slice(0,4) === anio).map(m =>
-      `<button class="carpeta" data-mes-inicio="${m}" aria-pressed="${m === ESTADO.mesPatio}">${esc(nombre(m))}</button>`
-    ).join('') + `</div>`;
-
-  return filaAnios + filaMeses;
-}
-function enlazarCarpetasInicio(zona){
-  zona.querySelectorAll('[data-mes-inicio]').forEach(b => b.addEventListener('click', ()=>{
-    ESTADO.mesPatio = b.dataset.mesInicio; pintar();
-  }));
-  const bp = zona.querySelector('#btn-panel');
-  if(bp) bp.addEventListener('click', ()=>{ ESTADO.panelAbierto = !ESTADO.panelAbierto; pintar(); });
-  zona.querySelectorAll('[data-anio-inicio]').forEach(b => b.addEventListener('click', ()=>{
-    // al cambiar de año se abre su mes más reciente (de entre los que tienen datos en cualquier procedencia)
-    const meses = Object.keys(ESTADO.panel.dashboard || {}).filter(m => m.slice(0,4) === b.dataset.anioInicio).sort();
-    if(meses.length){ ESTADO.mesPatio = meses[meses.length - 1]; pintar(); }
-  }));
-}
 
 function enlazarCarpetas(zona){
   zona.querySelectorAll('[data-mes]').forEach(b => b.addEventListener('click', ()=>{
@@ -1541,16 +1520,20 @@ function panelPatio(){
 // particular, que queda detrás de su propia pestaña arriba
 function pintarInicioPatio(){
   const zona = $('#zona-tabla');
-  const folders = carpetasMesInicio();
-  zona.innerHTML = folders + panelPatio() +
-    `<div class="vacio" style="padding:30px 10px">Elija una procedencia arriba para ver su tabla de tenores.</div>`;
-  enlazarCarpetasInicio(zona);
-  ponerPie('Resumen general · elija una procedencia para ver sus pilas');
+  // Inicio siempre muestra lo más reciente (sin carpetas de AÑO/MES): el mes en curso de pendientes
+  // y el stock de patio actual, tal cual está ahora mismo
+  ESTADO.mesPatio = '';
+  const lista = (ESTADO.stock || []).slice();
+  const stockHtml = `<div class="rotulo" style="margin-top:34px">${tituloStockPatio()}</div>${cuerpoStockPatio(lista)}`;
+  zona.innerHTML = panelPatio() +
+    `<div class="vacio" style="padding:16px 10px 4px">Elija una procedencia arriba para ver su tabla de tenores.</div>` +
+    stockHtml;
+  enlazarAcciones(zona);
+  ponerPie(`Resumen general · ${lista.length} pila${lista.length===1?'':'s'} en stock de patio`);
 }
 
 function pintarPatio(){
   if(ESTADO.patioInicio){ pintarInicioPatio(); return; }
-  if(ESTADO.vistaPatio === 'stock'){ pintarStockPatio(); return; }
   if(ESTADO.vistaPatio === 'mezclas'){ pintarMezclasPatio(); return; }
   // carpetasMes fija ESTADO.mesPatio, por eso se calcula antes del resto
   const folders = carpetasMes();
@@ -1565,7 +1548,6 @@ function pintarPatio(){
     : periodo(ESTADO.datos);
 
   const vistaGraf = ESTADO.vistaPatio === 'graficos';
-  const hayStock = ESTADO.stock && ESTADO.stock.length > 0;
   const idsMezclas = [...new Set(grupos.filter(g => g.mezclaId).map(g => g.mezclaId))];
   const btnRegistrar = `<button class="link-patio" id="btn-otra-pila">Registrar pila</button>`;
   const btnMezclar = (!vistaGraf && grupos.length >= 2)
@@ -1573,21 +1555,14 @@ function pintarPatio(){
   const btnMezclas = idsMezclas.length
     ? `<button class="link-patio" id="btn-mezclas-patio">Mezclas (${idsMezclas.length})</button>`
     : '';
-  const btnStock = hayStock
-    ? `<button class="link-patio" id="btn-stock-patio">Stock de patio (${ESTADO.stock.length})</button>`
-    : '';
   const btnVista = grupos.length
     ? `<button class="link-patio" id="btn-vista-patio">
          ${vistaGraf ? 'Ver tabla de tenores' : 'Gráficos'}</button>`
     : '';
   const tituloTabla = `<div class="rotulo">TENORES DE PATIO DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>`;
-  const barras = `<div class="barra-links-patio">${btnRegistrar}${btnMezclar}${btnMezclas}${btnStock}${btnVista}</div>`;
+  const barras = `<div class="barra-links-patio">${btnRegistrar}${btnMezclar}${btnMezclas}${btnVista}</div>`;
   const rotulo = carpetas + barras + tituloTabla;
 
-  function enlazarBotonStock(){
-    const b = $('#btn-stock-patio');
-    if(b) b.addEventListener('click', ()=>{ ESTADO.vistaPatio = 'stock'; pintar(); });
-  }
   function enlazarBotonMezclas(){
     const b = $('#btn-mezclas-patio');
     if(b) b.addEventListener('click', ()=>{ ESTADO.vistaPatio = 'mezclas'; pintar(); });
@@ -1602,7 +1577,6 @@ function pintarPatio(){
       <strong>${ESTADO.mesPatio ? 'No hay pilas cargadas en este mes' : 'Todavía no hay pilas cargadas para esta procedencia'}</strong>
       ${ESTADO.filtro ? 'Pruebe con otro término.' : 'Use “Registrar pila” para cargar la primera.'}</div>`;
     $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
-    enlazarBotonStock();
     enlazarBotonMezclas();
     enlazarCarpetas(zona);
     ponerPie('0 pilas');
@@ -1616,7 +1590,6 @@ function pintarPatio(){
     zona.innerHTML = carpetas + barras + resumenPatio(grupos, titulo);
     $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
     $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
-    enlazarBotonStock();
     enlazarBotonMezclas();
     enlazarCarpetas(zona);
     const totalM = grupos.reduce((a,g)=> a + (g.muestras||[]).length, 0);
@@ -1687,7 +1660,6 @@ function pintarPatio(){
   zona.innerHTML = rotulo + `<table class="patio tabla-tenores"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
   $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
   $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'graficos'; pintar(); });
-  enlazarBotonStock();
   enlazarBotonMezclas();
   enlazarBotonMezclar();
   enlazarCarpetas(zona);
@@ -1742,7 +1714,7 @@ function pintarMezclasPatio(){
     totalPilas += new Set(bloque.map(g=>g.pila)).size;
   });
 
-  zona.innerHTML = rotulo + `<table class="patio tabla-stock"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+  zona.innerHTML = rotulo + `<table class="patio tabla-stock"><thead><tr>${th}<th></th></tr></thead><tbody>${cuerpo}</tbody></table>`;
   $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
   enlazarCarpetas(zona);
   enlazarAcciones(zona);
@@ -1774,7 +1746,7 @@ function tituloStockPatio(){
 // PROMEDIO/Au CONTENIDO fusionados solo sobre SUS propias muestras (CODIGO/TENOR/HUMEDAD, una fila
 // por código) — y si son varios registros de una mezcla manual, se agrega al final una fila de
 // cierre con el tenor ponderado de todo el conjunto y los botones de revertir/stock. La reutilizan
-// tanto la vista en pantalla (pintarStockPatio, pintarMezclasPatio) como el Excel (escribirHojaStock)
+// tanto la vista en pantalla (cuerpoStockPatio, pintarMezclasPatio) como el Excel (escribirHojaStock)
 function filasBloqueStock(bloque, tieneMezclaId, procId){
   let filas = '';
   // una mezcla manual real junta pilas de nombres distintos, cada una con su propio peso: ahí se
@@ -1798,15 +1770,17 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
     const n = ms.length;
     const ts = toneladasSecasDe(g), tp = tenorPromedioDe(g), au = auContenidoDe(g);
     ms.forEach((m,k)=>{
-      // botón para sacar la pila COMPLETA del stock (todas sus fechas), sin pasar por el formulario de
-      // edición; solo se muestra una vez, en la primera fecha del bloque (no repetido por cada fecha).
-      // Las mezclas manuales tienen su propio botón de stock en la fila de cierre "MEZCLA (...)".
-      const quitarStockBtn = (!tieneMezclaId && primeraFilaBloque)
-        ? ` <button type="button" class="mini borrar quitar-de-stock" data-quitar-pila-stock="${esc(normalizaPila(g.pila))}" data-proc="${esc(procId)}" title="Quitar esta pila (todas sus fechas) del stock de patio">📦✕</button>`
+      // columna de Acciones al final de la fila: el botón "Eliminar" saca la pila COMPLETA del stock
+      // (todas sus fechas), sin pasar por el formulario de edición; aparece una sola vez, en una celda
+      // que cubre con rowspan todo el bloque (todas las fechas/muestras de esa pila). Las mezclas
+      // manuales no llevan este botón aquí (tienen su propio "Quitar de stock" en la fila de cierre).
+      const accionesCelda = primeraFilaBloque
+        ? `<td rowspan="${totalFilasBloque}" class="col-acc">${tieneMezclaId ? '' :
+            `<button type="button" class="mini borrar" data-quitar-pila-stock="${esc(normalizaPila(g.pila))}" data-proc="${esc(procId)}" title="Quitar esta pila (todas sus fechas) del stock de patio">Eliminar</button>`}</td>`
         : '';
       const cabecera = k === 0 ? `
         <td rowspan="${n}"><b>${esc(fechaLegible(g.fecha))}</b></td>
-        <td rowspan="${n}">${esc(g.pila)}${tieneMezclaId ? ` <button type="button" class="mini borrar quitar-de-mezcla" data-quitar-pila-mezcla="${esc(g.__id)}" data-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Quitar esta pila de la mezcla">✕</button>` : quitarStockBtn}</td>` : '';
+        <td rowspan="${n}">${esc(g.pila)}${tieneMezclaId ? ` <button type="button" class="mini borrar quitar-de-mezcla" data-quitar-pila-mezcla="${esc(g.__id)}" data-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Quitar esta pila de la mezcla">✕</button>` : ''}</td>` : '';
 
       let humedasCelda = '', calculados = '';
       if(fusionar){
@@ -1828,7 +1802,7 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
       filas += `<tr class="grupo">${cabecera}${humedasCelda}
         <td>${esc(m.codigo)}</td>
         <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
-        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}</tr>`;
+        <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}${accionesCelda}</tr>`;
       primeraFilaBloque = false;
     });
   });
@@ -1839,7 +1813,7 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
     // mezcla tiene muchas muestras), así que aquí se repite junto a la fila de cierre para que no
     // haya que desplazarse hacia arriba a buscarlo
     filas += `<tr class="grupo fila-ponderado">
-        <td colspan="9" class="col-acc" style="text-align:left">
+        <td colspan="10" class="col-acc" style="text-align:left">
           <b>MEZCLA (${pilas})</b> — Toneladas húmedas: ${fmt(stats.totalHumedas, 2)} ·
           Secas: ${fmt(stats.ts, 2)} · Tenor promedio: ${fmt(stats.tp, 3)} g/t · Au contenido: ${fmt(stats.au, 2)} g
           &nbsp;
@@ -1850,21 +1824,14 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
   return {filas, stats};
 }
 
-function pintarStockPatio(){
-  const zona = $('#zona-tabla');
-  const lista = (ESTADO.stock || []).slice();
-  const tituloTabla = `<div class="rotulo">${tituloStockPatio()}</div>`;
-  const barras = `<div class="barra-links-patio">
-      <button class="link-patio" id="btn-vista-patio">Ver tabla de tenores</button>
-    </div>`;
-
+// arma las tablas de "pilas en stock" por procedencia + el tenor ponderado consolidado de TODAS
+// las procedencias — se usa en la pantalla de Inicio, debajo del panel de pilas que faltan por
+// tenor, en vez de ser una vista aparte a la que había que entrar con un botón
+function cuerpoStockPatio(lista){
   if(!lista.length){
-    zona.innerHTML = barras + tituloTabla + `<div class="vacio">
+    return `<div class="vacio">
       <strong>No hay pilas marcadas en stock</strong>
       Marque “Si” en el campo Stock del formulario de una pila para que aparezca aquí.</div>`;
-    $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
-    ponerPie('0 pilas en stock');
-    return;
   }
 
   const th = COLS_STOCK.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('');
@@ -1900,13 +1867,15 @@ function pintarStockPatio(){
         <td colspan="3"></td>
         <td><b>${fmt(totalSecas || null, 2)}</b></td>
         <td></td>
-        <td><b>${fmt(totalAu || null, 2)}</b></td></tr>
+        <td><b>${fmt(totalAu || null, 2)}</b></td>
+        <td></td></tr>
       <tr class="grupo fila-ponderado">
         <td colspan="8" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
-        <td><b>${fmt(tenorPonderadoProc, 3)}</b></td></tr>`;
+        <td><b>${fmt(tenorPonderadoProc, 3)}</b></td>
+        <td></td></tr>`;
 
     cuerpo += `<div class="fase">${esc(grupo[0].proc)}<span style="float:right;font-weight:normal">${grupo.length} pila${grupo.length===1?'':'s'} en stock</span></div>
-      <table class="patio tabla-stock"><thead><tr>${th}</tr></thead><tbody>${filas}</tbody></table>`;
+      <table class="patio tabla-stock"><thead><tr>${th}<th></th></tr></thead><tbody>${filas}</tbody></table>`;
 
     totalHumedasGen += totalHumedas;
     totalSecasGen += totalSecas;
@@ -1920,11 +1889,7 @@ function pintarStockPatio(){
         <td><b>${fmt(tenorPonderadoGen, 3)}</b></td></tr>
     </tbody></table>`;
 
-  zona.innerHTML = barras + tituloTabla + cuerpo;
-  $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'datos'; pintar(); });
-  enlazarAcciones(zona);
-  const totalM = lista.reduce((a,x)=> a + (x.grupo.muestras||[]).length, 0);
-  ponerPie(`${lista.length} pila${lista.length===1?'':'s'} en stock · ${totalM} código${totalM===1?'':'s'}`);
+  return cuerpo;
 }
 
 function pintarGenerico(){
@@ -2455,9 +2420,17 @@ $('#export-aceptar').addEventListener('click', async ()=>{
   await exportarExcelPatio(una ? proc : null);
 });
 
+$('#btn-pdf').addEventListener('click', async ()=>{
+  // este botón solo se muestra en Inicio de Patio; exporta en PDF las tarjetas por procedencia
+  // (pendientes por tenor) junto con las tablas de stock, tal como se ven en pantalla
+  if(ESTADO.modulo === 'patio' && ESTADO.patioInicio){ await exportarPdfInicio(); }
+});
+
 $('#btn-csv').addEventListener('click', async ()=>{
   if(ESTADO.modulo === 'patio'){
-    if(ESTADO.vistaPatio === 'stock'){ await exportarExcelStock(); return; }
+    // en Inicio, el Excel exporta SOLO el stock de patio (las tarjetas de pendientes se exportan
+    // aparte en PDF, con el botón de al lado)
+    if(ESTADO.patioInicio){ await exportarExcelStock(); return; }
     if(ESTADO.vistaPatio === 'mezclas'){ await exportarExcelMezclas(); return; }
     abrirDialogoExport(); return;
   }
@@ -3343,6 +3316,60 @@ function escribirHojaStock(ws, lista, conProcedencia, tituloTxt, subtituloTxt, r
   fp.eachCell({includeEmpty:true}, c=> c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFBFBFBF'}});
 
   ws.views = [{state:'frozen', ySplit:4}];
+}
+
+// exporta en PDF el resumen de Inicio: las tarjetas por procedencia (pilas pendientes por tenor)
+// más las tablas de stock de patio, tal como se ven en pantalla — se arma una copia oculta del
+// mismo HTML (misma hoja de estilos) y se captura con html2canvas para que el PDF salga idéntico
+async function exportarPdfInicio(){
+  if(typeof html2canvas === 'undefined' || !window.jspdf){
+    avisar('No se pudo cargar el generador de PDF. Revise la conexión.'); return;
+  }
+  const pan = ESTADO.panel;
+  if(!pan){ avisar('Aún no hay datos cargados'); return; }
+  avisar('Generando el PDF…');
+
+  const mes = pan.mesHoy;
+  const lista = pan.pendientes.filter(x => x.mes === mes).sort((a,b)=> a.clave.localeCompare(b.clave));
+  const stockLista = (ESTADO.stock || []).slice();
+  const rotuloMes = nombreMes(mes);
+
+  const cont = document.createElement('div');
+  cont.style.cssText = 'position:absolute; left:-10000px; top:0; width:1600px; background:#fff; padding:24px; font-family:Arial, sans-serif';
+  cont.innerHTML = `
+    <div class="rotulo">RESUMEN GENERAL DE PATIO<small>PLANTA REVEMIN PIM II${rotuloMes ? '-' + esc(rotuloMes) : ''}</small></div>
+    ${tarjetasProcedencia(mes, lista)}
+    <div class="rotulo" style="margin-top:34px">${tituloStockPatio()}</div>
+    ${cuerpoStockPatio(stockLista)}
+  `;
+  document.body.appendChild(cont);
+
+  try{
+    const canvas = await html2canvas(cont, {scale:2, backgroundColor:'#ffffff', useCORS:true});
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW;
+    const imgH = canvas.height * (imgW / canvas.width);
+    const imgData = canvas.toDataURL('image/png');
+
+    let yRestante = imgH;
+    let posicion = 0;
+    let primera = true;
+    while(yRestante > 0){
+      if(!primera) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, posicion, imgW, imgH);
+      yRestante -= pageH;
+      posicion -= pageH;
+      primera = false;
+    }
+    pdf.save(`RESUMEN DE PATIO${rotuloMes ? ' ' + rotuloMes : ''}.pdf`);
+  } catch(e){
+    avisar('No se pudo generar el PDF');
+  } finally {
+    cont.remove();
+  }
 }
 
 async function exportarExcelStock(){
