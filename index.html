@@ -977,7 +977,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '20/10/2026-69';   // sirve para confirmar qué versión está cargada
+const VERSION = '21/10/2026-71';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1393,10 +1393,11 @@ async function calcularPanel(){
       const ms = g.muestras || [];
       const faltan = ms.filter(sinTenor).length;
       if(faltan){
+        const codigosFaltantes = ms.filter(sinTenor).map(m => String(m.codigo||'').trim()).filter(Boolean);
         pendientes.push({
           procId:p.id, proc:p.nombre, pila:String(g.pila||''), orden:g.orden||'',
           fecha:g.fecha||'', mes:(g.fecha||'').slice(0,7),
-          faltan, total:ms.length, clave:claveOrden(g)
+          faltan, total:ms.length, clave:claveOrden(g), codigosFaltantes
         });
       }
       const clave = normalizaPila(g.pila);
@@ -1443,6 +1444,27 @@ async function calcularPanel(){
 // que cada tarjeta del dashboard se distinga a simple vista
 const PALETA_DASH = ['#1a4d7a', '#2e7d32', '#b45309', '#6d28d9', '#0e7490', '#9d174d', '#4d7c0f'];
 
+// condensa una lista de códigos (ej. de muestras sin tenor) en intervalos compactos: 1020-1024,
+// 1030, 1032-1033 — conserva el ancho (ceros a la izquierda) del código más largo del grupo, y si
+// algún código trae letras (no es puramente numérico) simplemente los lista separados por coma
+function rangoCodigos(codigos){
+  const limpios = [...new Set((codigos||[]).map(c => String(c).trim()).filter(Boolean))];
+  if(!limpios.length) return '';
+  if(!limpios.every(c => /^\d+$/.test(c))) return limpios.join(', ');
+  const ancho = Math.max(...limpios.map(c => c.length));
+  const pad = n => String(n).padStart(ancho, '0');
+  const nums = [...new Set(limpios.map(Number))].sort((a,b)=> a - b);
+  const rangos = [];
+  let ini = nums[0], fin = nums[0];
+  for(let i=1;i<nums.length;i++){
+    if(nums[i] === fin + 1){ fin = nums[i]; continue; }
+    rangos.push(ini === fin ? pad(ini) : `${pad(ini)}-${pad(fin)}`);
+    ini = fin = nums[i];
+  }
+  rangos.push(ini === fin ? pad(ini) : `${pad(ini)}-${pad(fin)}`);
+  return rangos.join(', ');
+}
+
 // una tarjeta compacta por procedencia: tenor ponderado + rango arriba, y debajo solo pila/orden
 // de lo que le falta tenor ese mes (sin fecha ni estado, para que quepa de un vistazo)
 function tarjetasProcedencia(mes, listaPendientes){
@@ -1466,8 +1488,8 @@ function tarjetasProcedencia(mes, listaPendientes){
       : `<tr><td class="dc-vacio" colspan="2">Sin tenores cargados este mes</td></tr>`;
 
     const cuerpoPend = pend.length
-      ? `<table class="dc-pend"><thead><tr><th>PILA</th><th>ORDEN</th></tr></thead><tbody>${
-          pend.map(x=> `<tr><td>${esc(x.pila)}</td><td><b>${esc(x.orden)}</b></td></tr>`).join('')
+      ? `<table class="dc-pend"><thead><tr><th>PILA</th><th>ORDEN</th><th>CÓDIGOS</th></tr></thead><tbody>${
+          pend.map(x=> `<tr><td>${esc(x.pila)}</td><td><b>${esc(x.orden)}</b></td><td>${esc(rangoCodigos(x.codigosFaltantes))}</td></tr>`).join('')
         }</tbody></table>`
       : `<div class="dc-ok">✓ Todas con tenor</div>`;
 
@@ -1505,8 +1527,7 @@ function panelPatio(){
 function pintarInicioPatio(){
   const zona = $('#zona-tabla');
   const folders = carpetasMesInicio();
-  const tituloTabla = `<div class="rotulo">MUESTREO EN PATIO<small>PLANTA REVEMIN PIM II — Resumen general</small></div>`;
-  zona.innerHTML = folders + panelPatio() + tituloTabla +
+  zona.innerHTML = folders + panelPatio() +
     `<div class="vacio" style="padding:30px 10px">Elija una procedencia arriba para ver su tabla de tenores.</div>`;
   enlazarCarpetasInicio(zona);
   ponerPie('Resumen general · elija una procedencia para ver sus pilas');
