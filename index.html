@@ -107,6 +107,21 @@
   .carpeta[aria-pressed="true"]{background:var(--t-cons-bg); font-weight:bold}
   .barra-accion{display:flex; justify-content:flex-end; margin:8px 0 -4px}
   .barra-vista-patio{display:flex; justify-content:flex-end; margin:16px 0 0}
+  /* fila única de acciones de patio (Registrar pila, Mezclar pilas, Stock de patio, Gráficos…),
+     centrada, justo encima del título de la tabla — botones tipo "pastilla" en 3D/biselado */
+  .barra-links-patio{display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; margin:18px 0 10px}
+  .link-patio{
+    display:inline-block; padding:10px 22px; margin:0; cursor:pointer;
+    border:1px solid rgba(0,0,0,.28); border-radius:24px;
+    background-color:var(--t-acento);
+    background-image:linear-gradient(to bottom, rgba(255,255,255,.6) 0%, rgba(255,255,255,.12) 42%, rgba(0,0,0,.08) 55%, rgba(0,0,0,.24) 100%);
+    color:#fff; font-weight:bold; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px;
+    text-shadow:0 1px 1px rgba(0,0,0,.35);
+    box-shadow:0 3px 0 rgba(0,0,0,.35), 0 5px 7px rgba(0,0,0,.25);
+    transition:transform .05s ease, box-shadow .05s ease, filter .1s ease;
+  }
+  .link-patio:hover{filter:brightness(1.08)}
+  .link-patio:active{transform:translateY(3px); box-shadow:0 0 0 rgba(0,0,0,.35), 0 2px 3px rgba(0,0,0,.2)}
   .btn-vista{
     border:2px solid var(--t-acento); background:var(--t-cons-bg); color:#000;
     font-weight:bold; font-size:14px; padding:11px 22px; cursor:pointer;
@@ -977,7 +992,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '21/10/2026-72';   // sirve para confirmar qué versión está cargada
+const VERSION = '21/10/2026-75';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1552,21 +1567,21 @@ function pintarPatio(){
   const vistaGraf = ESTADO.vistaPatio === 'graficos';
   const hayStock = ESTADO.stock && ESTADO.stock.length > 0;
   const idsMezclas = [...new Set(grupos.filter(g => g.mezclaId).map(g => g.mezclaId))];
-  const btnVista = grupos.length
-    ? `<button class="btn btn-vista" id="btn-vista-patio">
-         ${vistaGraf ? '📋 Ver tabla de tenores' : '📊 Ver gráficos y estadísticas'}</button>`
-    : '';
+  const btnRegistrar = `<button class="link-patio" id="btn-otra-pila">Registrar pila</button>`;
+  const btnMezclar = (!vistaGraf && grupos.length >= 2)
+    ? `<button class="link-patio" id="btn-mezclar-pilas">Mezclar pilas</button>` : '';
   const btnMezclas = idsMezclas.length
-    ? `<button class="btn btn-vista" id="btn-mezclas-patio">MEZCLAS (${idsMezclas.length})</button>`
+    ? `<button class="link-patio" id="btn-mezclas-patio">Mezclas (${idsMezclas.length})</button>`
     : '';
   const btnStock = hayStock
-    ? `<button class="btn btn-vista" id="btn-stock-patio">📦 Pilas en stock (${ESTADO.stock.length})</button>`
+    ? `<button class="link-patio" id="btn-stock-patio">Stock de patio (${ESTADO.stock.length})</button>`
+    : '';
+  const btnVista = grupos.length
+    ? `<button class="link-patio" id="btn-vista-patio">
+         ${vistaGraf ? 'Ver tabla de tenores' : 'Gráficos'}</button>`
     : '';
   const tituloTabla = `<div class="rotulo">TENORES DE PATIO DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>`;
-  const btnMezclar = (!vistaGraf && grupos.length >= 2)
-    ? `<button class="btn" id="btn-mezclar-pilas">🔀 Mezclar pilas</button>` : '';
-  const barras = `<div class="barra-vista-patio">${btnMezclas}${btnStock}${btnVista}</div>
-    <div class="barra-accion">${btnMezclar}<button class="btn btn-primario" id="btn-otra-pila">+ Registrar otra pila</button></div>`;
+  const barras = `<div class="barra-links-patio">${btnRegistrar}${btnMezclar}${btnMezclas}${btnStock}${btnVista}</div>`;
   const rotulo = carpetas + barras + tituloTabla;
 
   function enlazarBotonStock(){
@@ -1697,8 +1712,8 @@ function pintarMezclasPatio(){
     ? `${MESES[Number(ESTADO.mesPatio.slice(5,7))-1]} ${ESTADO.mesPatio.slice(0,4)}`
     : periodo(ESTADO.datos);
   const tituloTabla = `<div class="rotulo">MEZCLAS DE ${esc(nombreProc(ESTADO.procedencia))}<small>PLANTA REVEMIN PIM II${mes ? '-' + esc(mes) : ''}</small></div>`;
-  const barras = `<div class="barra-vista-patio">
-      <button class="btn btn-vista" id="btn-vista-patio">📋 Ver tabla de tenores</button>
+  const barras = `<div class="barra-links-patio">
+      <button class="link-patio" id="btn-vista-patio">Ver tabla de tenores</button>
     </div>`;
   const rotulo = carpetas + barras + tituloTabla;
 
@@ -1839,8 +1854,8 @@ function pintarStockPatio(){
   const zona = $('#zona-tabla');
   const lista = (ESTADO.stock || []).slice();
   const tituloTabla = `<div class="rotulo">${tituloStockPatio()}</div>`;
-  const barras = `<div class="barra-vista-patio">
-      <button class="btn btn-vista" id="btn-vista-patio">📋 Ver tabla de tenores</button>
+  const barras = `<div class="barra-links-patio">
+      <button class="link-patio" id="btn-vista-patio">Ver tabla de tenores</button>
     </div>`;
 
   if(!lista.length){
