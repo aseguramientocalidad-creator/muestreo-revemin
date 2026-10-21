@@ -977,7 +977,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '20/10/2026-68';   // sirve para confirmar qué versión está cargada
+const VERSION = '20/10/2026-69';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1516,9 +1516,9 @@ function pintarPatio(){
   if(ESTADO.patioInicio){ pintarInicioPatio(); return; }
   if(ESTADO.vistaPatio === 'stock'){ pintarStockPatio(); return; }
   if(ESTADO.vistaPatio === 'mezclas'){ pintarMezclasPatio(); return; }
-  // carpetasMes fija ESTADO.mesPatio, por eso se calcula antes que el panel
+  // carpetasMes fija ESTADO.mesPatio, por eso se calcula antes del resto
   const folders = carpetasMes();
-  const carpetas = panelPatio() + folders;
+  const carpetas = folders;
   const grupos = ESTADO.datos
     .filter(g => !ESTADO.mesPatio || (g.fecha || '').slice(0,7) === ESTADO.mesPatio)
     .filter(coincide).slice()
@@ -1666,7 +1666,7 @@ function pintarPatio(){
 // en la tabla principal de tenores
 function pintarMezclasPatio(){
   const folders = carpetasMes();
-  const carpetas = panelPatio() + folders;
+  const carpetas = folders;
   const grupos = ESTADO.datos
     .filter(g => !ESTADO.mesPatio || (g.fecha || '').slice(0,7) === ESTADO.mesPatio)
     .filter(coincide).slice()
