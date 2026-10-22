@@ -253,6 +253,21 @@
   .tabla-stock th:nth-child(8),.tabla-stock td:nth-child(8){width:9%}
   .tabla-stock th:nth-child(9),.tabla-stock td:nth-child(9){width:9%}
   .tabla-stock th:nth-child(10),.tabla-stock td:nth-child(10){width:6%}
+  /* variante exclusiva del PDF: sin columna de Acciones (9 columnas en vez de 10) y con un ancho
+     total más angosto que la vista en pantalla, para que la tabla quede más compacta al exportar */
+  .bloque-stock-proc-pdf{max-width:900px; margin:0 auto 24px}
+  .tabla-stock-pdf{table-layout:fixed}
+  .tabla-stock-pdf thead th{white-space:normal; word-break:normal; overflow-wrap:normal; hyphens:none; font-size:11px; padding:8px 4px; line-height:1.3}
+  .tabla-stock-pdf td{padding:7px 5px; overflow-wrap:break-word}
+  .tabla-stock-pdf th:nth-child(1),.tabla-stock-pdf td:nth-child(1){width:14.9%}
+  .tabla-stock-pdf th:nth-child(2),.tabla-stock-pdf td:nth-child(2){width:18.1%}
+  .tabla-stock-pdf th:nth-child(3),.tabla-stock-pdf td:nth-child(3){width:9.6%}
+  .tabla-stock-pdf th:nth-child(4),.tabla-stock-pdf td:nth-child(4){width:7.4%}
+  .tabla-stock-pdf th:nth-child(5),.tabla-stock-pdf td:nth-child(5){width:10.6%}
+  .tabla-stock-pdf th:nth-child(6),.tabla-stock-pdf td:nth-child(6){width:10.6%}
+  .tabla-stock-pdf th:nth-child(7),.tabla-stock-pdf td:nth-child(7){width:9.6%}
+  .tabla-stock-pdf th:nth-child(8),.tabla-stock-pdf td:nth-child(8){width:9.6%}
+  .tabla-stock-pdf th:nth-child(9),.tabla-stock-pdf td:nth-child(9){width:9.6%}
   .fase{margin:20px 0 8px; font-weight:bold; font-size:13px; color:#000; border-bottom:2px solid var(--t-acento); padding-bottom:5px}
   .graficos{display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:14px}
   .graf{border:1px solid var(--t-acento); background:#fff; padding:12px}
@@ -1025,7 +1040,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-91';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-92';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1768,7 +1783,7 @@ function tituloStockPatio(){
 // por código) — y si son varios registros de una mezcla manual, se agrega al final una fila de
 // cierre con el tenor ponderado de todo el conjunto y los botones de revertir/stock. La reutilizan
 // tanto la vista en pantalla (cuerpoStockPatio, pintarMezclasPatio) como el Excel (escribirHojaStock)
-function filasBloqueStock(bloque, tieneMezclaId, procId){
+function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf){
   let filas = '';
   // una mezcla manual real junta pilas de nombres distintos, cada una con su propio peso: ahí se
   // pondera con statsMezcla (suma el TS de cada registro con su propia tonelada). Una pila repetida
@@ -1795,7 +1810,8 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
       // (todas sus fechas), sin pasar por el formulario de edición; aparece una sola vez, en una celda
       // que cubre con rowspan todo el bloque (todas las fechas/muestras de esa pila). Las mezclas
       // manuales no llevan este botón aquí (tienen su propio "Quitar de stock" en la fila de cierre).
-      const accionesCelda = primeraFilaBloque
+      // En el PDF esta columna no tiene sentido (es un botón interactivo) y no se agrega en absoluto.
+      const accionesCelda = (primeraFilaBloque && !paraPdf)
         ? `<td rowspan="${totalFilasBloque}" class="col-acc">${tieneMezclaId ? '' :
             `<button type="button" class="mini borrar" data-quitar-pila-stock="${esc(normalizaPila(g.pila))}" data-proc="${esc(procId)}" title="Quitar esta pila (todas sus fechas) del stock de patio">Eliminar</button>`}</td>`
         : '';
@@ -1832,14 +1848,16 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
     const enStock = String(bloque[0].stock||'').toLowerCase() === 'si';
     // el total ya se ve arriba, fusionado en la primera fecha del bloque (puede quedar lejos si la
     // mezcla tiene muchas muestras), así que aquí se repite junto a la fila de cierre para que no
-    // haya que desplazarse hacia arriba a buscarlo
-    filas += `<tr class="grupo fila-ponderado">
-        <td colspan="10" class="col-acc" style="text-align:left">
-          <b>MEZCLA (${pilas})</b> — Toneladas húmedas: ${fmt(stats.totalHumedas, 2)} ·
-          Secas: ${fmt(stats.ts, 2)} · Tenor promedio: ${fmt(stats.tp, 3)} g/t · Au contenido: ${fmt(stats.au, 2)} g
+    // haya que desplazarse hacia arriba a buscarlo. En el PDF se omiten los botones (Revertir/Stock)
+    // y el colspan se ajusta a las 9 columnas (sin la de Acciones, que tampoco se agrega ahí).
+    const botones = paraPdf ? '' : `
           &nbsp;
           <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">↩️ Revertir mezcla</button>
-          <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>
+          <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>`;
+    filas += `<tr class="grupo fila-ponderado">
+        <td colspan="${paraPdf ? 9 : 10}" class="col-acc" style="text-align:left">
+          <b>MEZCLA (${pilas})</b> — Toneladas húmedas: ${fmt(stats.totalHumedas, 2)} ·
+          Secas: ${fmt(stats.ts, 2)} · Tenor promedio: ${fmt(stats.tp, 3)} g/t · Au contenido: ${fmt(stats.au, 2)} g${botones}
         </td></tr>`;
   }
   return {filas, stats};
@@ -1856,9 +1874,11 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
 // vez de desaparecer a partir del segundo trozo — así la tabla de tenores de patio nunca vuelve a
 // tener una sola pieza tan alta que dividirBloqueStock se vea obligado a cortarla a la mitad.
 const MAX_FILAS_TBODY_STOCK = 20;
-const NCOLS_STOCK_TOTAL = COLS_STOCK.length + 1; // +1 por la columna de Acciones
+const NCOLS_STOCK_TOTAL = COLS_STOCK.length + 1; // +1 por la columna de Acciones (pantalla/mezclas)
+const NCOLS_STOCK_PDF = COLS_STOCK.length;        // el PDF no lleva columna de Acciones
 
-function trocearFilasPila(filasHtml, maxFilas){
+function trocearFilasPila(filasHtml, maxFilas, ncols){
+  ncols = ncols || NCOLS_STOCK_TOTAL;
   const tmp = document.createElement('tbody');
   tmp.innerHTML = filasHtml;
   const trs = Array.from(tmp.children).filter(el => el.tagName === 'TR');
@@ -1869,7 +1889,7 @@ function trocearFilasPila(filasHtml, maxFilas){
 
   // activo[col] = celda con rowspan todavía pendiente de cubrir filas más adelante, y cuántas le
   // quedan (contando solo las que aún faltan después de la fila actual)
-  const activo = new Array(NCOLS_STOCK_TOTAL).fill(null);
+  const activo = new Array(ncols).fill(null);
   const COL_PILA = 1;
 
   return grupos.map((filasDelGrupo, gi)=>{
@@ -1878,7 +1898,7 @@ function trocearFilasPila(filasHtml, maxFilas){
       const celdasOriginales = Array.from(tr.children);
       const celdasFinal = [];
       let col = 0, idx = 0;
-      while(col < NCOLS_STOCK_TOTAL){
+      while(col < ncols){
         if(activo[col] && activo[col].restante > 0){
           if(esPrimeraDelTrozo && gi > 0){
             // esta columna la cubre una celda de un trozo ANTERIOR: se clona aquí con el rowspan
@@ -1909,14 +1929,19 @@ function trocearFilasPila(filasHtml, maxFilas){
 // arma las tablas de "pilas en stock" por procedencia + el tenor ponderado consolidado de TODAS
 // las procedencias — se usa en la pantalla de Inicio, debajo del panel de pilas que faltan por
 // tenor, en vez de ser una vista aparte a la que había que entrar con un botón
-function cuerpoStockPatio(lista){
+function cuerpoStockPatio(lista, paraPdf){
   if(!lista.length){
     return `<div class="vacio">
       <strong>No hay pilas marcadas en stock</strong>
       Marque “Si” en el campo Stock del formulario de una pila para que aparezca aquí.</div>`;
   }
 
-  const th = COLS_STOCK.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('');
+  // en el PDF no se agrega la columna de Acciones (el botón "Eliminar" no tiene sentido impreso) y
+  // la tabla usa una clase más angosta (.tabla-stock-pdf / .bloque-stock-proc-pdf)
+  const claseTabla = paraPdf ? 'tabla-stock-pdf' : 'tabla-stock';
+  const claseBloque = paraPdf ? 'bloque-stock-proc-pdf' : 'bloque-stock-proc';
+  const ncols = paraPdf ? NCOLS_STOCK_PDF : NCOLS_STOCK_TOTAL;
+  const th = COLS_STOCK.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('') + (paraPdf ? '' : '<th></th>');
 
   const porProc = new Map();
   lista.forEach(x=>{
@@ -1939,16 +1964,25 @@ function cuerpoStockPatio(lista){
     bloquesX.forEach(bloqueX=>{
       const bloque = bloqueX.map(x=>x.grupo);
       const tieneMezclaId = bloque.length > 1 && !!bloque[0].mezclaId;
-      const r = filasBloqueStock(bloque, tieneMezclaId, id);
+      const r = filasBloqueStock(bloque, tieneMezclaId, id, paraPdf);
       totalHumedas += r.stats.totalHumedas || 0;
       totalSecas += r.stats.ts || 0;
       totalAu += r.stats.au || 0;
-      trocearFilasPila(r.filas, MAX_FILAS_TBODY_STOCK).forEach(trozo=>{
+      trocearFilasPila(r.filas, MAX_FILAS_TBODY_STOCK, ncols).forEach(trozo=>{
         tbodies += `<tbody class="grupo-pila">${trozo}</tbody>`;
       });
     });
     const tenorPonderadoProc = totalSecas ? totalAu / totalSecas : null;
-    const filaCierre = `<tr class="grupo fila-total">
+    const filaCierre = paraPdf ? `<tr class="grupo fila-total">
+        <td colspan="2"><b>TOTAL</b></td>
+        <td><b>${fmt(totalHumedas || null, 2)}</b></td>
+        <td colspan="3"></td>
+        <td><b>${fmt(totalSecas || null, 2)}</b></td>
+        <td></td>
+        <td><b>${fmt(totalAu || null, 2)}</b></td></tr>
+      <tr class="grupo fila-ponderado">
+        <td colspan="8" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
+        <td><b>${fmt(tenorPonderadoProc, 3)}</b></td></tr>` : `<tr class="grupo fila-total">
         <td colspan="2"><b>TOTAL</b></td>
         <td><b>${fmt(totalHumedas || null, 2)}</b></td>
         <td colspan="3"></td>
@@ -1967,9 +2001,9 @@ function cuerpoStockPatio(lista){
     // de su tabla ni la tabla cortada a la mitad entre dos páginas (y si la tabla completa no cabe en
     // una sola página, exportarPdfInicio la corta por sus <tbody class="grupo-pila"> — nunca a la
     // mitad de una pila)
-    cuerpo += `<div class="bloque-stock-proc">
+    cuerpo += `<div class="${claseBloque}">
       <div class="fase">${esc(grupo[0].proc)}<span style="float:right;font-weight:normal">${grupo.length} pila${grupo.length===1?'':'s'} en stock</span></div>
-      <table class="patio tabla-stock"><thead><tr>${th}<th></th></tr></thead>${tbodies}</table></div>`;
+      <table class="patio ${claseTabla}"><thead><tr>${th}</tr></thead>${tbodies}</table></div>`;
 
     totalHumedasGen += totalHumedas;
     totalSecasGen += totalSecas;
@@ -1977,7 +2011,7 @@ function cuerpoStockPatio(lista){
   });
 
   const tenorPonderadoGen = totalSecasGen ? totalAuGen / totalSecasGen : null;
-  cuerpo += `<div class="bloque-stock-proc"><table class="patio tabla-stock" style="margin-top:6px"><tbody>
+  cuerpo += `<div class="${claseBloque}"><table class="patio ${claseTabla}" style="margin-top:6px"><tbody>
       <tr class="grupo fila-ponderado">
         <td colspan="8" class="izq"><b>TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)</b></td>
         <td><b>${fmt(tenorPonderadoGen, 3)}</b></td></tr>
@@ -3469,7 +3503,7 @@ async function exportarPdfInicio(){
     <div id="pdf-titulo"><div class="rotulo">RESUMEN GENERAL DE PATIO<small>PLANTA REVEMIN PIM II${rotuloMes ? '-' + esc(rotuloMes) : ''}</small></div></div>
     <div id="pdf-tarjetas">${tarjetasProcedencia(mes, lista)}</div>
     <div id="pdf-stock-titulo"><div class="rotulo" style="margin-top:34px">${tituloStockPatio()}</div></div>
-    <div id="pdf-stock">${cuerpoStockPatio(stockLista)}</div>
+    <div id="pdf-stock">${cuerpoStockPatio(stockLista, true)}</div>
   `;
   document.body.appendChild(cont);
 
@@ -3538,11 +3572,17 @@ async function exportarPdfInicio(){
       if(!grupos.length) grupos.push([]);
       if(cierreEl) grupos[grupos.length - 1].push(cierreEl);
 
+      // se reusa la clase real de la tabla original (tabla-stock en pantalla/mezclas,
+      // tabla-stock-pdf en el PDF) para que un trozo partido conserve el mismo ancho de columnas
+      // que el bloque completo, en vez de volver siempre a la variante de pantalla
+      const claseTablaOriginal = tabla.className;
+      const claseDivOriginal = divBloque.className;
       return grupos.map((tbodies, i)=>{
         const wrap = document.createElement('div');
+        wrap.className = claseDivOriginal;
         const tituloTxt = i === 0 ? tituloBase : `${tituloBase} (continuación)`;
         wrap.innerHTML = `<div class="fase">${esc(tituloTxt)}</div>
-          <table class="patio tabla-stock">${theadHtml}${tbodies.map(tb=>tb.outerHTML).join('')}</table>`;
+          <table class="${esc(claseTablaOriginal)}">${theadHtml}${tbodies.map(tb=>tb.outerHTML).join('')}</table>`;
         cont.appendChild(wrap);
         if(i === 0 && extraTopEl) wrap.insertBefore(extraTopEl, wrap.firstChild);
         return wrap;
