@@ -130,17 +130,6 @@
   .btn-vista:hover{filter:brightness(1.06)}
   .rotulo small{display:block; font-size:clamp(13px,1.6vw,16px); font-weight:bold}
 
-  /* ---- panel de pilas pendientes por tenor (muestreo en patio) ---- */
-  .panel-pend{border:2px solid var(--t-acento); background:#fff; margin:18px 0 4px; display:block}
-  .panel-pend-cab{display:flex; align-items:center; justify-content:space-between; gap:12px;
-    background:var(--t-cons-bg); border-bottom:2px solid var(--t-acento); padding:10px 14px}
-  .panel-pend-cab b{font-size:14px}
-  .panel-pend-cab small{display:block; font-size:12px; font-weight:bold}
-  .panel-pend-cab-min{justify-content:flex-end; padding:6px 10px}
-  .panel-pend-caja{padding:14px 16px 18px}
-  .panel-pend table.tabla-pend{margin-top:4px; font-size:12px; max-width:900px}
-  .panel-pend .patio th,.panel-pend .patio td{padding:6px 8px; font-size:12px}
-  .panel-pend .ok{padding:6px 2px 10px; font-size:13px; color:#0F6E56; font-weight:bold}
   .cifras{display:flex; gap:10px; flex-wrap:wrap; margin:0 0 12px}
   .cifra{border:1px solid var(--gris-suave); padding:7px 12px; min-width:92px; text-align:center}
   .cifra b{display:block; font-size:18px}
@@ -156,9 +145,8 @@
   .marca.medio{background:var(--aviso); color:#fff}
   .barra-prom{display:block; height:9px; background:var(--t-acento); min-width:2px}
 
-  /* ---- resumen de patio: cabecera de pendientes + dashboard de tarjetas por procedencia ---- */
+  /* ---- resumen de patio: dashboard de tarjetas por procedencia ---- */
   .paneles-patio{margin:18px 0 4px}
-  .paneles-patio .panel-pend{margin:0 0 14px}
 
   /* las tarjetas necesitan más ancho mínimo desde que la tabla de ÓRDENES PENDIENTES ganó las
      columnas FECHA y TURNO (antes solo tenía PILA/ORDEN/CÓDIGOS): con 270px esas 5 columnas se
@@ -662,7 +650,7 @@ const COLS_PATIO = [
 // pantalla sí conserva TURNO; solo se pidió quitarlo de la exportación)
 const COLS_PATIO_EXPORT = COLS_PATIO.filter(c => c.id !== 'turno');
 
-const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, panelAbierto:true, vistaPatio:'datos', patioInicio:true};
+const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, vistaPatio:'datos', patioInicio:true};
 
 const $ = s => document.querySelector(s);
 const clavePatio = p => 'revemin_patio_' + p;
@@ -1046,7 +1034,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-95';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-96';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1246,8 +1234,6 @@ function enlazarCarpetas(zona){
   zona.querySelectorAll('[data-mes]').forEach(b => b.addEventListener('click', ()=>{
     ESTADO.mesPatio = b.dataset.mes; pintar();
   }));
-  const bp = zona.querySelector('#btn-panel');
-  if(bp) bp.addEventListener('click', ()=>{ ESTADO.panelAbierto = !ESTADO.panelAbierto; pintar(); });
   zona.querySelectorAll('[data-anio]').forEach(b => b.addEventListener('click', ()=>{
     // al cambiar de año se abre su mes más reciente
     const meses = [...new Set(ESTADO.datos.map(g => (g.fecha||'').slice(0,7)).filter(Boolean))]
@@ -1549,12 +1535,7 @@ function panelPatio(){
   const mes = ESTADO.mesPatio || pan.mesHoy;
   const lista = pan.pendientes.filter(x => x.mes === mes)
                               .sort((a,b)=> a.clave.localeCompare(b.clave));
-  const cab = `<div class="panel-pend-cab panel-pend-cab-min">
-      <button class="btn" id="btn-panel">${ESTADO.panelAbierto ? 'Ocultar panel' : 'Mostrar panel'}</button>
-    </div>`;
-  if(!ESTADO.panelAbierto) return `<div class="paneles-patio"><div class="panel-pend">${cab}</div></div>`;
-
-  return `<div class="paneles-patio"><div class="panel-pend">${cab}</div>${tarjetasProcedencia(mes, lista)}</div>`;
+  return `<div class="paneles-patio">${tarjetasProcedencia(mes, lista)}</div>`;
 }
 
 // resumen general de Patio: solo el panel de pilas pendientes por tenor y el dashboard de tenores
