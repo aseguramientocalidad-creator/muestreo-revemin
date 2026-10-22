@@ -187,11 +187,11 @@
   .dc-ok{padding:10px 12px; font-size:12px; color:#0F6E56; font-weight:bold; text-align:center}
 
   table{border-collapse:collapse; width:100%; font-size:13px; margin-top:14px}
-  thead th{position:sticky; top:0; background:#D3E3F7; color:#185FA5; font-weight:bold; border-bottom:2px solid var(--t-acento); text-align:left; padding:10px; font-size:12px; white-space:nowrap}
+  thead th{position:sticky; top:0; background:#D3E3F7; color:#000; font-weight:bold; border-bottom:2px solid var(--t-acento); text-align:left; padding:10px; font-size:12px; white-space:nowrap}
   tbody td{border-bottom:1px solid var(--gris-suave); padding:9px 10px; vertical-align:top}
   tbody tr:hover{background:var(--t-hover)}
   .patio th,.patio td{border:1px solid #000; padding:8px 9px; text-align:center; vertical-align:middle}
-  .patio thead th{background:#D3E3F7; color:#185FA5; font-weight:bold; font-size:12px; text-align:center}
+  .patio thead th{background:#D3E3F7; color:#000; font-weight:bold; font-size:12px; text-align:center}
   .patio tbody tr:hover{background:transparent}
   .patio .grupo:hover td{background:var(--t-hover)}
   .patio td.izq{text-align:left}
@@ -1034,7 +1034,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-99';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-100';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
