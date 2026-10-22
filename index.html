@@ -185,11 +185,14 @@
   table.dc-pend th{background:#FAFAFA; color:#666; font-size:10.5px; text-align:left; padding:4px 12px; font-weight:bold}
   table.dc-pend td{padding:4px 12px; border-top:1px solid #f5f5f5}
   table.dc-pend tr:nth-child(even) td{background:#FDFDFD}
-  /* ORDEN y CÓDIGOS son textos cortos de formato fijo (p. ej. "TPM-10-293", "3082-3086") y nunca
-     deben partirse en dos líneas; cuando la PILA es un nombre largo (como en Pequeña Minería:
-     "Arenas el Esfuerzo P-01") se achica/envuelve esa columna en su lugar, nunca ORDEN ni CÓDIGOS */
-  table.dc-pend th:nth-child(2), table.dc-pend td:nth-child(2),
-  table.dc-pend th:nth-child(3), table.dc-pend td:nth-child(3){white-space:nowrap}
+  /* FECHA, TURNO, ORDEN y CÓDIGOS son textos cortos de formato fijo (p. ej. "6/10/2026", "TPM-10-293",
+     "3082-3086") y nunca deben partirse en dos líneas; cuando la PILA es un nombre largo (como en
+     Pequeña Minería: "Arenas el Esfuerzo P-01") se achica/envuelve esa columna en su lugar, nunca las
+     demás */
+  table.dc-pend th:nth-child(1), table.dc-pend td:nth-child(1),
+  table.dc-pend th:nth-child(3), table.dc-pend td:nth-child(3),
+  table.dc-pend th:nth-child(4), table.dc-pend td:nth-child(4),
+  table.dc-pend th:nth-child(5), table.dc-pend td:nth-child(5){white-space:nowrap}
   .dc-ok{padding:10px 12px; font-size:12px; color:#0F6E56; font-weight:bold; text-align:center}
 
   table{border-collapse:collapse; width:100%; font-size:13px; margin-top:14px}
@@ -1040,7 +1043,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-93';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-94';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1426,7 +1429,7 @@ async function calcularPanel(){
         const codigosFaltantes = ms.filter(sinTenor).map(m => String(m.codigo||'').trim()).filter(Boolean);
         pendientes.push({
           procId:p.id, proc:p.nombre, pila:String(g.pila||''), orden:g.orden||'',
-          fecha:g.fecha||'', mes:(g.fecha||'').slice(0,7),
+          fecha:g.fecha||'', mes:(g.fecha||'').slice(0,7), turno:g.turno||'',
           faltan, total:ms.length, clave:claveOrden(g), codigosFaltantes
         });
       }
@@ -1518,8 +1521,8 @@ function tarjetasProcedencia(mes, listaPendientes){
       : `<tr><td class="dc-vacio" colspan="2">Sin tenores cargados este mes</td></tr>`;
 
     const cuerpoPend = pend.length
-      ? `<table class="dc-pend"><thead><tr><th>PILA</th><th>ORDEN</th><th>CÓDIGOS</th></tr></thead><tbody>${
-          pend.map(x=> `<tr><td>${esc(x.pila)}</td><td><b>${esc(x.orden)}</b></td><td>${esc(rangoCodigos(x.codigosFaltantes))}</td></tr>`).join('')
+      ? `<table class="dc-pend"><thead><tr><th>FECHA</th><th>PILA</th><th>TURNO</th><th>ORDEN</th><th>CÓDIGOS</th></tr></thead><tbody>${
+          pend.map(x=> `<tr><td>${esc(fechaLegible(x.fecha))}</td><td>${esc(x.pila)}</td><td>${esc(x.turno)}</td><td><b>${esc(x.orden)}</b></td><td>${esc(rangoCodigos(x.codigosFaltantes))}</td></tr>`).join('')
         }</tbody></table>`
       : `<div class="dc-ok">✓ Todas con tenor</div>`;
 
