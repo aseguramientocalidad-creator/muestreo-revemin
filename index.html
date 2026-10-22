@@ -185,6 +185,11 @@
   table.dc-pend th{background:#FAFAFA; color:#666; font-size:10.5px; text-align:left; padding:4px 12px; font-weight:bold}
   table.dc-pend td{padding:4px 12px; border-top:1px solid #f5f5f5}
   table.dc-pend tr:nth-child(even) td{background:#FDFDFD}
+  /* ORDEN y CÓDIGOS son textos cortos de formato fijo (p. ej. "TPM-10-293", "3082-3086") y nunca
+     deben partirse en dos líneas; cuando la PILA es un nombre largo (como en Pequeña Minería:
+     "Arenas el Esfuerzo P-01") se achica/envuelve esa columna en su lugar, nunca ORDEN ni CÓDIGOS */
+  table.dc-pend th:nth-child(2), table.dc-pend td:nth-child(2),
+  table.dc-pend th:nth-child(3), table.dc-pend td:nth-child(3){white-space:nowrap}
   .dc-ok{padding:10px 12px; font-size:12px; color:#0F6E56; font-weight:bold; text-align:center}
 
   table{border-collapse:collapse; width:100%; font-size:13px; margin-top:14px}
@@ -1020,7 +1025,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-89';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-90';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
