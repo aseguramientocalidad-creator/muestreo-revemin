@@ -1034,7 +1034,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-96';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-97';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1548,9 +1548,7 @@ function pintarInicioPatio(){
   ESTADO.mesPatio = '';
   const lista = (ESTADO.stock || []).slice();
   const stockHtml = `<div class="rotulo" style="margin-top:34px">${tituloStockPatio()}</div>${cuerpoStockPatio(lista)}`;
-  zona.innerHTML = panelPatio() +
-    `<div class="vacio" style="padding:16px 10px 4px">Elija una procedencia arriba para ver su tabla de tenores.</div>` +
-    stockHtml;
+  zona.innerHTML = panelPatio() + stockHtml;
   enlazarAcciones(zona);
   ponerPie(`Resumen general · ${lista.length} pila${lista.length===1?'':'s'} en stock de patio`);
 }
