@@ -202,22 +202,27 @@
   .patio tr.fila-ponderado-mezcla td{font-size:12px; border-top:2px solid var(--azul-oscuro,#1a4d7a)}
   /* tabla principal de tenores de patio: orden más ancha y en una sola línea;
      toneladas húmedas/secas y Au contenido más angostas, para que la tabla sea más compacta */
+  /* el contenedor de la tabla de tenores se limita a un ancho fijo (1284px) — las columnas que
+     también existen en la tabla de pilas en stock (fecha, pila, toneladas húmedas, código, tenor,
+     humedad, toneladas secas, tenor promedio, Au contenido y acciones) quedan con el MISMO ancho en
+     píxeles que en esa tabla; TURNO y ORDEN (que el stock no tiene) se agregan aparte */
+  .tabla-tenores-wrap{max-width:1284px; margin:0 auto}
   .tabla-tenores{table-layout:fixed}
   .tabla-tenores thead th{white-space:normal; word-break:normal; overflow-wrap:normal; hyphens:none; font-size:11px; padding:8px 4px; line-height:1.3}
   .tabla-tenores td{padding:7px 5px; overflow-wrap:break-word}
-  .tabla-tenores th:nth-child(1),.tabla-tenores td:nth-child(1){width:8%}
-  .tabla-tenores th:nth-child(2),.tabla-tenores td:nth-child(2){width:10%}
-  .tabla-tenores th:nth-child(3),.tabla-tenores td:nth-child(3){width:6%}
-  .tabla-tenores th:nth-child(4),.tabla-tenores td:nth-child(4){width:11%}
+  .tabla-tenores th:nth-child(1),.tabla-tenores td:nth-child(1){width:11.7%}
+  .tabla-tenores th:nth-child(2),.tabla-tenores td:nth-child(2){width:14.3%}
+  .tabla-tenores th:nth-child(3),.tabla-tenores td:nth-child(3){width:5.1%}
+  .tabla-tenores th:nth-child(4),.tabla-tenores td:nth-child(4){width:10.9%}
   .tabla-tenores td:nth-child(4){white-space:nowrap}
-  .tabla-tenores th:nth-child(5),.tabla-tenores td:nth-child(5){width:7%}
-  .tabla-tenores th:nth-child(6),.tabla-tenores td:nth-child(6){width:7%}
-  .tabla-tenores th:nth-child(7),.tabla-tenores td:nth-child(7){width:10%}
-  .tabla-tenores th:nth-child(8),.tabla-tenores td:nth-child(8){width:10%}
-  .tabla-tenores th:nth-child(9),.tabla-tenores td:nth-child(9){width:7%}
-  .tabla-tenores th:nth-child(10),.tabla-tenores td:nth-child(10){width:8%}
-  .tabla-tenores th:nth-child(11),.tabla-tenores td:nth-child(11){width:7%}
-  .tabla-tenores th:nth-child(12),.tabla-tenores td:nth-child(12){width:9%}
+  .tabla-tenores th:nth-child(5),.tabla-tenores td:nth-child(5){width:7.6%}
+  .tabla-tenores th:nth-child(6),.tabla-tenores td:nth-child(6){width:5.9%}
+  .tabla-tenores th:nth-child(7),.tabla-tenores td:nth-child(7){width:8.4%}
+  .tabla-tenores th:nth-child(8),.tabla-tenores td:nth-child(8){width:8.4%}
+  .tabla-tenores th:nth-child(9),.tabla-tenores td:nth-child(9){width:7.6%}
+  .tabla-tenores th:nth-child(10),.tabla-tenores td:nth-child(10){width:7.6%}
+  .tabla-tenores th:nth-child(11),.tabla-tenores td:nth-child(11){width:7.6%}
+  .tabla-tenores th:nth-child(12),.tabla-tenores td:nth-child(12){width:5.1%}
   /* tabla consolidada de pilas en stock: igual a la tabla principal pero sin fecha/turno/orden,
      con una columna de PROCEDENCIA a la izquierda */
   /* el título y la tabla de cada procedencia (bloque-stock-proc) se limitan a un ancho máximo y se
@@ -1011,7 +1016,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '21/10/2026-87';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-88';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1664,7 +1669,7 @@ function pintarPatio(){
       <td><b>${fmt(tenorPonderado, 3)}</b></td>
       <td></td></tr>`;
 
-  zona.innerHTML = rotulo + `<table class="patio tabla-tenores"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+  zona.innerHTML = rotulo + `<div class="tabla-tenores-wrap"><table class="patio tabla-tenores"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>`;
   $('#btn-otra-pila').addEventListener('click', ()=> abrirFormulario(null));
   $('#btn-vista-patio').addEventListener('click', ()=>{ ESTADO.vistaPatio = 'graficos'; pintar(); });
   enlazarBotonMezclas();
