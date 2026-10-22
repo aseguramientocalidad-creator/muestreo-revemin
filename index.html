@@ -1025,7 +1025,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-90';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-91';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1845,6 +1845,67 @@ function filasBloqueStock(bloque, tieneMezclaId, procId){
   return {filas, stats};
 }
 
+// una sola pila (o mezcla) con MUCHAS muestras puede producir un <tbody class="grupo-pila"> más
+// alto que una página completa de PDF — ahí dividirBloqueStock ya no puede ayudar, porque no hay
+// otra pila con la cual agruparla o cortar (es una sola pieza indivisible). Por eso cada pila se
+// trocea ya aquí, al armar el HTML, por CANTIDAD de filas (no de alto en píxeles: esto se arma
+// antes de existir en el DOM, así que no hay nada que medir todavía): si tiene más de MAX_FILAS
+// muestras, se parte en trozos de ese tamaño, cada uno como su propio <tbody class="grupo-pila">,
+// clonando hacia el trozo siguiente las celdas con rowspan que todavía estén "abiertas" (fecha,
+// pila, toneladas húmedas/secas, tenor promedio, Au contenido, Eliminar) para que sigan viéndose en
+// vez de desaparecer a partir del segundo trozo — así la tabla de tenores de patio nunca vuelve a
+// tener una sola pieza tan alta que dividirBloqueStock se vea obligado a cortarla a la mitad.
+const MAX_FILAS_TBODY_STOCK = 20;
+const NCOLS_STOCK_TOTAL = COLS_STOCK.length + 1; // +1 por la columna de Acciones
+
+function trocearFilasPila(filasHtml, maxFilas){
+  const tmp = document.createElement('tbody');
+  tmp.innerHTML = filasHtml;
+  const trs = Array.from(tmp.children).filter(el => el.tagName === 'TR');
+  if(trs.length <= maxFilas) return [filasHtml];
+
+  const grupos = [];
+  for(let i = 0; i < trs.length; i += maxFilas) grupos.push(trs.slice(i, i + maxFilas));
+
+  // activo[col] = celda con rowspan todavía pendiente de cubrir filas más adelante, y cuántas le
+  // quedan (contando solo las que aún faltan después de la fila actual)
+  const activo = new Array(NCOLS_STOCK_TOTAL).fill(null);
+  const COL_PILA = 1;
+
+  return grupos.map((filasDelGrupo, gi)=>{
+    const htmlFilas = filasDelGrupo.map((tr, fi)=>{
+      const esPrimeraDelTrozo = fi === 0;
+      const celdasOriginales = Array.from(tr.children);
+      const celdasFinal = [];
+      let col = 0, idx = 0;
+      while(col < NCOLS_STOCK_TOTAL){
+        if(activo[col] && activo[col].restante > 0){
+          if(esPrimeraDelTrozo && gi > 0){
+            // esta columna la cubre una celda de un trozo ANTERIOR: se clona aquí con el rowspan
+            // recalculado para lo que falta, marcando la de PILA como "(cont.)"
+            const clon = activo[col].celda.cloneNode(true);
+            clon.setAttribute('rowspan', String(activo[col].restante));
+            if(col === COL_PILA) clon.innerHTML += ' <small>(cont.)</small>';
+            celdasFinal.push(clon.outerHTML);
+          }
+          activo[col].restante--;
+          col += activo[col].span;
+          continue;
+        }
+        const cell = celdasOriginales[idx++];
+        if(!cell) break;
+        const span = cell.hasAttribute('colspan') ? Number(cell.getAttribute('colspan')) : 1;
+        const rs = cell.hasAttribute('rowspan') ? Number(cell.getAttribute('rowspan')) : 1;
+        celdasFinal.push(cell.outerHTML);
+        if(rs > 1) activo[col] = {celda: cell, restante: rs - 1, span};
+        col += span;
+      }
+      return `<tr class="${esc(tr.className)}">${celdasFinal.join('')}</tr>`;
+    }).join('');
+    return htmlFilas;
+  });
+}
+
 // arma las tablas de "pilas en stock" por procedencia + el tenor ponderado consolidado de TODAS
 // las procedencias — se usa en la pantalla de Inicio, debajo del panel de pilas que faltan por
 // tenor, en vez de ser una vista aparte a la que había que entrar con un botón
@@ -1882,7 +1943,9 @@ function cuerpoStockPatio(lista){
       totalHumedas += r.stats.totalHumedas || 0;
       totalSecas += r.stats.ts || 0;
       totalAu += r.stats.au || 0;
-      tbodies += `<tbody class="grupo-pila">${r.filas}</tbody>`;
+      trocearFilasPila(r.filas, MAX_FILAS_TBODY_STOCK).forEach(trozo=>{
+        tbodies += `<tbody class="grupo-pila">${trozo}</tbody>`;
+      });
     });
     const tenorPonderadoProc = totalSecas ? totalAu / totalSecas : null;
     const filaCierre = `<tr class="grupo fila-total">
