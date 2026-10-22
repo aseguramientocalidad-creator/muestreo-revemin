@@ -223,6 +223,10 @@
   .tabla-tenores th:nth-child(10),.tabla-tenores td:nth-child(10){width:7.6%}
   .tabla-tenores th:nth-child(11),.tabla-tenores td:nth-child(11){width:7.6%}
   .tabla-tenores th:nth-child(12),.tabla-tenores td:nth-child(12){width:5.1%}
+  /* la etiqueta "PROMEDIO"/"MEDIANA" cae en la columna CODIGO (la más angosta, pensada para un
+     código de 4 dígitos) porque fecha/pila/turno/orden ya están ocupadas por el rowspan de la fila
+     de arriba — se evita que la palabra se corta a la mitad en vez de ensanchar esa columna */
+  .tabla-tenores .etiqueta-centro{white-space:nowrap; font-size:10.5px}
   /* tabla consolidada de pilas en stock: igual a la tabla principal pero sin fecha/turno/orden,
      con una columna de PROCEDENCIA a la izquierda */
   /* el título y la tabla de cada procedencia (bloque-stock-proc) se limitan a un ancho máximo y se
@@ -1016,7 +1020,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-88';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-89';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1650,7 +1654,7 @@ function pintarPatio(){
           <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}${acciones}</tr>`;
       });
       cuerpo += `<tr class="grupo promedio">
-        <td>${rotuloCentro(g)}</td>
+        <td class="etiqueta-centro">${rotuloCentro(g)}</td>
         <td>${fmt(centro(g, ms.map(m=>m.tenor)), 3)}</td>
         <td>${fmt(centro(g, ms.map(m=>m.humedad)), 2)}</td></tr>`;
     });
