@@ -160,7 +160,10 @@
   .paneles-patio{margin:18px 0 4px}
   .paneles-patio .panel-pend{margin:0 0 14px}
 
-  .dash-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:14px}
+  /* las tarjetas necesitan más ancho mínimo desde que la tabla de ÓRDENES PENDIENTES ganó las
+     columnas FECHA y TURNO (antes solo tenía PILA/ORDEN/CÓDIGOS): con 270px esas 5 columnas se
+     apretaban y todo quedaba descuadrado */
+  .dash-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(420px, 1fr)); gap:14px}
   .dash-card{
     border:1px solid var(--gris-suave); border-left:5px solid var(--dc-color, var(--t-acento));
     background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.08); display:flex; flex-direction:column; min-width:0;
@@ -1043,7 +1046,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-94';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-95';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
