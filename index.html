@@ -1040,7 +1040,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-92';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-93';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -3517,10 +3517,6 @@ async function exportarPdfInicio(){
     const altoUtil = pageH - margen * 2;
     let y = margen;
 
-    // alto máximo, en píxeles del contenedor oculto (1000px de ancho), que cabe en una página
-    // completa del PDF — se usa para decidir dónde partir una tabla de stock demasiado larga
-    const limitePx = Math.floor((altoUtil * 1000 / anchoUtil)) - 20;
-
     // si un "bloque-stock-proc" (título + tabla de una procedencia) no cabe entero en una página,
     // se corta por sus <tbody class="grupo-pila"> — es decir, SIEMPRE entre dos pilas completas,
     // nunca a la mitad de una — repitiendo el encabezado de columnas en cada trozo y dejando la fila
@@ -3532,6 +3528,16 @@ async function exportarPdfInicio(){
     function dividirBloqueStock(divBloque, extraTopEl){
       const extraTopH = extraTopEl ? extraTopEl.getBoundingClientRect().height : 0;
       const tabla = divBloque.querySelector('table');
+
+      // el presupuesto de altura depende del ANCHO real con el que se captura ESTE bloque:
+      // "bloque-stock-proc" (pantalla/mezclas) llena los 1000px del contenedor oculto, pero
+      // "bloque-stock-proc-pdf" es más angosto (900px, centrado dentro del mismo contenedor) —
+      // un límite fijo pensado para 1000px subestima cuánto se estira la imagen capturada al
+      // colocarla en el PDF a lo ancho de una página completa, y eso es lo que terminaba
+      // cortando una fila a la mitad en vez de respetar los cortes por pila
+      const anchoBloque = divBloque.getBoundingClientRect().width || 1000;
+      const limitePx = Math.floor((altoUtil * anchoBloque / anchoUtil)) - 20;
+
       if(!tabla || divBloque.getBoundingClientRect().height + extraTopH <= limitePx){
         if(extraTopEl) divBloque.insertBefore(extraTopEl, divBloque.firstChild);
         return [divBloque];
