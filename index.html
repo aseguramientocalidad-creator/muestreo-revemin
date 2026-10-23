@@ -1119,7 +1119,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-133';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-134';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1781,8 +1781,9 @@ function pintarPatio(){
       <td><b>${fmt(totalAu || null, 2)}</b></td>
       <td></td></tr>
     <tr class="grupo fila-ponderado">
-      <td colspan="10" class="izq"><b>TENOR PONDERADO ${esc(nombreProc(ESTADO.procedencia))} (g/t)</b></td>
+      <td colspan="9" class="izq"><b>TENOR PONDERADO ${esc(nombreProc(ESTADO.procedencia))} (g/t)</b></td>
       <td><b>${fmt(tenorPonderado, 3)}</b></td>
+      <td></td>
       <td></td></tr>`;
 
   zona.innerHTML = rotulo + `<div class="tabla-tenores-wrap"><table class="patio tabla-tenores"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>`;
@@ -2089,8 +2090,9 @@ function cuerpoStockPatio(lista, paraPdf){
         <td></td>
         <td><b>${fmt(totalAu || null, 2)}</b></td></tr>
       <tr class="grupo fila-ponderado">
-        <td colspan="8" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
-        <td><b>${fmt(tenorPonderadoProc, 3)}</b></td></tr>` : `<tr class="grupo fila-total">
+        <td colspan="7" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
+        <td><b>${fmt(tenorPonderadoProc, 3)}</b></td>
+        <td></td></tr>` : `<tr class="grupo fila-total">
         <td colspan="2"><b>TOTAL</b></td>
         <td><b>${fmt(totalHumedas || null, 2)}</b></td>
         <td colspan="3"></td>
@@ -2099,8 +2101,9 @@ function cuerpoStockPatio(lista, paraPdf){
         <td><b>${fmt(totalAu || null, 2)}</b></td>
         <td></td></tr>
       <tr class="grupo fila-ponderado">
-        <td colspan="8" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
+        <td colspan="7" class="izq"><b>TENOR PONDERADO — ${esc(grupo[0].proc)} (g/t)</b></td>
         <td><b>${fmt(tenorPonderadoProc, 3)}</b></td>
+        <td></td>
         <td></td></tr>`;
     tbodies += `<tbody class="fila-cierre">${filaCierre}</tbody>`;
 
@@ -2121,8 +2124,9 @@ function cuerpoStockPatio(lista, paraPdf){
   const tenorPonderadoGen = totalSecasGen ? totalAuGen / totalSecasGen : null;
   cuerpo += `<div class="${claseBloque}"><table class="patio ${claseTabla}" style="margin-top:6px"><tbody>
       <tr class="grupo fila-ponderado">
-        <td colspan="8" class="izq"><b>TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)</b></td>
-        <td><b>${fmt(tenorPonderadoGen, 3)}</b></td></tr>
+        <td colspan="7" class="izq"><b>TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)</b></td>
+        <td><b>${fmt(tenorPonderadoGen, 3)}</b></td>
+        <td></td></tr>
     </tbody></table></div>`;
 
   return cuerpo;
@@ -3468,11 +3472,11 @@ async function exportarExcelPatio(soloProc){
       n++;
 
       const fp = formatearFila(ws, n, NC, {negrita:true});
-      ws.mergeCells(n, 1, n, 9);
+      ws.mergeCells(n, 1, n, 8);
       fp.getCell(1).value = `TENOR PONDERADO ${p.nombre} (g/t)`;
       fp.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
-      fp.getCell(10).value = {formula:`IFERROR(J${filaTotal}/H${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
-      fp.getCell(10).numFmt = '0.000';
+      fp.getCell(9).value = {formula:`IFERROR(J${filaTotal}/H${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
+      fp.getCell(9).numFmt = '0.000';
       fp.eachCell({includeEmpty:true}, c=> c.fill = AZUL);
       n++;
     }
@@ -3617,11 +3621,11 @@ function escribirHojaStock(ws, lista, conProcedencia, tituloTxt, subtituloTxt, r
   n++;
 
   const fp = formatearFila(ws, n, NC, {negrita:true});
-  ws.mergeCells(n, 1, n, cProm);
+  ws.mergeCells(n, 1, n, cSecas);
   fp.getCell(1).value = rotuloPonderado;
   fp.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
-  fp.getCell(cAu).value = {formula:`IFERROR(${col(cAu)}${filaTotal}/${col(cSecas)}${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
-  fp.getCell(cAu).numFmt = '0.000';
+  fp.getCell(cProm).value = {formula:`IFERROR(${col(cAu)}${filaTotal}/${col(cSecas)}${filaTotal},"")`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
+  fp.getCell(cProm).numFmt = '0.000';
   fp.font = {bold:true, size:11, name:'Arial', color:{argb:'FF262626'}};
   fp.eachCell({includeEmpty:true}, c=> c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFBFBFBF'}});
 
