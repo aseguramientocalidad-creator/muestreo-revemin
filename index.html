@@ -78,26 +78,20 @@
   .fila-proc{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px}
   .fila-proc:empty{display:none}
   .fila-acciones{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-  /* botón tipo "pill" grueso (estilo botón PLAY de referencia): degradado turquesa, borde negro
-     grueso y una sombra sólida negra debajo (sin difuminar) que le da el efecto "de juguete" en
-     relieve. El texto va más resaltante (más grande, más grueso y con sombra) para que destaque
-     sobre el degradado. El botón activo/presionado (aria-pressed="true", o al hacer click) pierde
-     la sombra de abajo y se desplaza hacia ella, simulando que quedó hundido.*/
+  /* botón tipo "pill": degradado turquesa claro, borde negro grueso, esquinas totalmente
+     redondeadas, sin ninguna sombra (ni alrededor del botón ni en el texto). El texto va
+     resaltante por su propio peso/tamaño (negrita 900, mayúsculas), no por sombra. El botón
+     activo/presionado (aria-pressed="true") se distingue con un degradado más oscuro. */
   .proc-btn{
     border:3px solid #0a0a0a; border-radius:999px;
     background:linear-gradient(135deg, #D6FBF2 0%, #8FE8D8 55%, #5FD2BE 100%);
     color:#000; text-transform:uppercase; letter-spacing:.5px;
     font-weight:900; font-size:14px; padding:13px 10px; cursor:pointer; text-align:center;
-    text-shadow:0 1px 0 rgba(255,255,255,.7);
-    box-shadow:inset 0 2px 2px rgba(255,255,255,.75), 0 6px 0 #0a0a0a, 0 7px 8px rgba(0,0,0,.25);
-    transition:filter .15s, transform .08s, box-shadow .08s;
+    transition:filter .15s;
   }
   .proc-btn:hover{filter:brightness(1.05)}
-  .proc-btn:active{transform:translateY(5px); box-shadow:inset 0 2px 2px rgba(255,255,255,.75), 0 1px 0 #0a0a0a}
   .proc-btn[aria-pressed="true"]{
     background:linear-gradient(135deg, #5FD2BE 0%, #3EB8A2 55%, #28927F 100%);
-    transform:translateY(5px);
-    box-shadow:inset 0 3px 6px rgba(0,0,0,.35), 0 1px 0 #0a0a0a;
   }
   .btn-excel{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
   .btn-pdf{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
@@ -1083,7 +1077,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-119';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-120';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
