@@ -1061,7 +1061,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-112';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-113';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1779,7 +1779,7 @@ function pintarMezclasPatio(){
   let cuerpo = '';
   let totalPilas = 0;
   bloques.forEach(bloque=>{
-    cuerpo += filasBloqueStock(bloque, true, ESTADO.procedencia, false, true).filas;
+    cuerpo += filasBloqueStock(bloque, true, ESTADO.procedencia, false).filas;
     totalPilas += new Set(bloque.map(g=>g.pila)).size;
   });
 
@@ -1816,7 +1816,7 @@ function tituloStockPatio(){
 // por código) — y si son varios registros de una mezcla manual, se agrega al final una fila de
 // cierre con el tenor ponderado de todo el conjunto y los botones de revertir/stock. La reutilizan
 // tanto la vista en pantalla (cuerpoStockPatio, pintarMezclasPatio) como el Excel (escribirHojaStock)
-function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarPila){
+function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf){
   let filas = '';
   // una mezcla manual real junta pilas de nombres distintos, cada una con su propio peso: ahí se
   // pondera con statsMezcla (suma el TS de cada registro con su propia tonelada). Una pila repetida
@@ -1862,7 +1862,7 @@ function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarP
         : '';
       const cabecera = k === 0 ? `
         <td rowspan="${n}"><b>${esc(fechaLegible(g.fecha))}</b></td>
-        <td rowspan="${n}">${esc(g.pila)}${(tieneMezclaId && !ocultarQuitarPila) ? ` <button type="button" class="mini borrar quitar-de-mezcla" data-quitar-pila-mezcla="${esc(g.__id)}" data-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Quitar esta pila de la mezcla">✕</button>` : ''}</td>` : '';
+        <td rowspan="${n}">${esc(g.pila)}</td>` : '';
 
       let humedasCelda = '', calculados = '';
       if(fusionar){
@@ -1952,10 +1952,9 @@ function trocearFilasPila(filasHtml, maxFilas, ncols){
         if(activo[col] && activo[col].restante > 0){
           if(esPrimeraDelTrozo && gi > 0){
             // esta columna la cubre una celda de un trozo ANTERIOR: se clona aquí con el rowspan
-            // recalculado para lo que falta, marcando la de PILA como "(cont.)"
+            // recalculado para lo que falta (sin ninguna marca de continuación en el texto)
             const clon = activo[col].celda.cloneNode(true);
             clon.setAttribute('rowspan', String(activo[col].restante));
-            if(col === COL_PILA) clon.innerHTML += ' <small>(cont.)</small>';
             celdasFinal.push(clon.outerHTML);
           }
           activo[col].restante--;
