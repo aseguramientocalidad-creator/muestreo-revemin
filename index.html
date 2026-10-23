@@ -1061,7 +1061,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-110';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-111';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1833,6 +1833,12 @@ function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarP
   const fusionar = bloque.length > 1;
   const totalFilasBloque = bloque.reduce((acc,g)=> acc + ((g.muestras && g.muestras.length) ? g.muestras.length : 1), 0);
   let primeraFilaBloque = true;
+  // para una mezcla manual, los botones Eliminar/Agregar-Quitar de stock van en una sola celda que
+  // cubre con rowspan TODO el bloque — las filas de datos más las dos filas de cierre (TOTAL y TENOR
+  // PONDERADO) — para que queden centrados vertical y horizontalmente en la columna de Acciones, igual
+  // que el botón "Eliminar" de una pila normal, en vez de aparecer sueltos en la fila TOTAL.
+  const enStockMezcla = tieneMezclaId && String(bloque[0].stock||'').toLowerCase() === 'si';
+  const filasCierreMezcla = tieneMezclaId ? 2 : 0;
 
   bloque.forEach(g=>{
     const ms = (g.muestras && g.muestras.length) ? g.muestras : [{codigo:'',tenor:'',humedad:''}];
@@ -1841,12 +1847,15 @@ function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarP
     ms.forEach((m,k)=>{
       // columna de Acciones al final de la fila: el botón "Eliminar" saca la pila COMPLETA del stock
       // (todas sus fechas), sin pasar por el formulario de edición; aparece una sola vez, en una celda
-      // que cubre con rowspan todo el bloque (todas las fechas/muestras de esa pila). Las mezclas
-      // manuales no llevan este botón aquí (tienen su propio "Quitar de stock" en la fila de cierre).
-      // En el PDF esta columna no tiene sentido (es un botón interactivo) y no se agrega en absoluto.
+      // que cubre con rowspan todo el bloque (todas las fechas/muestras de esa pila). Una mezcla manual
+      // lleva en su lugar, en esa misma celda, los botones Eliminar (deshacer mezcla) y Agregar/Quitar
+      // de stock, con el rowspan extendido para cubrir también las filas de cierre. En el PDF esta
+      // columna no tiene sentido (son botones interactivos) y no se agrega en absoluto.
       const accionesCelda = (primeraFilaBloque && !paraPdf)
-        ? `<td rowspan="${totalFilasBloque}" class="col-acc">${tieneMezclaId ? '' :
-            `<button type="button" class="mini borrar" data-quitar-pila-stock="${esc(normalizaPila(g.pila))}" data-proc="${esc(procId)}" title="Quitar esta pila (todas sus fechas) del stock de patio">Eliminar</button>`}</td>`
+        ? `<td rowspan="${totalFilasBloque + filasCierreMezcla}" class="col-acc">${tieneMezclaId
+            ? `<button type="button" class="mini borrar" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Deshace la mezcla: las pilas vuelven a mostrarse por separado">Eliminar</button><br>
+               <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStockMezcla ? 'Quitar de stock' : 'Agregar a stock'}</button>`
+            : `<button type="button" class="mini borrar" data-quitar-pila-stock="${esc(normalizaPila(g.pila))}" data-proc="${esc(procId)}" title="Quitar esta pila (todas sus fechas) del stock de patio">Eliminar</button>`}</td>`
         : '';
       const cabecera = k === 0 ? `
         <td rowspan="${n}"><b>${esc(fechaLegible(g.fecha))}</b></td>
@@ -1878,28 +1887,25 @@ function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarP
   });
   if(tieneMezclaId){
     const pilas = [...new Set(bloque.map(g=>g.pila))].map(esc).join(', ');
-    const enStock = String(bloque[0].stock||'').toLowerCase() === 'si';
     // el total ya se ve arriba, fusionado en la primera fecha del bloque (puede quedar lejos si la
     // mezcla tiene muchas muestras), así que aquí se repite junto a la fila de cierre, con el mismo
     // estilo TOTAL / TENOR PONDERADO que usa la tabla de Stock (fila-total gris oscuro + fila-ponderado
     // celeste), en vez del texto corrido de antes. El valor del tenor ponderado va justo debajo de la
     // columna TENOR PROMEDIO (7 columnas de rótulo: FECHA, PILA, TONELADAS HUMEDAS, CODIGO, TENOR
-    // MUESTRA, HUMEDAD MUESTRA y TONELADAS SECAS), dejando Au CONTENIDO vacío en esa fila. En el PDF se
-    // omiten los botones (Revertir/Stock) y los colspan se ajustan a las 9 columnas (sin Acciones).
-    const accionesCierre = paraPdf ? '' : `<td class="col-acc">
-          <button type="button" class="mini borrar" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Deshace la mezcla: las pilas vuelven a mostrarse por separado">Eliminar</button><br>
-          <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStock ? 'Quitar de stock' : 'Agregar a stock'}</button></td>`;
+    // MUESTRA, HUMEDAD MUESTRA y TONELADAS SECAS), dejando Au CONTENIDO vacío en esa fila. Los botones
+    // Eliminar/Stock NO van en estas filas: quedan en la celda de Acciones con rowspan que arranca en
+    // la primera fila del bloque (ver accionesCelda más arriba), así se ven centrados en la columna.
     filas += `<tr class="grupo fila-total">
         <td colspan="2" class="izq"><b>MEZCLA (${pilas})</b></td>
         <td><b>${fmt(stats.totalHumedas, 2)}</b></td>
         <td colspan="3"></td>
         <td><b>${fmt(stats.ts, 2)}</b></td>
         <td></td>
-        <td><b>${fmt(stats.au, 2)}</b></td>${accionesCierre}</tr>
+        <td><b>${fmt(stats.au, 2)}</b></td></tr>
       <tr class="grupo fila-ponderado">
         <td colspan="7" class="izq"><b>TENOR PONDERADO MEZCLA (g/t)</b></td>
         <td><b>${fmt(stats.tp, 3)}</b></td>
-        <td></td>${paraPdf ? '' : '<td></td>'}</tr>`;
+        <td></td></tr>`;
   }
   return {filas, stats};
 }
