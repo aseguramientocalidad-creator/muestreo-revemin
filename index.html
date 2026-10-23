@@ -1061,7 +1061,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-107';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-108';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1880,18 +1880,23 @@ function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarP
     const pilas = [...new Set(bloque.map(g=>g.pila))].map(esc).join(', ');
     const enStock = String(bloque[0].stock||'').toLowerCase() === 'si';
     // el total ya se ve arriba, fusionado en la primera fecha del bloque (puede quedar lejos si la
-    // mezcla tiene muchas muestras), así que aquí se repite junto a la fila de cierre para que no
-    // haya que desplazarse hacia arriba a buscarlo. En el PDF se omiten los botones (Revertir/Stock)
-    // y el colspan se ajusta a las 9 columnas (sin la de Acciones, que tampoco se agrega ahí).
-    const botones = paraPdf ? '' : `
-          &nbsp;
-          <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">↩️ Revertir mezcla</button>
-          <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button>`;
-    filas += `<tr class="grupo fila-ponderado">
-        <td colspan="${paraPdf ? 9 : 10}" class="col-acc" style="text-align:left">
-          <b>MEZCLA (${pilas})</b> — Toneladas húmedas: ${fmt(stats.totalHumedas, 2)} ·
-          Secas: ${fmt(stats.ts, 2)} · Tenor promedio: ${fmt(stats.tp, 3)} g/t · Au contenido: ${fmt(stats.au, 2)} g${botones}
-        </td></tr>`;
+    // mezcla tiene muchas muestras), así que aquí se repite junto a la fila de cierre, con el mismo
+    // estilo TOTAL / TENOR PONDERADO que usa la tabla de Stock (fila-total gris oscuro + fila-ponderado
+    // celeste), en vez del texto corrido de antes. En el PDF se omiten los botones (Revertir/Stock) y
+    // los colspan se ajustan a las 9 columnas (sin la de Acciones, que tampoco se agrega ahí).
+    const accionesCierre = paraPdf ? '' : `<td class="col-acc">
+          <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">↩️ Revertir mezcla</button><br>
+          <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button></td>`;
+    filas += `<tr class="grupo fila-total">
+        <td colspan="2" class="izq"><b>MEZCLA (${pilas})</b></td>
+        <td><b>${fmt(stats.totalHumedas, 2)}</b></td>
+        <td colspan="3"></td>
+        <td><b>${fmt(stats.ts, 2)}</b></td>
+        <td></td>
+        <td><b>${fmt(stats.au, 2)}</b></td>${accionesCierre}</tr>
+      <tr class="grupo fila-ponderado">
+        <td colspan="${paraPdf ? 8 : 9}" class="izq"><b>TENOR PONDERADO MEZCLA (g/t)</b></td>
+        <td><b>${fmt(stats.tp, 3)}</b></td></tr>`;
   }
   return {filas, stats};
 }
