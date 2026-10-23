@@ -1142,7 +1142,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-151';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-152';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -3837,14 +3837,6 @@ async function exportarInformeDiarioPdf(){
     pdf.setTextColor(0,0,0);
     y += 20;
 
-    pdf.setFont(undefined, 'normal');
-    pdf.setFontSize(10);
-    const introLineas = pdf.splitTextToSize(
-      `A continuación se presenta el consolidado de las pilas y órdenes de Patio que, al ${fechaHoyLegible}, permanecen pendientes por tenor:`,
-      anchoUtil);
-    pdf.text(introLineas, margenX, y);
-    y += introLineas.length * 13 + 10;
-
     const columnasPend = [
       {clave:'proc', titulo:'PROCEDENCIA', prop:0.26},
       {clave:'pila', titulo:'PILA', prop:0.22},
@@ -3853,7 +3845,16 @@ async function exportarInformeDiarioPdf(){
     ];
     const aFilas = l => l.map(x=> ({proc:x.proc, pila:x.pila, orden:x.orden, codigos: rangoCodigos(x.codigosFaltantes) || '—'}));
 
-    y = dibujarTablaInformeDiario(pdf, aFilas(lista), columnasPend, {
+    // el informe siempre empieza con lo realizado el día en que se genera (las órdenes más
+    // recientes) y luego, debajo, el consolidado completo de todo lo pendiente por tenor
+    pdf.setFont(undefined, 'normal');
+    pdf.setFontSize(10);
+    const parrafoReciente = `${rotuloDia} se generaron en ${rotuloTurnos} las siguientes órdenes de laboratorio:`;
+    const recienteLineas = pdf.splitTextToSize(parrafoReciente, anchoUtil);
+    pdf.text(recienteLineas, margenX, y);
+    y += recienteLineas.length * 13 + 10;
+
+    y = dibujarTablaInformeDiario(pdf, aFilas(recientes), columnasPend, {
       x:margenX, y, anchoTotal:anchoUtil, pageH, margenInferior:margenInf, nuevaPagina
     });
 
@@ -3862,15 +3863,16 @@ async function exportarInformeDiarioPdf(){
 
     pdf.setFont(undefined, 'normal');
     pdf.setFontSize(10);
-    const parrafoReciente = `${rotuloDia} se generaron en ${rotuloTurnos} las siguientes órdenes de laboratorio:`;
-    const recienteLineas = pdf.splitTextToSize(parrafoReciente, anchoUtil);
-    pdf.text(recienteLineas, margenX, y);
-    y += recienteLineas.length * 13 + 10;
+    const introLineas = pdf.splitTextToSize(
+      `A continuación se presenta el consolidado de las pilas y órdenes de Patio que, al ${fechaHoyLegible}, permanecen pendientes por tenor:`,
+      anchoUtil);
+    pdf.text(introLineas, margenX, y);
+    y += introLineas.length * 13 + 10;
 
     // columnas nuevas en cada llamada (dibujarTablaInformeDiario les asigna "x"/"w"), para no
-    // reusar las ya calculadas por la tabla consolidada de arriba
-    const columnasRecientes = columnasPend.map(c=> ({...c}));
-    y = dibujarTablaInformeDiario(pdf, aFilas(recientes), columnasRecientes, {
+    // reusar las ya calculadas por la tabla de arriba
+    const columnasConsolidado = columnasPend.map(c=> ({...c}));
+    y = dibujarTablaInformeDiario(pdf, aFilas(lista), columnasConsolidado, {
       x:margenX, y, anchoTotal:anchoUtil, pageH, margenInferior:margenInf, nuevaPagina
     });
 
