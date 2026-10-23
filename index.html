@@ -78,23 +78,26 @@
   .fila-proc{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px}
   .fila-proc:empty{display:none}
   .fila-acciones{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-  /* botón tipo "pill" brillante (estilo botón SETTINGS de referencia): degradado azul, borde
-     negro, esquinas totalmente redondeadas y un brillo superior simulado con box-shadow interno.
-     El botón de la procedencia/vista activa (aria-pressed="true") se ve "hundido": degradado
-     invertido (oscuro arriba) y sombra interna en vez de brillo. */
+  /* botón tipo "pill" grueso (estilo botón PLAY de referencia): degradado turquesa, borde negro
+     grueso y una sombra sólida negra debajo (sin difuminar) que le da el efecto "de juguete" en
+     relieve. El texto va más resaltante (más grande, más grueso y con sombra) para que destaque
+     sobre el degradado. El botón activo/presionado (aria-pressed="true", o al hacer click) pierde
+     la sombra de abajo y se desplaza hacia ella, simulando que quedó hundido.*/
   .proc-btn{
-    border:2px solid #0a0a0a; border-radius:999px;
-    background:linear-gradient(180deg, #6cc3ff 0%, #1f8fef 45%, #0d63c9 100%);
-    color:#fff; text-transform:uppercase; letter-spacing:.3px;
-    font-weight:bold; font-size:13px; padding:13px 10px; cursor:pointer; text-align:center;
-    box-shadow:inset 0 2px 2px rgba(255,255,255,.65), inset 0 -8px 14px rgba(0,30,70,.35), 0 3px 5px rgba(0,0,0,.35);
-    transition:filter .15s, transform .05s;
+    border:3px solid #0a0a0a; border-radius:999px;
+    background:linear-gradient(135deg, #7CF2E3 0%, #1AACA0 55%, #0C7A72 100%);
+    color:#fff; text-transform:uppercase; letter-spacing:.5px;
+    font-weight:900; font-size:14px; padding:13px 10px; cursor:pointer; text-align:center;
+    text-shadow:0 1px 3px rgba(0,0,0,.45);
+    box-shadow:inset 0 2px 2px rgba(255,255,255,.55), 0 6px 0 #0a0a0a, 0 7px 8px rgba(0,0,0,.25);
+    transition:filter .15s, transform .08s, box-shadow .08s;
   }
   .proc-btn:hover{filter:brightness(1.08)}
-  .proc-btn:active{transform:translateY(1px)}
+  .proc-btn:active{transform:translateY(5px); box-shadow:inset 0 2px 2px rgba(255,255,255,.55), 0 1px 0 #0a0a0a}
   .proc-btn[aria-pressed="true"]{
-    background:linear-gradient(180deg, #0d63c9 0%, #084a9b 55%, #053068 100%);
-    box-shadow:inset 0 3px 6px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.25);
+    background:linear-gradient(135deg, #0C7A72 0%, #085F58 55%, #053e39 100%);
+    transform:translateY(5px);
+    box-shadow:inset 0 3px 6px rgba(0,0,0,.5), 0 1px 0 #0a0a0a;
   }
   .btn-excel{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
   .btn-pdf{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
@@ -1080,7 +1083,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-117';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-118';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
