@@ -1137,7 +1137,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-138';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-139';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2152,7 +2152,7 @@ function cuerpoStockPatio(lista, paraPdf){
   // resumen final simple (solo toneladas húmedas totales y tenor ponderado total de todas las
   // procedencias juntas), en vez de repetir la tabla ancha de columnas de TOTAL/TENOR PONDERADO
   cuerpo += `<div class="${claseBloque}">
-      <div class="dash-card" style="max-width:420px; margin-top:6px">
+      <div class="dash-card" style="max-width:420px; margin-top:6px; --dc-color:var(--gris-cab)">
         <div class="dash-card-head">TOTAL — TODAS LAS PROCEDENCIAS</div>
         <table class="dc-tenor"><tbody>
           <tr><td class="dc-label">TONELADAS HUMEDAS TOTALES</td><td class="dc-val">${fmt(totalHumedasGen || null, 2)}</td></tr>
