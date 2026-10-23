@@ -1137,7 +1137,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-136';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-137';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2150,6 +2150,13 @@ function cuerpoStockPatio(lista, paraPdf){
 
   const tenorPonderadoGen = totalSecasGen ? totalAuGen / totalSecasGen : null;
   cuerpo += `<div class="${claseBloque}"><table class="patio ${claseTabla}" style="margin-top:6px"><tbody>
+      <tr class="grupo fila-total">
+        <td colspan="2"><b>TOTAL — TODAS LAS PROCEDENCIAS</b></td>
+        <td><b>${fmt(totalHumedasGen || null, 2)}</b></td>
+        <td colspan="3"></td>
+        <td><b>${fmt(totalSecasGen || null, 2)}</b></td>
+        <td></td>
+        <td><b>${fmt(totalAuGen || null, 2)}</b></td></tr>
       <tr class="grupo fila-ponderado">
         <td colspan="7" class="izq"><b>TENOR PONDERADO CONSOLIDADO — TODAS LAS PROCEDENCIAS (g/t)</b></td>
         <td><b>${fmt(tenorPonderadoGen, 3)}</b></td>
