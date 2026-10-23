@@ -354,6 +354,24 @@
     .panel footer{position:sticky; bottom:0; background:#fff; padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
     .btn,.proc-btn,.volver{min-height:44px}
     .graficos{grid-template-columns:1fr}
+    /* tarjetas de Resumen de patio: a 420px mínimo no caben en un teléfono y obligan a
+       desplazar TODA la pantalla hacia los lados para verlas — se apilan en una sola
+       columna a lo ancho completo */
+    .dash-grid{grid-template-columns:1fr; gap:10px}
+    .dash-card-head{font-size:12.5px; padding:8px 10px}
+    table.dc-pend th,table.dc-pend td{padding:4px 8px}
+    /* los <select> de filtro tenían un ancho mínimo de 260px pensado para escritorio;
+       en un teléfono angosto eso desborda la fila — se dejan a ancho completo */
+    .control{min-width:0; width:100%}
+    .fila-controles{flex-direction:column; align-items:stretch}
+    .fila-controles .rotulo-filtro{margin-bottom:-4px}
+    /* las tablas de tenores y de stock están pensadas para una pantalla ancha (hasta
+       12 columnas con table-layout:fixed); en vez de aplastar el texto hasta ser
+       ilegible, se les da un ancho mínimo y se desplazan de lado dentro de
+       .zona-tabla, que ya tiene overflow:auto */
+    .tabla-tenores{min-width:760px}
+    .tabla-stock{min-width:640px}
+    .carpeta,.link-patio{min-height:40px; display:inline-flex; align-items:center; justify-content:center}
   }
   .estado-nube{
     margin-left:auto; font-size:12px; border:1px solid var(--t-acento);
@@ -1034,7 +1052,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-100';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-101';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
