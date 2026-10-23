@@ -185,6 +185,10 @@
   table.dc-tenor tr:last-child td{border-bottom:1px solid var(--gris-suave)}
   .dc-label{color:var(--dc-color, var(--azul-oscuro,#1a4d7a)); font-weight:bold}
   .dc-val{text-align:right; font-weight:bold; white-space:nowrap}
+  /* mismo tamaño que la celda "TENOR PONDERADO" destacada de la tabla de Patio (.patio tr.fila-ponderado td,
+     font-size:14px) para la tarjeta de resumen consolidado TOTAL — TODAS LAS PROCEDENCIAS */
+  table.dc-tenor.dc-tenor-grande .dc-label,
+  table.dc-tenor.dc-tenor-grande .dc-val{font-size:14px}
   .dc-vacio{padding:10px 12px; font-size:12px; color:var(--gris); text-align:center}
   .dash-card-pend-head{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -1137,7 +1141,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-140';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-141';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2154,7 +2158,7 @@ function cuerpoStockPatio(lista, paraPdf){
   cuerpo += `<div class="${claseBloque}">
       <div class="dash-card" style="max-width:420px; margin-top:6px; --dc-color:var(--gris-cab)">
         <div class="dash-card-head">TOTAL — TODAS LAS PROCEDENCIAS</div>
-        <table class="dc-tenor"><tbody>
+        <table class="dc-tenor dc-tenor-grande"><tbody>
           <tr><td class="dc-label">TONELADAS HUMEDAS TOTALES</td><td class="dc-val">${fmt(totalHumedasGen || null, 2)}</td></tr>
           <tr><td class="dc-label">TENOR PONDERADO TOTAL (g/t)</td><td class="dc-val">${fmt(tenorPonderadoGen, 3)}</td></tr>
         </tbody></table>
