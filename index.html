@@ -1137,7 +1137,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-135';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-136';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2095,9 +2095,18 @@ function cuerpoStockPatio(lista, paraPdf){
       totalHumedas += r.stats.totalHumedas || 0;
       totalSecas += r.stats.ts || 0;
       totalAu += r.stats.au || 0;
-      trocearFilasPila(r.filas, MAX_FILAS_TBODY_STOCK, ncols).forEach(trozo=>{
-        tbodies += `<tbody class="grupo-pila">${trozo}</tbody>`;
-      });
+      // el troceo por cantidad de filas (MAX_FILAS_TBODY_STOCK) solo tiene sentido para el PDF, por
+      // la paginación: en pantalla no hay "páginas", y trocear ahí solo lograba repetir la celda
+      // fusionada de TONELADAS HUMEDAS/SECAS/TENOR PROMEDIO/Au CONTENIDO en cada trozo, que sin texto
+      // de continuación se veía como si el total estuviera duplicado (ver bloque de mezcla con muchas
+      // muestras). En pantalla cada bloque va siempre en un único <tbody>, sin cortar.
+      if(paraPdf){
+        trocearFilasPila(r.filas, MAX_FILAS_TBODY_STOCK, ncols).forEach(trozo=>{
+          tbodies += `<tbody class="grupo-pila">${trozo}</tbody>`;
+        });
+      }else{
+        tbodies += `<tbody class="grupo-pila">${r.filas}</tbody>`;
+      }
     });
     const tenorPonderadoProc = totalSecas ? totalAu / totalSecas : null;
     const filaCierre = paraPdf ? `<tr class="grupo fila-total">
