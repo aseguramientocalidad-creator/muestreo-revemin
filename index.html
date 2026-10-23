@@ -1108,7 +1108,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-130';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-131';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2538,7 +2538,9 @@ $('#formulario').addEventListener('submit', async e=>{
             return;
           }
         }else{
-          const esArrime = confirm(`Escribió "${t}" sin mencionar la palabra "Arrime".\n\n¿Es esta una pila de Arrime?`);
+          const esArrime = confirm(`Escribió "${t}" sin mencionar la palabra "Arrime".\n\n¿Es esta una pila de Arrime?\n\n`+
+            `Presione "Aceptar" si SÍ es una pila de Arrime (deberá corregir el nombre), `+
+            `o "Cancelar" si NO lo es (se guardará el nombre tal como lo escribió).`);
           if(esArrime){
             alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
             return;
