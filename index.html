@@ -85,7 +85,7 @@
   .proc-btn{
     border:3px solid #0a0a0a; border-radius:999px;
     background:linear-gradient(135deg, #D6FBF2 0%, #8FE8D8 55%, #5FD2BE 100%);
-    color:#000; text-transform:uppercase; letter-spacing:.5px;
+    color:#fff; text-transform:uppercase; letter-spacing:.5px;
     font-weight:900; font-size:14px; padding:13px 10px; cursor:pointer; text-align:center;
     transition:filter .15s;
   }
@@ -1077,7 +1077,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-120';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-121';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
