@@ -189,6 +189,8 @@
      font-size:14px) para la tarjeta de resumen consolidado TOTAL — TODAS LAS PROCEDENCIAS */
   table.dc-tenor.dc-tenor-grande .dc-label,
   table.dc-tenor.dc-tenor-grande .dc-val{font-size:14px}
+  /* solo el color de letra (blanco) de la etiqueta destacada, sin tocar su fondo */
+  table.dc-tenor.dc-tenor-grande .dc-label{color:#fff}
   .dc-vacio{padding:10px 12px; font-size:12px; color:var(--gris); text-align:center}
   .dash-card-pend-head{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -1141,7 +1143,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-143';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-144';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
