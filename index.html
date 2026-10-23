@@ -750,6 +750,24 @@ async function leerPatioSinLimpiar(proc){
         try{ await window.storage.set(marcaP, '1'); }
         catch(e){ try{ localStorage.setItem(marcaP, '1'); }catch(e2){} }
       }
+      // algunas pilas de Rampa/Skip quedaron con el número antes de la palabra y en minúsculas
+      // ("189 SKIP", "193 skip", "RAMPA 099"...) — se normalizan todas, una sola vez, al formato
+      // "Rampa <número>" / "Skip <número>" (ver normalizarPilaRampaSkip). Las pilas con otros
+      // nombres (Ñuma, Espesador, Rechazos, etc.) no se tocan.
+      const marcaRS = 'revemin_patio_rampa_skip_v1';
+      let hechoRS = false;
+      try{ const r = await window.storage.get(marcaRS); hechoRS = !!(r && r.value); }catch(e){}
+      if(!hechoRS){ try{ hechoRS = !!localStorage.getItem(marcaRS); }catch(e){} }
+      if(!hechoRS){
+        let renombroRS = false;
+        datos.forEach(g=>{
+          const nuevo = normalizarPilaRampaSkip(g.pila);
+          if(nuevo !== g.pila){ g.pila = nuevo; renombroRS = true; }
+        });
+        if(renombroRS) await escribir(clavePatio(proc), datos);
+        try{ await window.storage.set(marcaRS, '1'); }
+        catch(e){ try{ localStorage.setItem(marcaRS, '1'); }catch(e2){} }
+      }
     }
     // Pequeña Minería: las pilas "Arrime" quedaron con nombres inconsistentes a lo largo del
     // tiempo ("MEZCLA 095 ( ARRIME )", "Mezcla 105 ( Arrime )", "Mezcla117 ( Arrime)"...) — se
@@ -1119,7 +1137,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-134';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-135';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
