@@ -1142,7 +1142,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-150';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-151';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -3849,7 +3849,7 @@ async function exportarInformeDiarioPdf(){
       {clave:'proc', titulo:'PROCEDENCIA', prop:0.26},
       {clave:'pila', titulo:'PILA', prop:0.22},
       {clave:'orden', titulo:'ORDEN', prop:0.14},
-      {clave:'codigos', titulo:'CÓDIGOS FALTANTES', prop:0.38}
+      {clave:'codigos', titulo:'INTERVALO DE CÓDIGOS', prop:0.38}
     ];
     const aFilas = l => l.map(x=> ({proc:x.proc, pila:x.pila, orden:x.orden, codigos: rangoCodigos(x.codigosFaltantes) || '—'}));
 
