@@ -125,8 +125,7 @@
   .link-patio{
     display:inline-block; padding:10px 22px; margin:0; cursor:pointer;
     border:1px solid rgba(0,0,0,.28); border-radius:24px;
-    background-color:var(--t-acento);
-    background-image:linear-gradient(to bottom, rgba(255,255,255,.6) 0%, rgba(255,255,255,.12) 42%, rgba(0,0,0,.08) 55%, rgba(0,0,0,.24) 100%);
+    background:#5B9BD5; /* azul plano claro, sin degradado */
     color:#fff; font-weight:bold; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px;
     text-shadow:0 1px 1px rgba(0,0,0,.35);
     box-shadow:0 3px 0 rgba(0,0,0,.35), 0 5px 7px rgba(0,0,0,.25);
@@ -1079,7 +1078,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-126';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-127';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
