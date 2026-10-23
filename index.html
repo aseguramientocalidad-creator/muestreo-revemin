@@ -1061,7 +1061,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-111';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-112';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1833,10 +1833,13 @@ function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarP
   const fusionar = bloque.length > 1;
   const totalFilasBloque = bloque.reduce((acc,g)=> acc + ((g.muestras && g.muestras.length) ? g.muestras.length : 1), 0);
   let primeraFilaBloque = true;
-  // para una mezcla manual, los botones Eliminar/Agregar-Quitar de stock van en una sola celda que
-  // cubre con rowspan TODO el bloque — las filas de datos más las dos filas de cierre (TOTAL y TENOR
-  // PONDERADO) — para que queden centrados vertical y horizontalmente en la columna de Acciones, igual
-  // que el botón "Eliminar" de una pila normal, en vez de aparecer sueltos en la fila TOTAL.
+  // para una mezcla manual, los botones van en una sola celda que cubre con rowspan TODO el bloque —
+  // las filas de datos más las dos filas de cierre (TOTAL y TENOR PONDERADO) — para que queden
+  // centrados vertical y horizontalmente en la columna de Acciones, igual que el botón "Eliminar" de
+  // una pila normal, en vez de aparecer sueltos en la fila TOTAL. "Agregar a stock de patio" solo se
+  // muestra si la mezcla todavía no está en stock (una mezcla puede crearse estando o no en stock); una
+  // vez agregada, quitarla del stock se hace desde la tabla de Pilas en Stock (botón Eliminar de ahí),
+  // no desde aquí.
   const enStockMezcla = tieneMezclaId && String(bloque[0].stock||'').toLowerCase() === 'si';
   const filasCierreMezcla = tieneMezclaId ? 2 : 0;
 
@@ -1853,8 +1856,8 @@ function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarP
       // columna no tiene sentido (son botones interactivos) y no se agrega en absoluto.
       const accionesCelda = (primeraFilaBloque && !paraPdf)
         ? `<td rowspan="${totalFilasBloque + filasCierreMezcla}" class="col-acc">${tieneMezclaId
-            ? `<button type="button" class="mini borrar" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Deshace la mezcla: las pilas vuelven a mostrarse por separado">Eliminar</button><br>
-               <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStockMezcla ? 'Quitar de stock' : 'Agregar a stock'}</button>`
+            ? `<button type="button" class="mini borrar" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}" title="Deshace la mezcla: las pilas vuelven a mostrarse por separado">Eliminar</button>${enStockMezcla ? '' : `<br>
+               <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">Agregar a stock de patio</button>`}`
             : `<button type="button" class="mini borrar" data-quitar-pila-stock="${esc(normalizaPila(g.pila))}" data-proc="${esc(procId)}" title="Quitar esta pila (todas sus fechas) del stock de patio">Eliminar</button>`}</td>`
         : '';
       const cabecera = k === 0 ? `
