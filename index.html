@@ -86,9 +86,9 @@
     border:3px solid #3a3a3a; border-radius:999px;
     background:
       radial-gradient(ellipse at 50% 15%, rgba(255,255,255,.95) 0%, rgba(255,255,255,0) 45%),
-      linear-gradient(180deg, #e8e8e8 0%, #c2c2c2 40%, #8a8a8a 65%, #5e5e5e 100%);
+      linear-gradient(180deg, #f7f7f7 0%, #e0e0e0 40%, #bdbdbd 65%, #999999 100%);
     color:#fff; text-transform:uppercase; letter-spacing:.5px;
-    font-weight:900; font-size:14px; padding:13px 10px; cursor:pointer; text-align:center;
+    font-weight:900; font-size:17px; padding:13px 10px; cursor:pointer; text-align:center;
     transition:filter .15s;
     /* texto blanco, sin ningún borde/contorno: el relieve 3D se simula apilando el mismo texto
        varias veces desplazado hacia abajo (capas intermedias más oscuras, como el "grosor" de la
@@ -100,7 +100,7 @@
   .proc-btn[aria-pressed="true"]{
     background:
       radial-gradient(ellipse at 50% 15%, rgba(255,255,255,.6) 0%, rgba(255,255,255,0) 45%),
-      linear-gradient(180deg, #9a9a9a 0%, #767676 40%, #4a4a4a 65%, #323232 100%);
+      linear-gradient(180deg, #c7c7c7 0%, #a8a8a8 40%, #868686 65%, #686868 100%);
   }
   .btn-excel{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
   .btn-pdf{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
@@ -1086,7 +1086,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-124';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-125';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
