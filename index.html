@@ -1061,7 +1061,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-105';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-106';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1422,13 +1422,26 @@ const sinTenor = m => String(m.tenor ?? '').trim() === '';
 const nombreMes = m => /^\d{4}-\d{2}/.test(m||'')
   ? `${MESES[Number(m.slice(5,7))-1]} ${m.slice(0,4)}` : '';
 
+// Datos de una procedencia para el panel: evita el viaje a Firestore (getDoc) cuando ya los
+// tenemos a mano. Para la procedencia que se está editando en este momento, ESTADO.datos YA es
+// la copia más fresca (se actualiza antes de llamar a escribir/refrescarPanel). Para el resto,
+// si ya se cargaron una vez en esta sesión quedaron en CACHE (leer/escribir los mantienen al
+// día), así que se reutilizan en vez de volver a pedirlos. Solo se pide por red una procedencia
+// que nunca se ha tocado en esta sesión (primera carga de la app).
+async function datosParaPanel(p){
+  if(p.id === ESTADO.procedencia && ESTADO.modulo === 'patio') return ESTADO.datos;
+  const clave = clavePatio(p.id);
+  if(Object.prototype.hasOwnProperty.call(CACHE, clave)) return CACHE[clave];
+  return await leerPatio(p.id);
+}
+
 async function calcularPanel(){
   const mesHoy = mesCalendario();
   const pendientes = [];
   const stock = [];
   const dashboard = {}; // dashboard[mes][procId] = {proc, ponderado, max, min}
   for(const p of PROCEDENCIAS){
-    const datos = await leerPatio(p.id);
+    const datos = await datosParaPanel(p);
     // "en stock" es la PILA completa, no solo la fecha marcada "Stock: Sí": si una pila entra en
     // varias fechas, basta con que una de ellas esté marcada para que TODAS sus fechas se consideren
     // en stock (es la misma pila física), igual que la tabla de tenores las fusiona como una sola
