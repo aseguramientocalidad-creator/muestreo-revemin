@@ -86,7 +86,6 @@
   .proc-btn[aria-pressed="true"]{background:var(--t-cons-bg)}
   .btn-excel{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
   .btn-pdf{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
-  .btn-correo{display:inline-flex; align-items:center; gap:6px; font-weight:bold; color:var(--t-acento); border-color:var(--t-acento)}
   .btn{border:1px solid var(--t-acento); background:#fff; color:#000; padding:8px 14px; font-size:13px; cursor:pointer}
   .btn:hover{background:var(--t-hover)}
   .btn-primario{background:var(--t-cons-bg); border:2px solid var(--t-acento); font-weight:bold}
@@ -438,7 +437,6 @@
         </svg>
         Exportar
       </button>
-      <button class="btn btn-correo" id="btn-csv-correo" title="Enviar este Excel por correo">📧 Correo</button>
       <button class="btn btn-pdf" id="btn-pdf" style="display:none">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M14 2H6.5A1.5 1.5 0 0 0 5 3.5v17A1.5 1.5 0 0 0 6.5 22h11a1.5 1.5 0 0 0 1.5-1.5V7z" fill="#fff" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
@@ -448,7 +446,6 @@
         </svg>
         Exportar PDF
       </button>
-      <button class="btn btn-correo" id="btn-pdf-correo" title="Enviar este PDF por correo" style="display:none">📧 Correo</button>
     </div>
   </div>
 
@@ -1060,7 +1057,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-103';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-104';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1217,7 +1214,6 @@ function pintar(){
   // el botón de PDF solo tiene sentido en el resumen de Inicio de Patio (tarjetas + stock); en
   // cualquier otra pantalla se oculta y el botón de Excel sigue siendo el único export disponible
   $('#btn-pdf').style.display = (ESTADO.modulo === 'patio' && ESTADO.patioInicio) ? '' : 'none';
-  $('#btn-pdf-correo').style.display = (ESTADO.modulo === 'patio' && ESTADO.patioInicio) ? '' : 'none';
   if(ESTADO.modulo === 'patio') return pintarPatio();
   if(ESTADO.modulo === 'proceso') return pintarProceso();
   if(ESTADO.modulo === 'carbon') return pintarCarbon();
@@ -2527,41 +2523,6 @@ async function borrar(i){
 }
 
 /* ---------- exportación ---------- */
-// controla si el próximo archivo generado (Excel, PDF o CSV) se descarga como siempre o se
-// intenta enviar por correo: lo fija el botón 📧 "Enviar por correo" junto al de exportar, y
-// se restablece a 'descargar' apenas termina esa exportación (éxito, cancelación o error)
-let modoSalidaArchivo = 'descargar';
-
-// Entrega un archivo ya generado cuando se pidió enviarlo por correo: primero intenta el
-// panel nativo de "compartir" del teléfono o la computadora (ahí la persona elige Gmail u
-// otra app de correo y el archivo llega YA ADJUNTO). La mayoría de navegadores de
-// escritorio no pueden compartir archivos así, así que en ese caso se descarga el archivo
-// como de costumbre y se abre Gmail en una pestaña nueva con el asunto ya escrito, para que
-// solo falte adjuntar manualmente el archivo recién descargado.
-// Devuelve true siempre: de una forma u otra ya se encargó de entregar el archivo.
-async function intentarCompartirPorCorreo(blob, nombre, tipoMime){
-  let archivo = null;
-  try{ archivo = new File([blob], nombre, {type: tipoMime || blob.type}); }catch(e){}
-  if(archivo && navigator.canShare && navigator.canShare({files:[archivo]})){
-    try{
-      await navigator.share({files:[archivo], title: nombre});
-      return true;
-    }catch(e){
-      if(e && e.name === 'AbortError') return true;   // canceló el panel de compartir: no insistir con Gmail
-    }
-  }
-  const a = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  a.href = url; a.download = nombre; a.rel = 'noopener'; a.style.display = 'none';
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{ a.remove(); URL.revokeObjectURL(url); }, 4000);
-  const asunto = encodeURIComponent(nombre);
-  const cuerpo = encodeURIComponent(`Se descargó el archivo "${nombre}" — adjúntelo aquí antes de enviar.`);
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${asunto}&body=${cuerpo}`, '_blank');
-  avisar('Archivo descargado: adjúntelo en el correo que se abrió');
-  return true;
-}
-
 function marcarOpcionExport(){
   const una = $('#op-una').querySelector('input').checked;
   $('#op-una').classList.toggle('activa', una);
@@ -2586,28 +2547,22 @@ $('#export-proc').addEventListener('mousedown', ()=>{
   $('#op-una').querySelector('input').checked = true;
   marcarOpcionExport();
 });
-$('#export-cancelar').addEventListener('click', ()=>{ cerrarDialogoExport(); modoSalidaArchivo = 'descargar'; });
-$('#telon-export').addEventListener('mousedown', e=>{ if(e.target.id === 'telon-export'){ cerrarDialogoExport(); modoSalidaArchivo = 'descargar'; } });
+$('#export-cancelar').addEventListener('click', cerrarDialogoExport);
+$('#telon-export').addEventListener('mousedown', e=>{ if(e.target.id === 'telon-export') cerrarDialogoExport(); });
 $('#export-aceptar').addEventListener('click', async ()=>{
   const una = $('#op-una').querySelector('input').checked;
   const proc = $('#export-proc').value;
   cerrarDialogoExport();
-  try{ await exportarExcelPatio(una ? proc : null); }
-  finally{ modoSalidaArchivo = 'descargar'; }
+  await exportarExcelPatio(una ? proc : null);
 });
 
-async function manejarClickPdf(){
+$('#btn-pdf').addEventListener('click', async ()=>{
   // este botón solo se muestra en Inicio de Patio; exporta en PDF las tarjetas por procedencia
   // (pendientes por tenor) junto con las tablas de stock, tal como se ven en pantalla
   if(ESTADO.modulo === 'patio' && ESTADO.patioInicio){ await exportarPdfInicio(); }
-}
-$('#btn-pdf').addEventListener('click', manejarClickPdf);
-$('#btn-pdf-correo').addEventListener('click', async ()=>{
-  modoSalidaArchivo = 'correo';
-  try{ await manejarClickPdf(); } finally { modoSalidaArchivo = 'descargar'; }
 });
 
-async function manejarClickCsv(){
+$('#btn-csv').addEventListener('click', async ()=>{
   if(ESTADO.modulo === 'patio'){
     // en Inicio, el Excel exporta SOLO el stock de patio (las tarjetas de pendientes se exportan
     // aparte en PDF, con el botón de al lado)
@@ -2631,15 +2586,9 @@ async function manejarClickCsv(){
   if(filas.length <= 1){ avisar('No hay registros que exportar'); return; }
 
   const blob = new Blob(['\ufeff' + filas.map(linea).join('\r\n')], {type:'text/csv;charset=utf-8'});
-  if(modoSalidaArchivo === 'correo'){ await intentarCompartirPorCorreo(blob, nombre, 'text/csv;charset=utf-8'); return; }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = nombre; a.click(); URL.revokeObjectURL(a.href);
   avisar('Archivo descargado');
-}
-$('#btn-csv').addEventListener('click', manejarClickCsv);
-$('#btn-csv-correo').addEventListener('click', async ()=>{
-  modoSalidaArchivo = 'correo';
-  try{ await manejarClickCsv(); } finally { modoSalidaArchivo = 'descargar'; }
 });
 
 
@@ -3232,10 +3181,6 @@ async function descargarLibro(wb, nombre){
   nombre = nombreArchivo(nombre);
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  if(modoSalidaArchivo === 'correo'){
-    await intentarCompartirPorCorreo(blob, nombre, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    return;
-  }
   const a = document.createElement('a');
   const url = URL.createObjectURL(blob);
   a.href = url;
@@ -3702,12 +3647,7 @@ async function exportarPdfInicio(){
       y += imgH + 14;
     }
 
-    const nombrePdf = `RESUMEN DE PATIO${rotuloMes ? ' ' + rotuloMes : ''}.pdf`;
-    if(modoSalidaArchivo === 'correo'){
-      await intentarCompartirPorCorreo(pdf.output('blob'), nombrePdf, 'application/pdf');
-    } else {
-      pdf.save(nombrePdf);
-    }
+    pdf.save(`RESUMEN DE PATIO${rotuloMes ? ' ' + rotuloMes : ''}.pdf`);
   } catch(e){
     avisar('No se pudo generar el PDF');
   } finally {
