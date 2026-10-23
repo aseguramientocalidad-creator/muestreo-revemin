@@ -153,8 +153,13 @@
      apretaban y todo quedaba descuadrado. 360px ya es holgado para esas 5 columnas en las
      procedencias normales — PEQUEÑA MINERIA queda aparte (ver .dash-card-pm-wrap) porque sus
      pilas tienen nombres largos ("Arenas el Esfuerzo P-01") que necesitan más espacio */
+  /* PEQUEÑA MINERIA queda a la izquierda, centrada verticalmente junto a la columna de las demás
+     procedencias (que se acomodan en .dash-grid a su derecha) — así quedan agrupadas como un solo
+     bloque en vez de una tarjeta suelta debajo de todas las otras. */
+  .dash-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .dash-row .dash-grid{flex:1 1 auto}
   .dash-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:14px}
-  .dash-card-pm-wrap{margin-top:14px}
+  .dash-card-pm-wrap{flex:0 0 auto}
   .dash-card-pm-wrap .dash-card{max-width:480px}
   .dash-card{
     border:1px solid var(--gris-suave); border-left:5px solid var(--dc-color, var(--t-acento));
@@ -365,8 +370,10 @@
     .graficos{grid-template-columns:1fr}
     /* tarjetas de Resumen de patio: a 420px mínimo no caben en un teléfono y obligan a
        desplazar TODA la pantalla hacia los lados para verlas — se apilan en una sola
-       columna a lo ancho completo */
+       columna a lo ancho completo (y PEQUEÑA MINERIA, que en pantallas grandes queda a la
+       izquierda centrada, también pasa a apilarse en la misma columna) */
     .dash-grid{grid-template-columns:1fr; gap:10px}
+    .dash-row{flex-direction:column; align-items:stretch}
     .dash-card-head{font-size:12.5px; padding:8px 10px}
     table.dc-pend th,table.dc-pend td{padding:4px 8px}
     /* los <select> de filtro tenían un ancho mínimo de 260px pensado para escritorio;
@@ -1061,7 +1068,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-113';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-114';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1571,8 +1578,10 @@ function tarjetasProcedencia(mes, listaPendientes){
 
   const htmlNormales = tarjetas ? `<div class="dash-grid">${tarjetas}</div>` : '';
   const htmlPM = tarjetaPM ? `<div class="dash-card-pm-wrap">${tarjetaPM}</div>` : '';
+  // PEQUEÑA MINERIA va primero (a la izquierda) y el resto de procedencias en su rejilla a la
+  // derecha; .dash-row los centra verticalmente entre sí como un solo bloque (ver CSS).
   return (htmlNormales || htmlPM)
-    ? htmlNormales + htmlPM
+    ? `<div class="dash-row">${htmlPM}${htmlNormales}</div>`
     : `<div class="vacio">Sin datos cargados este mes</div>`;
 }
 
