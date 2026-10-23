@@ -1061,7 +1061,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-108';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-109';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1882,8 +1882,10 @@ function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarP
     // el total ya se ve arriba, fusionado en la primera fecha del bloque (puede quedar lejos si la
     // mezcla tiene muchas muestras), así que aquí se repite junto a la fila de cierre, con el mismo
     // estilo TOTAL / TENOR PONDERADO que usa la tabla de Stock (fila-total gris oscuro + fila-ponderado
-    // celeste), en vez del texto corrido de antes. En el PDF se omiten los botones (Revertir/Stock) y
-    // los colspan se ajustan a las 9 columnas (sin la de Acciones, que tampoco se agrega ahí).
+    // celeste), en vez del texto corrido de antes. El valor del tenor ponderado va justo debajo de la
+    // columna TENOR PROMEDIO (7 columnas de rótulo: FECHA, PILA, TONELADAS HUMEDAS, CODIGO, TENOR
+    // MUESTRA, HUMEDAD MUESTRA y TONELADAS SECAS), dejando Au CONTENIDO vacío en esa fila. En el PDF se
+    // omiten los botones (Revertir/Stock) y los colspan se ajustan a las 9 columnas (sin Acciones).
     const accionesCierre = paraPdf ? '' : `<td class="col-acc">
           <button type="button" class="mini" data-revertir-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">↩️ Revertir mezcla</button><br>
           <button type="button" class="mini" data-stock-mezcla="${esc(bloque[0].mezclaId)}" data-proc="${esc(procId)}">${enStock ? '📦 Quitar de stock' : '📦 Agregar a stock'}</button></td>`;
@@ -1895,8 +1897,9 @@ function filasBloqueStock(bloque, tieneMezclaId, procId, paraPdf, ocultarQuitarP
         <td></td>
         <td><b>${fmt(stats.au, 2)}</b></td>${accionesCierre}</tr>
       <tr class="grupo fila-ponderado">
-        <td colspan="${paraPdf ? 8 : 9}" class="izq"><b>TENOR PONDERADO MEZCLA (g/t)</b></td>
-        <td><b>${fmt(stats.tp, 3)}</b></td></tr>`;
+        <td colspan="7" class="izq"><b>TENOR PONDERADO MEZCLA (g/t)</b></td>
+        <td><b>${fmt(stats.tp, 3)}</b></td>
+        <td></td>${paraPdf ? '' : '<td></td>'}</tr>`;
   }
   return {filas, stats};
 }
