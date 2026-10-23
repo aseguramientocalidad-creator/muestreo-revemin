@@ -1137,7 +1137,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-139';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-140';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -3660,6 +3660,42 @@ function escribirHojaStock(ws, lista, conProcedencia, tituloTxt, subtituloTxt, r
   fp.getCell(cProm).numFmt = '0.000';
   fp.font = {bold:true, size:11, name:'Arial', color:{argb:'FF262626'}};
   fp.eachCell({includeEmpty:true}, c=> c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFBFBFBF'}});
+  const filaPond = n;
+  n++;
+
+  // en la hoja CONSOLIDADO (todas las procedencias juntas) se agrega, igual que en pantalla, un
+  // resumen simple de solo dos valores: toneladas húmedas totales y tenor ponderado total
+  if(conProcedencia){
+    n++;
+    const cab = formatearFila(ws, n, NC, {negrita:true});
+    ws.mergeCells(n, 1, n, NC);
+    cab.getCell(1).value = 'TOTAL — TODAS LAS PROCEDENCIAS';
+    cab.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
+    cab.font = {bold:true, size:11, name:'Arial', color:{argb:'FFFFFFFF'}};
+    cab.eachCell({includeEmpty:true}, c=> c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF595959'}});
+    n++;
+
+    const rowHum = formatearFila(ws, n, NC);
+    ws.mergeCells(n, 1, n, NC-1);
+    rowHum.getCell(1).value = 'TONELADAS HUMEDAS TOTALES';
+    rowHum.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
+    rowHum.getCell(1).font = {bold:true, size:10, name:'Arial', color:{argb:'FF1A4D7A'}};
+    rowHum.getCell(NC).value = {formula:`${col(cHumedas)}${filaTotal}`, result: Number(totalHumedas.toFixed(2))};
+    rowHum.getCell(NC).numFmt = '0.00';
+    rowHum.getCell(NC).font = {bold:true, size:10, name:'Arial'};
+    rowHum.getCell(NC).alignment = {horizontal:'right', vertical:'middle'};
+    n++;
+
+    const rowTen = formatearFila(ws, n, NC);
+    ws.mergeCells(n, 1, n, NC-1);
+    rowTen.getCell(1).value = 'TENOR PONDERADO TOTAL (g/t)';
+    rowTen.getCell(1).alignment = {horizontal:'left', vertical:'middle'};
+    rowTen.getCell(1).font = {bold:true, size:10, name:'Arial', color:{argb:'FF1A4D7A'}};
+    rowTen.getCell(NC).value = {formula:`${col(cProm)}${filaPond}`, result: tenorPonderado === null ? '' : Number(tenorPonderado.toFixed(3))};
+    rowTen.getCell(NC).numFmt = '0.000';
+    rowTen.getCell(NC).font = {bold:true, size:10, name:'Arial'};
+    rowTen.getCell(NC).alignment = {horizontal:'right', vertical:'middle'};
+  }
 
   ws.views = [{state:'frozen', ySplit:4}];
 }
