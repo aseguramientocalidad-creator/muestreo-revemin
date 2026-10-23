@@ -711,6 +711,17 @@ function normalizarPilaArrime(pila){
   return t === canon ? pila : canon;
 }
 
+// Normaliza los nombres de pila "Rampa"/"Skip" de Mina Colombia al formato "Rampa <número>" / "Skip <número>".
+// Pilas con otros nombres (Ñuma, Espesador, Rechazos, etc.) quedan tal cual.
+function normalizarPilaRampaSkip(pila){
+  const t = String(pila ?? '').trim();
+  const m = t.match(/\d+/);
+  if(!m) return pila;
+  if(/rampa/i.test(t)) return 'Rampa ' + m[0];
+  if(/skip/i.test(t)) return 'Skip ' + m[0];
+  return pila;
+}
+
 async function leerPatioSinLimpiar(proc){
   const datos = await leer(clavePatio(proc));
   let limpiado = false;
@@ -1108,7 +1119,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-131';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-132';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -2545,6 +2556,34 @@ $('#formulario').addEventListener('submit', async e=>{
             alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
             return;
           }
+        }
+      }
+    }
+    if(g.pila && ESTADO.procedencia === 'mina_colombia'){
+      // en Mina Colombia, las pilas numéricas son "Rampa N" o "Skip N"; otros nombres
+      // (Ñuma, Espesador, Rechazos, etc.) son excepciones y no entran en esta validación.
+      const t = g.pila;
+      const tieneRampa = /rampa/i.test(t);
+      const tieneSkip = /skip/i.test(t);
+      const numRS = (t.match(/\d+/) || [])[0];
+      if((tieneRampa || tieneSkip) && numRS){
+        const canon = normalizarPilaRampaSkip(t);
+        if(t !== canon){
+          alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+          return;
+        }
+      }else if(/^\d+$/.test(t)){
+        const esRampa = confirm(`Escribió "${t}" sin especificar si es una pila de RAMPA o de SKIP.\n\n¿Es esta una pila de RAMPA?\n\n`+
+          `Presione "Aceptar" si SÍ es una pila de Rampa, o "Cancelar" si NO lo es.`);
+        if(esRampa){
+          alert(`El nombre de la pila debe escribirse como "Rampa ${numRS}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+          return;
+        }
+        const esSkip = confirm(`¿Es esta una pila de SKIP?\n\n`+
+          `Presione "Aceptar" si SÍ es una pila de Skip, o "Cancelar" si NO lo es.`);
+        if(esSkip){
+          alert(`El nombre de la pila debe escribirse como "Skip ${numRS}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+          return;
         }
       }
     }
