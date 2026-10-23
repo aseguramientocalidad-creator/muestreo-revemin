@@ -189,6 +189,10 @@
      font-size:14px) para la tarjeta de resumen consolidado TOTAL — TODAS LAS PROCEDENCIAS */
   table.dc-tenor.dc-tenor-grande .dc-label,
   table.dc-tenor.dc-tenor-grande .dc-val{font-size:14px}
+  /* etiquetas (TONELADAS HUMEDAS TOTALES / TENOR PONDERADO TOTAL) con el mismo estilo de letra y
+     color que el encabezado azul sólido de las tarjetas del dashboard (.dash-card-head: texto
+     blanco en negrita sobre fondo azul), en vez del texto azul sobre fondo blanco por defecto */
+  table.dc-tenor.dc-tenor-grande .dc-label{background:var(--t-acento); color:#fff; letter-spacing:.2px}
   .dc-vacio{padding:10px 12px; font-size:12px; color:var(--gris); text-align:center}
   .dash-card-pend-head{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -1141,7 +1145,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-141';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-142';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
