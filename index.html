@@ -347,9 +347,14 @@
     .zona-tabla{padding:0 10px 30px}
     .patio th,.patio td{padding:6px 5px; font-size:12px}
     table{font-size:12px}
-    .telon{padding:0}
+    .telon{padding:0; overflow-x:hidden}
     .panel{max-width:100%; min-height:100vh; border:none}
-    .panel .cuerpo{padding:14px}
+    .panel .cuerpo{padding:14px; overflow-x:hidden}
+    /* "Códigos de la pila" + sus 3 botones (Agregar código, Rellenar códigos en serie,
+       Importar reporte de laboratorio) + el checkbox de mediana iban en una sola fila sin
+       envolver: en un teléfono angosto esa fila era más ancha que la pantalla y empujaba
+       TODO el formulario a desbordarse de lado, cortando los campos de la izquierda */
+    .subtitulo{flex-wrap:wrap; row-gap:8px}
     .tabla-form{display:block; overflow-x:auto; white-space:nowrap}
     .panel footer{position:sticky; bottom:0; background:#fff; padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
     .btn,.proc-btn,.volver{min-height:44px}
@@ -1052,7 +1057,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '22/10/2026-101';   // sirve para confirmar qué versión está cargada
+const VERSION = '22/10/2026-102';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
