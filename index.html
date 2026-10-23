@@ -1142,7 +1142,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-149';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-150';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -3814,7 +3814,7 @@ async function exportarInformeDiarioPdf(){
 
     function dibujarHeader(){
       pdf.addImage(INFORME_DIARIO_HEADER_PNG, 'PNG', margenX, margenSup, anchoUtil, headerH);
-      return margenSup + headerH + 16;
+      return margenSup + headerH + 34;
     }
     function nuevaPagina(){
       pdf.addPage();
