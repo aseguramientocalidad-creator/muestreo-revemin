@@ -235,10 +235,10 @@
   .tabla-tenores{table-layout:fixed}
   .tabla-tenores thead th{white-space:normal; word-break:normal; overflow-wrap:normal; hyphens:none; font-size:11px; padding:8px 4px; line-height:1.3}
   .tabla-tenores td{padding:7px 5px; overflow-wrap:break-word}
-  .tabla-tenores th:nth-child(1),.tabla-tenores td:nth-child(1){width:11.7%}
-  .tabla-tenores th:nth-child(2),.tabla-tenores td:nth-child(2){width:14.3%}
+  .tabla-tenores th:nth-child(1),.tabla-tenores td:nth-child(1){width:10%}
+  .tabla-tenores th:nth-child(2),.tabla-tenores td:nth-child(2){width:12.8%}
   .tabla-tenores th:nth-child(3),.tabla-tenores td:nth-child(3){width:5.1%}
-  .tabla-tenores th:nth-child(4),.tabla-tenores td:nth-child(4){width:10.9%}
+  .tabla-tenores th:nth-child(4),.tabla-tenores td:nth-child(4){width:9.4%}
   .tabla-tenores td:nth-child(4){white-space:nowrap}
   .tabla-tenores th:nth-child(5),.tabla-tenores td:nth-child(5){width:7.6%}
   .tabla-tenores th:nth-child(6),.tabla-tenores td:nth-child(6){width:5.9%}
@@ -247,7 +247,9 @@
   .tabla-tenores th:nth-child(9),.tabla-tenores td:nth-child(9){width:7.6%}
   .tabla-tenores th:nth-child(10),.tabla-tenores td:nth-child(10){width:7.6%}
   .tabla-tenores th:nth-child(11),.tabla-tenores td:nth-child(11){width:7.6%}
-  .tabla-tenores th:nth-child(12),.tabla-tenores td:nth-child(12){width:5.1%}
+  .tabla-tenores th:nth-child(12),.tabla-tenores td:nth-child(12){width:10%}
+  /* botones Editar/Eliminar centrados en su columna, en vez de pegados al borde izquierdo */
+  .tabla-tenores td.col-acc{text-align:center}
   /* la etiqueta "PROMEDIO"/"MEDIANA" cae en la columna CODIGO (la más angosta, pensada para un
      código de 4 dígitos) porque fecha/pila/turno/orden ya están ocupadas por el rowspan de la fila
      de arriba — se evita que la palabra se corta a la mitad en vez de ensanchar esa columna */
@@ -1160,7 +1162,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '24/10/2026-155';   // sirve para confirmar qué versión está cargada
+const VERSION = '24/10/2026-156';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
