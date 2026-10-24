@@ -311,11 +311,12 @@
     box-shadow:0 2px 0 rgba(0,0,0,.15), 0 3px 4px rgba(0,0,0,.12); padding:5px 9px; white-space:nowrap}
   .mini.borrar:hover{filter:brightness(.97)}
   /* En las tablas de TENORES DE PATIO: "Editar" es ovalado y azul con texto blanco, igual que el
-     botón de Stock */
-  .tabla-tenores .mini{display:inline-block; border:1px solid rgba(0,0,0,.28); border-radius:14px;
+     botón de Stock (":not(.borrar)" para no pisar el rojo de "Eliminar" de arriba, que comparte
+     la clase .mini) */
+  .tabla-tenores .mini:not(.borrar){display:inline-block; border:1px solid rgba(0,0,0,.28); border-radius:14px;
     background:#5B9BD5; color:#fff; font-weight:bold; text-shadow:0 1px 1px rgba(0,0,0,.3);
     box-shadow:0 2px 0 rgba(0,0,0,.3), 0 3px 4px rgba(0,0,0,.2); padding:5px 9px; white-space:nowrap}
-  .tabla-tenores .mini:hover{filter:brightness(1.08)}
+  .tabla-tenores .mini:not(.borrar):hover{filter:brightness(1.08)}
   .nota-mezcla{display:inline-block; margin-top:6px; font-size:11px; color:var(--azul-oscuro,#1a4d7a); font-weight:600}
   .vacio{padding:60px 10px; text-align:center; color:var(--gris); font-size:14px}
   .vacio strong{display:block; color:#000; font-size:15px; margin-bottom:6px}
@@ -1158,7 +1159,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '24/10/2026-157';   // sirve para confirmar qué versión está cargada
+const VERSION = '24/10/2026-158';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
