@@ -160,18 +160,18 @@
 
   /* las tarjetas necesitan más ancho mínimo desde que la tabla de ÓRDENES PENDIENTES ganó las
      columnas FECHA y TURNO (antes solo tenía PILA/ORDEN/CÓDIGOS): con 270px esas 5 columnas se
-     apretaban y todo quedaba descuadrado. 360px ya es holgado para esas 5 columnas en las
-     procedencias normales — PEQUEÑA MINERIA usa el doble de ancho (ver .dash-card-pm) porque sus
-     pilas tienen nombres largos ("Arenas el Esfuerzo P-01") que necesitan más espacio */
+     apretaban y todo quedaba descuadrado. 360px ya es holgado para esas 5 columnas con nombres de
+     pila normales — cuando alguna pila pendiente trae un nombre largo (ej. "Arenas el Esfuerzo
+     P-01"), esa tarjeta en particular se ensancha con .dash-card-ancha (ver tarjetasProcedencia) */
   /* auto-fit (en vez de auto-fill): con auto-fill, si el contenedor es ancho y hay pocas tarjetas,
      el navegador reserva columnas vacías de más (invisibles) después de la última tarjeta real,
      dejando un margen derecho más ancho que el izquierdo. auto-fit colapsa esas columnas vacías a
      0 y deja que las tarjetas reales se estiren parejo para llenar todo el ancho disponible. */
   .dash-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:14px}
-  /* PEQUEÑA MINERIA sigue dentro de la misma rejilla (no se saca aparte ni se centra sola, porque
-     eso la dejaba flotando sin alinearse con ninguna columna): ocupa 2 columnas de ancho, así
-     continúa el orden normal de la rejilla justo después de la tarjeta anterior. */
-  .dash-card-pm{grid-column:span 2; min-width:0}
+  /* todas las tarjetas miden lo mismo por defecto; la que necesita más espacio para una pila con
+     nombre largo (cualquier procedencia, no una fija) ocupa 2 columnas en vez de sacarse de la
+     rejilla, así sigue el orden normal y llena el hueco de al lado en vez de dejarlo vacío. */
+  .dash-card-ancha{grid-column:span 2; min-width:0}
   .dash-card{
     border:1px solid var(--gris-suave); border-left:5px solid var(--dc-color, var(--t-acento));
     background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.08); display:flex; flex-direction:column; min-width:0;
@@ -406,7 +406,7 @@
        desplazar TODA la pantalla hacia los lados para verlas — se apilan en una sola
        columna a lo ancho completo */
     .dash-grid{grid-template-columns:1fr; gap:10px}
-    .dash-card-pm{grid-column:span 1}
+    .dash-card-ancha{grid-column:span 1}
     .dash-card-head{font-size:12.5px; padding:8px 10px}
     table.dc-pend th,table.dc-pend td{padding:4px 8px}
     /* los <select> de filtro tenían un ancho mínimo de 260px pensado para escritorio;
@@ -1159,7 +1159,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '24/10/2026-159';   // sirve para confirmar qué versión está cargada
+const VERSION = '24/10/2026-160';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
@@ -1636,9 +1636,11 @@ function tarjetasProcedencia(mes, listaPendientes){
     pendPorProc.get(x.procId).push(x);
   });
 
-  // PEQUEÑA MINERIA sigue el orden normal de la rejilla (no se saca ni se centra aparte, porque
-  // eso la dejaba flotando sin alinearse con ninguna columna); solo ocupa el doble de ancho
-  // (.dash-card-pm) porque sus pilas tienen nombres largos ("Arenas el Esfuerzo P-01")
+  // todas las tarjetas miden igual por defecto; solo se ensancha (.dash-card-ancha, el doble de
+  // columnas) la que realmente lo necesita, cuando alguna de sus pilas pendientes trae un nombre
+  // largo (ej. "Arenas el Esfuerzo P-01") que no entraría en el ancho normal — en vez de ensanchar
+  // siempre la misma procedencia (Pequeña Minería), aunque ese mes no tenga pilas pendientes
+  const PILA_LARGA = 14;
   const tarjetas = PROCEDENCIAS.map((p, i)=>{
     const d = porMes && porMes[p.id];
     const pend = pendPorProc.get(p.id) || [];
@@ -1657,8 +1659,9 @@ function tarjetasProcedencia(mes, listaPendientes){
         }</tbody></table>`
       : `<div class="dc-ok">✓ Todas con tenor</div>`;
 
-    const clasePM = p.id === 'pequena_mineria' ? ' dash-card-pm' : '';
-    return `<div class="dash-card${clasePM}" style="--dc-color:${color}">
+    const necesitaAncha = pend.some(x => String(x.pila||'').length > PILA_LARGA);
+    const claseAncha = necesitaAncha ? ' dash-card-ancha' : '';
+    return `<div class="dash-card${claseAncha}" style="--dc-color:${color}">
         <div class="dash-card-head">${esc(p.nombre)}</div>
         <table class="dc-tenor"><tbody>${filasTenor}</tbody></table>
         <div class="dash-card-pend-head"><span>ÓRDENES PENDIENTES</span>${pend.length ? `<span class="dc-badge">${pend.length}</span>` : ''}</div>
