@@ -297,9 +297,13 @@
   .rotulo-filtro{font-size:12px; font-weight:bold}
   .control{border:2px solid var(--t-acento); background:#fff; color:#000; font-weight:bold; font-size:13px; padding:9px 11px; min-width:260px}
   .col-acc{width:1%; white-space:nowrap}
-  .mini{border:none; background:none; color:var(--gris); cursor:pointer; font-size:12px; text-decoration:underline; padding:2px 5px}
-  .mini:hover{color:#000}
-  .mini.borrar:hover{color:var(--rojo)}
+  /* mismo estilo que el botón "Registrar" (.btn-primario): borde 2px del color de la procedencia,
+     fondo claro y texto en negrita, en vez del enlace subrayado que tenían antes */
+  .mini{display:inline-block; border:2px solid var(--t-acento); background:var(--t-cons-bg); color:#000;
+    cursor:pointer; font-size:11px; font-weight:bold; text-decoration:none; padding:4px 10px; margin:2px 0}
+  .mini:hover{background:var(--t-hover)}
+  .mini.borrar{border-color:var(--rojo); background:#fff; color:var(--rojo)}
+  .mini.borrar:hover{background:#FDECEC}
   .nota-mezcla{display:inline-block; margin-top:6px; font-size:11px; color:var(--azul-oscuro,#1a4d7a); font-weight:600}
   .vacio{padding:60px 10px; text-align:center; color:var(--gris); font-size:14px}
   .vacio strong{display:block; color:#000; font-size:15px; margin-bottom:6px}
@@ -1142,7 +1146,7 @@ function promedio(lista){
 }
 function fmt(n, dec){ return n === null ? '—' : n.toFixed(dec); }
 
-const VERSION = '23/10/2026-152';   // sirve para confirmar qué versión está cargada
+const VERSION = '23/10/2026-153';   // sirve para confirmar qué versión está cargada
 function ponerPie(texto){
   $('#pie').textContent = texto + ' · versión ' + VERSION +
     (PERSISTE ? '' : ' · sin guardado permanente en este entorno: descargue el Excel antes de cerrar');
