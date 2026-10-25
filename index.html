@@ -660,6 +660,14 @@ function turnosDe(r){
   if(!r.horaInicial || !r.horaFinal) return '';
   return `(${horaAmPm(r.horaInicial)}-${horaAmPm(r.horaFinal)})`;
 }
+// la "Procedencia" de la tabla no es la que escribe el operador (esa es el PROVEEDOR) — se saca
+// del nombre de la pila quitándole el número final: "Skip 100" -> "Skip", "Rampa 106" -> "Rampa",
+// "Arrime mezcla 149" -> "Arrime mezcla"
+function procedenciaDePila(r){
+  const t = (r.codigoPatio || '').trim();
+  if(!t) return '';
+  return t.replace(/[\s#-]*\d+\s*$/, '').trim() || t;
+}
 const COLS_ALIMENTACION = [
   {id:'fecha', etiqueta:'DIAS', tipo:'date'},
   {id:'linea', etiqueta:'Linea'},
@@ -667,8 +675,8 @@ const COLS_ALIMENTACION = [
   {id:'horaInicial', etiqueta:'HORA INICIAL'},
   {id:'horaFinal', etiqueta:'HORA FINAL'},
   {id:'diferenciaHora', etiqueta:'DIFERENCIA DE HORA'},
-  {id:'proveedor', etiqueta:'PROVEEDOR'},
-  {id:'procedencia', etiqueta:'PROCEDENCIA'},
+  {id:'proveedor', etiqueta:'PROVEEDOR', calc: r => r.procedencia || ''},
+  {id:'procedencia', etiqueta:'PROCEDENCIA', calc: procedenciaDePila},
   {id:'codigoPatio', etiqueta:'CODIGO DE PATIO'},
   {id:'tipoMineral', etiqueta:'TIPO DE MINERAL'},
   {id:'humedad', etiqueta:'PORCENTAJE DE HUMEDAD (%)'},
@@ -752,12 +760,7 @@ const MODULOS = {
       {id:'horaFinal', etiqueta:'Hora final (militar)', tipo:'horaMilitar', requerido:true},
       {id:'diferenciaHora', etiqueta:'Diferencia de hora (h)', tipo:'calculado'},
       {id:'pesometroInicial', etiqueta:'Pesómetro inicial', tipo:'number'},
-      {id:'pesometroFinal', etiqueta:'Pesómetro final', tipo:'number'},
-      {id:'proveedor', etiqueta:'Proveedor', tipo:'text'},
-      {id:'tipoMineral', etiqueta:'Tipo de mineral', tipo:'text'},
-      {id:'humedad', etiqueta:'Porcentaje de humedad (%)', tipo:'number'},
-      {id:'tenor', etiqueta:'Tenor M1S (g/t)', tipo:'number'},
-      {id:'obs', etiqueta:'Observación', tipo:'textarea', ancho:true}
+      {id:'pesometroFinal', etiqueta:'Pesómetro final', tipo:'number'}
     ]
   },
 };
