@@ -629,6 +629,12 @@ const PROCEDENCIAS = [
   {id:'arenas_laguna_cola_revemin', nombre:'ARENAS LAGUNA DE COLA REVEMIN', prefijo:'TPM'}
 ];
 
+const LINEAS_ALIMENTACION = [
+  {id:'L1', nombre:'LÍNEA 1'},
+  {id:'L2', nombre:'LÍNEA 2'}
+];
+const nombreLinea = id => (LINEAS_ALIMENTACION.find(l => l.id === id) || {}).nombre || id;
+
 const PUNTOS = [
   {cod:'R-080',      nom:'MOLIENDA'},
   {cod:'R-069-068',  nom:'FLUJO HIDROCICLÓN'},
@@ -689,18 +695,17 @@ const MODULOS = {
     titulo:'MUESTREO DE ALIMENTACION', clave:'revemin_alimentacion', provisional:true,
     campos:[
       {id:'fecha', etiqueta:'Fecha', tipo:'date', requerido:true},
-      {id:'linea', etiqueta:'Línea', tipo:'select', opciones:['L1','L2'], requerido:true},
+      {id:'procedencia', etiqueta:'Procedencia', tipo:'text', requerido:true},
+      {id:'codigoPatio', etiqueta:'Número de pila', tipo:'text', requerido:true},
       {id:'horaInicial', etiqueta:'Hora inicial', tipo:'time', requerido:true},
       {id:'horaFinal', etiqueta:'Hora final', tipo:'time', requerido:true},
       {id:'diferenciaHora', etiqueta:'Diferencia de hora (h)', tipo:'calculado'},
+      {id:'pesometroInicial', etiqueta:'Pesómetro inicial', tipo:'number'},
+      {id:'pesometroFinal', etiqueta:'Pesómetro final', tipo:'number'},
       {id:'proveedor', etiqueta:'Proveedor', tipo:'text'},
-      {id:'procedencia', etiqueta:'Procedencia', tipo:'text'},
-      {id:'codigoPatio', etiqueta:'Código de patio', tipo:'text'},
       {id:'tipoMineral', etiqueta:'Tipo de mineral', tipo:'text'},
       {id:'humedad', etiqueta:'Porcentaje de humedad (%)', tipo:'number'},
       {id:'tenor', etiqueta:'Tenor M1S (g/t)', tipo:'number'},
-      {id:'lecturaInicial', etiqueta:'Lectura pesómetro inicial', tipo:'number'},
-      {id:'lecturaFinal', etiqueta:'Lectura pesómetro final', tipo:'number'},
       {id:'obs', etiqueta:'Observación', tipo:'textarea', ancho:true}
     ]
   },
@@ -723,7 +728,7 @@ const COLS_PATIO = [
 // pantalla sí conserva TURNO; solo se pidió quitarlo de la exportación)
 const COLS_PATIO_EXPORT = COLS_PATIO.filter(c => c.id !== 'turno');
 
-const ESTADO = {modulo:null, procedencia:'mina_colombia', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, vistaPatio:'datos', patioInicio:true};
+const ESTADO = {modulo:null, procedencia:'mina_colombia', linea:'L1', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, vistaPatio:'datos', patioInicio:true};
 
 const $ = s => document.querySelector(s);
 const clavePatio = p => 'revemin_patio_' + p;
@@ -1191,7 +1196,7 @@ async function abrir(nombre){
     : esProc ? 'MUESTREO DE PROCESO DE PLANTA'
     : (esCons ? 'CONSOLIDADO' : MODULOS[nombre].titulo);
   $('#mod-sub').textContent = 'Planta Revemin PIM II — Aseguramiento de la calidad QA/QC';
-  $('#btn-nuevo').style.display = (esCons || esPatio) ? 'none' : '';
+  $('#btn-nuevo').style.display = (esCons || esPatio || nombre === 'alimentacion') ? 'none' : '';
   $('#btn-nuevo').textContent = esCarbon ? 'Registrar orden' : 'Registrar muestra';
   $('#mod-provisional').style.display = (!esPatio && !esProc && !esCarbon && !esCons && MODULOS[nombre].provisional) ? '' : 'none';
 
@@ -1232,6 +1237,13 @@ async function abrir(nombre){
     });
     $('#v-registros').addEventListener('click', ()=>{ ESTADO.vista='registros'; pintar(); });
     $('#v-graficos').addEventListener('click', ()=>{ ESTADO.vista='graficos'; pintar(); });
+  }else if(nombre === 'alimentacion'){
+    // lo primero que se ve al entrar es la elección de línea (1 o 2): cada una lleva su propia
+    // tabla, igual que cada hoja del Excel separa los registros por línea
+    zonaProc.innerHTML = LINEAS_ALIMENTACION.map(l => `<button class="proc-btn" data-linea="${l.id}">${esc(l.nombre)}</button>`).join('');
+    zonaProc.querySelectorAll('[data-linea]').forEach(b =>
+      b.addEventListener('click', ()=> elegirLinea(b.dataset.linea)));
+    marcarLinea();
   }else{
     zonaProc.innerHTML = '';
   }
@@ -1274,8 +1286,8 @@ async function cargarDatos(){
     }
     for(const k of Object.keys(MODULOS)){
       (await leer(MODULOS[k].clave)).forEach(r => filas.push({
-        origen:'Alimentación', procedencia: r.alianza || '', fecha:r.fecha,
-        referencia: r.linea || '', codigo:r.codigo, tenor:'', humedad:''
+        origen:'Alimentación', procedencia: r.procedencia || '', fecha:r.fecha,
+        referencia: r.linea || '', codigo: r.codigoPatio || '', tenor: r.tenor || '', humedad: r.humedad || ''
       }));
     }
     (await leerProceso()).forEach(r => filas.push({
@@ -1289,6 +1301,16 @@ async function cargarDatos(){
   pintar();
 }
 
+function marcarLinea(){
+  document.querySelectorAll('[data-linea]').forEach(b =>
+    b.setAttribute('aria-pressed', b.dataset.linea === ESTADO.linea ? 'true' : 'false'));
+}
+function elegirLinea(id){
+  ESTADO.linea = id;
+  marcarLinea();
+  pintar();
+  abrirFormulario(null);
+}
 function marcarProcedencia(){
   document.querySelectorAll('[data-proc]').forEach(b =>
     b.setAttribute('aria-pressed', (!ESTADO.patioInicio && b.dataset.proc === ESTADO.procedencia) ? 'true' : 'false'));
@@ -1315,6 +1337,7 @@ function irInicioPatio(){
 
 /* ---------- pintado ---------- */
 function coincide(obj){
+  if(ESTADO.modulo === 'alimentacion' && obj.linea !== ESTADO.linea) return false;
   const f = ESTADO.filtro.trim().toLowerCase();
   if(!f) return true;
   return JSON.stringify(obj).toLowerCase().includes(f);
@@ -2194,8 +2217,10 @@ function pintarGenerico(){
   const cols = MODULOS[ESTADO.modulo].campos;
   const filas = ESTADO.datos.filter(coincide);
   const zona = $('#zona-tabla');
+  const rotulo = ESTADO.modulo === 'alimentacion'
+    ? `<div class="rotulo">${esc(nombreLinea(ESTADO.linea))}<small>PLANTA REVEMIN PIM II</small></div>` : '';
   if(!filas.length){
-    zona.innerHTML = `<div class="vacio"><strong>${ESTADO.filtro?'Ningún registro coincide':'Todavía no hay registros'}</strong>
+    zona.innerHTML = rotulo + `<div class="vacio"><strong>${ESTADO.filtro?'Ningún registro coincide':'Todavía no hay registros'}</strong>
       ${ESTADO.filtro?'Pruebe con otro término.':'Use “Registrar muestra” para cargar el primero.'}</div>`;
     ponerPie('0 registros'); return;
   }
@@ -2207,7 +2232,7 @@ function pintarGenerico(){
       <button class="mini" data-editar="${i}">Editar</button>
       <button class="mini borrar" data-borrar="${i}">Eliminar</button></td></tr>`;
   }).join('');
-  zona.innerHTML = `<table><thead><tr>${th}<th></th></tr></thead><tbody>${tb}</tbody></table>`;
+  zona.innerHTML = rotulo + `<table><thead><tr>${th}<th></th></tr></thead><tbody>${tb}</tbody></table>`;
   enlazarAcciones(zona);
   ponerPie(`${filas.length} registro${filas.length===1?'':'s'}`);
 }
@@ -2550,7 +2575,8 @@ function formularioPatio(indice, base){
 function formularioGenerico(indice){
   const campos = MODULOS[ESTADO.modulo].campos;
   const d = indice === null ? {} : ESTADO.datos[indice];
-  $('#form-titulo').textContent = indice===null ? 'Registrar muestra' : 'Editar registro';
+  const sufijoLinea = ESTADO.modulo === 'alimentacion' ? ' — ' + nombreLinea(ESTADO.linea) : '';
+  $('#form-titulo').textContent = (indice===null ? 'Registrar muestra' : 'Editar registro') + sufijoLinea;
   $('#btn-guardar').textContent = indice===null ? 'Guardar registro' : 'Guardar cambios';
   $('#form-cuerpo').innerHTML = '<div class="rejilla">' + campos.map(c=>{
     const v = esc(d[c.id] ?? ''), req = c.requerido ? 'required' : '';
@@ -2574,9 +2600,9 @@ function engancharDiferenciaHora(){
   const inDif = cuerpo.querySelector('[name=diferenciaHora]');
   if(!inInicial || !inFinal || !inDif) return;
   const recalcular = ()=>{
-    const [hi, mi] = (inInicial.value||'').split(':').map(Number);
-    const [hf, mf] = (inFinal.value||'').split(':').map(Number);
-    if([hi,mi,hf,mf].some(Number.isNaN)){ inDif.value = ''; return; }
+    if(!inInicial.value || !inFinal.value){ inDif.value = ''; return; }
+    const [hi, mi] = inInicial.value.split(':').map(Number);
+    const [hf, mf] = inFinal.value.split(':').map(Number);
     const minutos = ((hf*60+mf) - (hi*60+mi) + 1440) % 1440;
     inDif.value = (minutos/60).toFixed(2);
   };
@@ -2725,6 +2751,7 @@ $('#formulario').addEventListener('submit', async e=>{
   }else{
     const fd = new FormData(e.target), r = {};
     MODULOS[ESTADO.modulo].campos.forEach(c => r[c.id] = (fd.get(c.id)||'').toString().trim());
+    if(ESTADO.modulo === 'alimentacion') r.linea = ESTADO.linea;
     r.__id = ESTADO.editando===null ? Date.now().toString(36) : (ESTADO.datos[ESTADO.editando].__id || Date.now().toString(36));
     if(ESTADO.editando === null) ESTADO.datos.unshift(r); else ESTADO.datos[ESTADO.editando] = r;
     const ok = await escribir(MODULOS[ESTADO.modulo].clave, ESTADO.datos);
