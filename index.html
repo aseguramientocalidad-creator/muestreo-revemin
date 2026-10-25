@@ -668,6 +668,23 @@ function procedenciaDePila(r){
   if(!t) return '';
   return t.replace(/[\s#-]*\d+\s*$/, '').trim() || t;
 }
+// el código de patio de la tabla solo muestra el número, como "P-101" — la categoría (Skip, Rampa...)
+// ya va en la columna Procedencia y no debe repetirse aquí
+function codigoPatioFormateado(r){
+  const t = (r.codigoPatio || '').trim();
+  const m = t.match(/(\d+)\s*$/);
+  return m ? `P-${m[1]}` : t;
+}
+// tipo de mineral: constante según la procedencia/proveedor para Skip, Rampa, Sosa Méndez (siempre
+// Primario) y Colas (siempre Relave), verificado contra el Excel de referencia; Pequeña Minería y
+// cualquier otro caso no se infiere (sí tiene variaciones) y queda en blanco para carga manual
+function tipoMineralDe(r){
+  const texto = (procedenciaDePila(r) + ' ' + (r.procedencia || '')).toLowerCase();
+  if(/skip|rampa/.test(texto)) return 'PRIMARIO';
+  if(/sosa\s*m[ei]+ndez/.test(texto)) return 'PRIMARIO';
+  if(/\bcolas?\b|camorra|revemin/.test(texto)) return 'RELAVE';
+  return '';
+}
 const COLS_ALIMENTACION = [
   {id:'fecha', etiqueta:'DIAS', tipo:'date'},
   {id:'linea', etiqueta:'Linea'},
@@ -677,8 +694,8 @@ const COLS_ALIMENTACION = [
   {id:'diferenciaHora', etiqueta:'DIFERENCIA DE HORA'},
   {id:'proveedor', etiqueta:'PROVEEDOR', calc: r => r.procedencia || ''},
   {id:'procedencia', etiqueta:'PROCEDENCIA', calc: procedenciaDePila},
-  {id:'codigoPatio', etiqueta:'CODIGO DE PATIO'},
-  {id:'tipoMineral', etiqueta:'TIPO DE MINERAL'},
+  {id:'codigoPatio', etiqueta:'CODIGO DE PATIO', calc: codigoPatioFormateado},
+  {id:'tipoMineral', etiqueta:'TIPO DE MINERAL', calc: tipoMineralDe},
   {id:'humedad', etiqueta:'PORCENTAJE DE HUMEDAD (%)'},
   {id:'tenor', etiqueta:'TENOR M1S (g/t)'},
   {id:'pesometroInicial', etiqueta:'LECTURA PESOMETRO INICIAL'},
@@ -751,7 +768,7 @@ const nombrePunto = c => { const p = PUNTOS.find(x=>x.cod===c); return p ? p.nom
 
 const MODULOS = {
   alimentacion: {
-    titulo:'MUESTREO DE ALIMENTACION', clave:'revemin_alimentacion', provisional:true,
+    titulo:'MUESTREO DE ALIMENTACION', clave:'revemin_alimentacion',
     campos:[
       {id:'fecha', etiqueta:'Fecha', tipo:'date', requerido:true},
       {id:'procedencia', etiqueta:'Procedencia', tipo:'text', requerido:true},
