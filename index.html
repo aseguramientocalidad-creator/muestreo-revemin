@@ -221,6 +221,22 @@
   .patio tbody tr:hover{background:transparent}
   .patio .grupo:hover td{background:var(--t-hover)}
   .patio td.izq{text-align:left}
+  .tabla-alimentacion thead th{background:#1F3864; color:#fff; font-weight:bold; text-align:center;
+    text-transform:uppercase; border:1px solid #16294B; position:relative; padding:10px 22px 10px 10px}
+  .tabla-alimentacion tbody td{border:1px solid var(--gris-suave); text-align:center}
+  .btn-filtro{position:absolute; right:3px; top:50%; transform:translateY(-50%); border:none; background:transparent;
+    color:#C9D6EC; font-size:10px; cursor:pointer; padding:4px 5px; line-height:1; border-radius:3px}
+  .btn-filtro:hover{background:rgba(255,255,255,.15)}
+  .btn-filtro.activo{color:#F2C811}
+  .panel-filtro{position:fixed; z-index:200; background:#fff; border:1px solid #9A9A95; box-shadow:0 6px 18px rgba(0,0,0,.25);
+    width:230px; max-height:320px; display:flex; flex-direction:column; font-size:13px; color:#000; text-transform:none}
+  .panel-filtro .pf-buscar{margin:8px; padding:6px 8px; border:1px solid var(--gris-suave); font-size:12px}
+  .panel-filtro .pf-lista{overflow-y:auto; border-top:1px solid var(--gris-suave); border-bottom:1px solid var(--gris-suave); padding:4px 0}
+  .panel-filtro label{display:flex; align-items:center; gap:7px; padding:5px 10px; cursor:pointer; font-weight:normal}
+  .panel-filtro label:hover{background:var(--t-hover,#EAF2FC)}
+  .panel-filtro label.pf-todo{border-bottom:1px solid var(--gris-suave); font-weight:bold}
+  .panel-filtro .pf-botones{display:flex; gap:8px; padding:8px; justify-content:flex-end}
+  .panel-filtro .pf-botones button{padding:6px 12px; font-size:12px; cursor:pointer}
   .patio tr.promedio td{background:var(--t-cons-bg); font-weight:bold}
   .patio tr.fila-total td{background:var(--gris-cab); color:#fff; font-weight:bold}
   .patio tr.fila-ponderado td{background:var(--t-cons-bg); font-weight:bold; font-size:14px}
@@ -481,6 +497,7 @@
         </svg>
         Exportar
       </button>
+      <button class="btn" id="btn-quitar-filtros" style="display:none">Quitar filtros</button>
       <button class="btn btn-pdf" id="btn-informe-diario" style="display:none">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M14 2H6.5A1.5 1.5 0 0 0 5 3.5v17A1.5 1.5 0 0 0 6.5 22h11a1.5 1.5 0 0 0 1.5-1.5V7z" fill="#fff" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
@@ -635,6 +652,39 @@ const LINEAS_ALIMENTACION = [
 ];
 const nombreLinea = id => (LINEAS_ALIMENTACION.find(l => l.id === id) || {}).nombre || id;
 
+// columnas de la tabla/exportación de Alimentación: mismos títulos y mismo orden que el Excel de
+// referencia (ALIMENTACION OCTUBRE 2026). "linea" y "turnos" no son campos del formulario — se
+// obtienen solas (linea, de la navegación; turnos, calculado de hora inicial/final)
+function turnosDe(r){
+  if(!r.horaInicial || !r.horaFinal) return '';
+  return `(${horaAmPm(r.horaInicial)}-${horaAmPm(r.horaFinal)})`;
+}
+const COLS_ALIMENTACION = [
+  {id:'fecha', etiqueta:'DIAS', tipo:'date'},
+  {id:'linea', etiqueta:'Linea'},
+  {id:'turnos', etiqueta:'TURNOS', calc:turnosDe},
+  {id:'horaInicial', etiqueta:'HORA INICIAL'},
+  {id:'horaFinal', etiqueta:'HORA FINAL'},
+  {id:'diferenciaHora', etiqueta:'DIFERENCIA DE HORA'},
+  {id:'proveedor', etiqueta:'PROVEEDOR'},
+  {id:'procedencia', etiqueta:'PROCEDENCIA'},
+  {id:'codigoPatio', etiqueta:'CODIGO DE PATIO'},
+  {id:'tipoMineral', etiqueta:'TIPO DE MINERAL'},
+  {id:'humedad', etiqueta:'PORCENTAJE DE HUMEDAD (%)'},
+  {id:'tenor', etiqueta:'TENOR M1S (g/t)'},
+  {id:'pesometroInicial', etiqueta:'LECTURA PESOMETRO INICIAL'},
+  {id:'pesometroFinal', etiqueta:'LECTURA PESOMETRO FINAL'},
+  {id:'obs', etiqueta:'OBSERVACIÓN'}
+];
+function columnasLista(){
+  return ESTADO.modulo === 'alimentacion' ? COLS_ALIMENTACION : MODULOS[ESTADO.modulo].campos;
+}
+function valorColumna(c, r){
+  if(c.calc) return c.calc(r);
+  return c.tipo === 'date' ? fechaLegible(r[c.id]) : r[c.id];
+}
+const colAliment = id => COLS_ALIMENTACION.find(c => c.id === id);
+
 const PUNTOS = [
   {cod:'R-080',      nom:'MOLIENDA'},
   {cod:'R-069-068',  nom:'FLUJO HIDROCICLÓN'},
@@ -728,7 +778,7 @@ const COLS_PATIO = [
 // pantalla sí conserva TURNO; solo se pidió quitarlo de la exportación)
 const COLS_PATIO_EXPORT = COLS_PATIO.filter(c => c.id !== 'turno');
 
-const ESTADO = {modulo:null, procedencia:'mina_colombia', linea:'L1', punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, vistaPatio:'datos', patioInicio:true};
+const ESTADO = {modulo:null, procedencia:'mina_colombia', linea:'L1', filtrosAliment:{}, punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, vistaPatio:'datos', patioInicio:true};
 
 const $ = s => document.querySelector(s);
 const clavePatio = p => 'revemin_patio_' + p;
@@ -1240,6 +1290,7 @@ async function abrir(nombre){
   }else if(nombre === 'alimentacion'){
     // lo primero que se ve al entrar es la elección de línea (1 o 2): cada una lleva su propia
     // tabla, igual que cada hoja del Excel separa los registros por línea
+    ESTADO.filtrosAliment = {};
     zonaProc.innerHTML = LINEAS_ALIMENTACION.map(l => `<button class="proc-btn" data-linea="${l.id}">${esc(l.nombre)}</button>`).join('');
     zonaProc.querySelectorAll('[data-linea]').forEach(b =>
       b.addEventListener('click', ()=> elegirLinea(b.dataset.linea)));
@@ -1307,6 +1358,8 @@ function marcarLinea(){
 }
 function elegirLinea(id){
   ESTADO.linea = id;
+  ESTADO.filtrosAliment = {};
+  cerrarPopoverFiltro();
   marcarLinea();
   pintar();
   abrirFormulario(null);
@@ -1337,7 +1390,15 @@ function irInicioPatio(){
 
 /* ---------- pintado ---------- */
 function coincide(obj){
-  if(ESTADO.modulo === 'alimentacion' && obj.linea !== ESTADO.linea) return false;
+  if(ESTADO.modulo === 'alimentacion'){
+    if(obj.linea !== ESTADO.linea) return false;
+    for(const colId in ESTADO.filtrosAliment){
+      const permitidos = ESTADO.filtrosAliment[colId];
+      if(!permitidos) continue;
+      const val = valorColumna(colAliment(colId), obj) || '';
+      if(!permitidos.has(val)) return false;
+    }
+  }
   const f = ESTADO.filtro.trim().toLowerCase();
   if(!f) return true;
   return JSON.stringify(obj).toLowerCase().includes(f);
@@ -2213,27 +2274,98 @@ function cuerpoStockPatio(lista, paraPdf){
   return cuerpo;
 }
 
+function hayFiltroColumnaActivo(){
+  return Object.values(ESTADO.filtrosAliment).some(s => s);
+}
+
+// filtro por columna estilo AutoFiltro de Excel, para la tabla de Alimentación
+let PANEL_FILTRO_ACTUAL = null;
+function cerrarPopoverFiltroFuera(e){
+  if(PANEL_FILTRO_ACTUAL && !PANEL_FILTRO_ACTUAL.contains(e.target)) cerrarPopoverFiltro();
+}
+function cerrarPopoverFiltro(){
+  if(PANEL_FILTRO_ACTUAL){ PANEL_FILTRO_ACTUAL.remove(); PANEL_FILTRO_ACTUAL = null; }
+  document.removeEventListener('mousedown', cerrarPopoverFiltroFuera, true);
+}
+function abrirPopoverFiltro(colId, btnEl){
+  const yaAbierto = PANEL_FILTRO_ACTUAL && PANEL_FILTRO_ACTUAL.dataset.col === colId;
+  cerrarPopoverFiltro();
+  if(yaAbierto) return;
+  const col = colAliment(colId);
+  // opciones a partir de todas las filas de la línea actual (sin aplicar los demás filtros de
+  // columna activos), para que marcar un filtro no haga desaparecer las opciones de los otros
+  const todasLaLinea = ESTADO.datos.filter(r => r.linea === ESTADO.linea);
+  const crudos = [...new Set(todasLaLinea.map(r => valorColumna(col, r) || ''))].sort((a,b)=> String(a).localeCompare(String(b),'es'));
+  const activos = ESTADO.filtrosAliment[colId];
+  const panel = document.createElement('div');
+  panel.className = 'panel-filtro';
+  panel.dataset.col = colId;
+  panel.innerHTML = `
+    <input type="text" class="pf-buscar" placeholder="Buscar...">
+    <div class="pf-lista">
+      <label class="pf-todo"><input type="checkbox" class="pf-check-todo" ${!activos || activos.size===crudos.length ? 'checked':''}> Seleccionar todo</label>
+      ${crudos.map(v=>`<label><input type="checkbox" class="pf-check-val" value="${esc(v)}" ${!activos || activos.has(v) ? 'checked':''}> ${v===''?'(Vacíos)':esc(v)}</label>`).join('')}
+    </div>
+    <div class="pf-botones">
+      <button type="button" class="btn pf-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-primario pf-aceptar">Aceptar</button>
+    </div>`;
+  document.body.appendChild(panel);
+  const r = btnEl.getBoundingClientRect(), anchoPanel = 230;
+  panel.style.left = Math.max(8, r.right - anchoPanel) + 'px';
+  const topIdeal = r.bottom + 4;
+  panel.style.top = (topIdeal + 320 > window.innerHeight ? Math.max(8, r.top - 324) : topIdeal) + 'px';
+  PANEL_FILTRO_ACTUAL = panel;
+
+  const checkTodo = panel.querySelector('.pf-check-todo');
+  const checksVal = () => Array.from(panel.querySelectorAll('.pf-check-val'));
+  const visibles = () => checksVal().filter(c => c.closest('label').style.display !== 'none');
+  checkTodo.addEventListener('change', ()=> visibles().forEach(c => c.checked = checkTodo.checked));
+  checksVal().forEach(c => c.addEventListener('change', ()=> checkTodo.checked = visibles().every(c => c.checked)));
+  panel.querySelector('.pf-buscar').addEventListener('input', e=>{
+    const t = e.target.value.trim().toLowerCase();
+    checksVal().forEach(c => c.closest('label').style.display = c.value.toLowerCase().includes(t) ? '' : 'none');
+  });
+  panel.querySelector('.pf-cancelar').addEventListener('click', cerrarPopoverFiltro);
+  panel.querySelector('.pf-aceptar').addEventListener('click', ()=>{
+    const marcados = checksVal().filter(c => c.checked).map(c => c.value);
+    if(marcados.length === crudos.length) delete ESTADO.filtrosAliment[colId];
+    else ESTADO.filtrosAliment[colId] = new Set(marcados);
+    cerrarPopoverFiltro();
+    pintar();
+  });
+  setTimeout(()=> document.addEventListener('mousedown', cerrarPopoverFiltroFuera, true), 0);
+}
 function pintarGenerico(){
-  const cols = MODULOS[ESTADO.modulo].campos;
+  const esAliment = ESTADO.modulo === 'alimentacion';
+  const cols = columnasLista();
   const filas = ESTADO.datos.filter(coincide);
   const zona = $('#zona-tabla');
-  const rotulo = ESTADO.modulo === 'alimentacion'
+  const rotulo = esAliment
     ? `<div class="rotulo">${esc(nombreLinea(ESTADO.linea))}<small>PLANTA REVEMIN PIM II</small></div>` : '';
+  const hayFiltroCol = esAliment && hayFiltroColumnaActivo();
+  $('#btn-quitar-filtros').style.display = hayFiltroCol ? '' : 'none';
   if(!filas.length){
-    zona.innerHTML = rotulo + `<div class="vacio"><strong>${ESTADO.filtro?'Ningún registro coincide':'Todavía no hay registros'}</strong>
-      ${ESTADO.filtro?'Pruebe con otro término.':'Use “Registrar muestra” para cargar el primero.'}</div>`;
+    zona.innerHTML = rotulo + `<div class="vacio"><strong>${ESTADO.filtro||hayFiltroCol?'Ningún registro coincide':'Todavía no hay registros'}</strong>
+      ${ESTADO.filtro||hayFiltroCol?'Pruebe con otro término o quite los filtros de columna.':'Use “Registrar muestra” para cargar el primero.'}</div>`;
     ponerPie('0 registros'); return;
   }
-  const th = cols.map(c=>`<th>${esc(c.etiqueta)}</th>`).join('');
+  const th = cols.map(c=>{
+    if(!esAliment) return `<th>${esc(c.etiqueta)}</th>`;
+    const activo = ESTADO.filtrosAliment[c.id] ? 'activo' : '';
+    return `<th>${esc(c.etiqueta)}<button type="button" class="btn-filtro ${activo}" data-filtro-col="${c.id}" aria-label="Filtrar ${esc(c.etiqueta)}">▾</button></th>`;
+  }).join('');
   const tb = filas.map(r=>{
     const i = ESTADO.datos.indexOf(r);
-    const tds = cols.map(c=>`<td>${esc(c.tipo==='date'?fechaLegible(r[c.id]):r[c.id])}</td>`).join('');
+    const tds = cols.map(c=>`<td>${esc(valorColumna(c,r))}</td>`).join('');
     return `<tr>${tds}<td class="col-acc">
       <button class="mini" data-editar="${i}">Editar</button>
       <button class="mini borrar" data-borrar="${i}">Eliminar</button></td></tr>`;
   }).join('');
-  zona.innerHTML = rotulo + `<table><thead><tr>${th}<th></th></tr></thead><tbody>${tb}</tbody></table>`;
+  zona.innerHTML = rotulo + `<table class="${esAliment?'tabla-alimentacion':''}"><thead><tr>${th}<th></th></tr></thead><tbody>${tb}</tbody></table>`;
   enlazarAcciones(zona);
+  if(esAliment) zona.querySelectorAll('[data-filtro-col]').forEach(b =>
+    b.addEventListener('click', ()=> abrirPopoverFiltro(b.dataset.filtroCol, b)));
   ponerPie(`${filas.length} registro${filas.length===1?'':'s'}`);
 }
 
@@ -2265,9 +2397,10 @@ function enlazarAcciones(zona){
 
 /* ---------- formulario ---------- */
 $('#btn-nuevo').addEventListener('click', ()=> abrirFormulario(null));
+$('#btn-quitar-filtros').addEventListener('click', ()=>{ ESTADO.filtrosAliment = {}; pintar(); });
 $('#btn-cancelar').addEventListener('click', cerrarFormulario);
 $('#telon').addEventListener('mousedown', e=>{ if(e.target.id==='telon') cerrarFormulario(); });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ cerrarFormulario(); cerrarDialogoExport(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ cerrarFormulario(); cerrarDialogoExport(); cerrarPopoverFiltro(); } });
 
 function abrirFormulario(indice, base){
   ESTADO.editando = indice;
@@ -2859,9 +2992,9 @@ $('#btn-csv').addEventListener('click', async ()=>{
     filas.push(['Origen','Procedencia','Fecha','Referencia','Código','Tenor (g/Ton)','Humedad (%)']);
     ESTADO.datos.filter(coincide).forEach(r=> filas.push([r.origen,r.procedencia,fechaLegible(r.fecha),r.referencia,r.codigo,r.tenor,r.humedad]));
   }else{
-    const cols = MODULOS[ESTADO.modulo].campos;
+    const cols = columnasLista();
     filas.push(cols.map(c=>c.etiqueta));
-    ESTADO.datos.filter(coincide).forEach(r=> filas.push(cols.map(c=> c.tipo==='date'?fechaLegible(r[c.id]):r[c.id])));
+    ESTADO.datos.filter(coincide).forEach(r=> filas.push(cols.map(c=> valorColumna(c,r))));
   }
   if(filas.length <= 1){ avisar('No hay registros que exportar'); return; }
 
