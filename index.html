@@ -688,13 +688,20 @@ const MODULOS = {
   alimentacion: {
     titulo:'MUESTREO DE ALIMENTACION', clave:'revemin_alimentacion', provisional:true,
     campos:[
-      {id:'fecha', etiqueta:'Fecha de alimentación', tipo:'date', requerido:true},
-      {id:'hora', etiqueta:'Hora', tipo:'time'},
-      {id:'alianza', etiqueta:'Alianza / Pila', tipo:'text', requerido:true},
-      {id:'linea', etiqueta:'Línea', tipo:'select', opciones:['Línea 1','Línea 2','Línea 3']},
-      {id:'codigo', etiqueta:'Código de muestra', tipo:'text'},
-      {id:'responsable', etiqueta:'Responsable', tipo:'text'},
-      {id:'obs', etiqueta:'Observaciones', tipo:'textarea', ancho:true}
+      {id:'fecha', etiqueta:'Fecha', tipo:'date', requerido:true},
+      {id:'linea', etiqueta:'Línea', tipo:'select', opciones:['L1','L2'], requerido:true},
+      {id:'horaInicial', etiqueta:'Hora inicial', tipo:'time', requerido:true},
+      {id:'horaFinal', etiqueta:'Hora final', tipo:'time', requerido:true},
+      {id:'diferenciaHora', etiqueta:'Diferencia de hora (h)', tipo:'calculado'},
+      {id:'proveedor', etiqueta:'Proveedor', tipo:'text'},
+      {id:'procedencia', etiqueta:'Procedencia', tipo:'text'},
+      {id:'codigoPatio', etiqueta:'Código de patio', tipo:'text'},
+      {id:'tipoMineral', etiqueta:'Tipo de mineral', tipo:'text'},
+      {id:'humedad', etiqueta:'Porcentaje de humedad (%)', tipo:'number'},
+      {id:'tenor', etiqueta:'Tenor M1S (g/t)', tipo:'number'},
+      {id:'lecturaInicial', etiqueta:'Lectura pesómetro inicial', tipo:'number'},
+      {id:'lecturaFinal', etiqueta:'Lectura pesómetro final', tipo:'number'},
+      {id:'obs', etiqueta:'Observación', tipo:'textarea', ancho:true}
     ]
   },
 };
@@ -2551,9 +2558,31 @@ function formularioGenerico(indice){
     if(c.tipo === 'textarea') ctrl = `<textarea name="${c.id}" ${req}>${v}</textarea>`;
     else if(c.tipo === 'select') ctrl = `<select name="${c.id}" ${req}><option value=""></option>` +
       (c.opciones||[]).map(o=>`<option ${d[c.id]===o?'selected':''}>${esc(o)}</option>`).join('') + '</select>';
+    else if(c.tipo === 'calculado') ctrl = `<input type="text" name="${c.id}" value="${v}" readonly class="fijo">`;
     else ctrl = `<input type="${c.tipo}" name="${c.id}" value="${v}" ${c.tipo==='number'?'step="any"':''} ${req}>`;
     return `<div class="campo ${c.ancho?'ancho':''}"><label>${esc(c.etiqueta)}${c.requerido?' *':''}</label>${ctrl}</div>`;
   }).join('') + '</div>';
+  if(ESTADO.modulo === 'alimentacion') engancharDiferenciaHora();
+}
+
+// recalcula "diferencia de hora" (en horas, admite turnos que cruzan la medianoche) cada vez
+// que cambian la hora inicial o final del formulario de Alimentación
+function engancharDiferenciaHora(){
+  const cuerpo = $('#form-cuerpo');
+  const inInicial = cuerpo.querySelector('[name=horaInicial]');
+  const inFinal = cuerpo.querySelector('[name=horaFinal]');
+  const inDif = cuerpo.querySelector('[name=diferenciaHora]');
+  if(!inInicial || !inFinal || !inDif) return;
+  const recalcular = ()=>{
+    const [hi, mi] = (inInicial.value||'').split(':').map(Number);
+    const [hf, mf] = (inFinal.value||'').split(':').map(Number);
+    if([hi,mi,hf,mf].some(Number.isNaN)){ inDif.value = ''; return; }
+    const minutos = ((hf*60+mf) - (hi*60+mi) + 1440) % 1440;
+    inDif.value = (minutos/60).toFixed(2);
+  };
+  inInicial.addEventListener('input', recalcular);
+  inFinal.addEventListener('input', recalcular);
+  recalcular();
 }
 
 let SEGUIR_MISMA_ORDEN = false;
