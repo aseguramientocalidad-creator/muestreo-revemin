@@ -2392,6 +2392,11 @@ function pintarGenerico(){
   const esAliment = ESTADO.modulo === 'alimentacion';
   const cols = columnasLista();
   const filas = ESTADO.datos.filter(coincide);
+  // en Alimentación las muestras deben verse en orden cronológico (día y hora), no en el orden en
+  // que se fueron guardando — ordena una copia filtrada, sin tocar ESTADO.datos (edición/borrado
+  // siguen ubicando la fila por su índice real con indexOf)
+  if(esAliment) filas.sort((a,b)=>
+    (a.fecha||'').localeCompare(b.fecha||'') || (a.horaInicial||'').localeCompare(b.horaInicial||'') || (a.horaFinal||'').localeCompare(b.horaFinal||''));
   const zona = $('#zona-tabla');
   const rotulo = esAliment
     ? `<div class="rotulo">${esc(nombreLinea(ESTADO.linea))}<small>PLANTA REVEMIN PIM II</small></div>` : '';
