@@ -360,6 +360,8 @@
   .panel .cuerpo{padding:20px}
   .rejilla{display:grid; grid-template-columns:repeat(3,1fr); gap:14px 18px}
   .rejilla-4{grid-template-columns:repeat(4,1fr)}
+  .rejilla-lineal{display:flex; flex-wrap:nowrap; gap:10px}
+  .rejilla-lineal .campo{flex:1; min-width:0}
   .grupo-orden{display:flex; gap:6px; align-items:center}
   .grupo-orden .prefijo{flex:0 0 74px; text-align:center; font-weight:bold; background:var(--t-hover)}
   .grupo-orden .correlativo{flex:1; min-width:0; text-align:center}
@@ -450,6 +452,8 @@
     .menu{padding:30px 12px}
     .caja{padding:12px 6px}
     .rejilla{grid-template-columns:1fr}
+    .rejilla-lineal{flex-wrap:wrap}
+    .rejilla-lineal .campo{flex:1 1 45%}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
@@ -2434,6 +2438,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ cerrarFormulario
 
 function abrirFormulario(indice, base){
   ESTADO.editando = indice;
+  $('#formulario').style.maxWidth = '';
   $('#btn-misma-orden').style.display = (ESTADO.modulo === 'patio') ? '' : 'none';
   if(ESTADO.modulo === 'patio') formularioPatio(indice, base);
   else if(ESTADO.modulo === 'proceso') formularioProceso(indice);
@@ -2741,7 +2746,9 @@ function formularioGenerico(indice){
   const sufijoLinea = ESTADO.modulo === 'alimentacion' ? ' — ' + nombreLinea(ESTADO.linea) : '';
   $('#form-titulo').textContent = (indice===null ? 'Registrar muestra' : 'Editar registro') + sufijoLinea;
   $('#btn-guardar').textContent = indice===null ? 'Guardar registro' : 'Guardar cambios';
-  $('#form-cuerpo').innerHTML = '<div class="rejilla">' + campos.map(c=>{
+  const esAlimentForm = ESTADO.modulo === 'alimentacion';
+  $('#formulario').style.maxWidth = esAlimentForm ? '1300px' : '';
+  $('#form-cuerpo').innerHTML = '<div class="rejilla' + (esAlimentForm ? ' rejilla-lineal' : '') + '">' + campos.map(c=>{
     const v = esc(d[c.id] ?? ''), req = c.requerido ? 'required' : '';
     let ctrl;
     if(c.tipo === 'textarea') ctrl = `<textarea name="${c.id}" ${req}>${v}</textarea>`;
