@@ -2865,8 +2865,11 @@ $('#formulario').addEventListener('submit', async e=>{
         const tieneArrime = /arrime/i.test(t);
         if(tieneArrime){
           if(t !== canon){
-            alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-            return;
+            if(t.toLowerCase() === canon.toLowerCase()) g.pila = canon; // solo difiere en mayúsculas/minúsculas: se corrige solo, sin molestar
+            else{
+              alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+              return;
+            }
           }
         }else{
           const esArrime = confirm(`Escribió "${t}" sin mencionar la palabra "Arrime".\n\n¿Es esta una pila de Arrime?\n\n`+
@@ -2889,8 +2892,11 @@ $('#formulario').addEventListener('submit', async e=>{
       if((tieneRampa || tieneSkip) && numRS){
         const canon = normalizarPilaRampaSkip(t);
         if(t !== canon){
-          alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-          return;
+          if(t.toLowerCase() === canon.toLowerCase()) g.pila = canon; // solo difiere en mayúsculas/minúsculas: se corrige solo, sin molestar
+          else{
+            alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+            return;
+          }
         }
       }else if(/^\d+$/.test(t)){
         alert(`Escribió "${t}" sin especificar si es una pila de RAMPA o de SKIP.\n\n`+
@@ -2975,8 +2981,11 @@ $('#formulario').addEventListener('submit', async e=>{
           const tieneArrime = /arrime/i.test(t);
           if(tieneArrime){
             if(t !== canon){
-              alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-              return;
+              if(t.toLowerCase() === canon.toLowerCase()) r.codigoPatio = canon; // solo difiere en mayúsculas/minúsculas: se corrige solo, sin molestar
+              else{
+                alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+                return;
+              }
             }
           }else{
             const esArrime = confirm(`Escribió "${t}" sin mencionar la palabra "Arrime".\n\n¿Es esta una pila de Arrime?\n\n`+
@@ -2994,8 +3003,11 @@ $('#formulario').addEventListener('submit', async e=>{
           if((tieneRampa || tieneSkip) && numRS){
             const canon = normalizarPilaRampaSkip(t);
             if(t !== canon){
-              alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-              return;
+              if(t.toLowerCase() === canon.toLowerCase()) r.codigoPatio = canon; // solo difiere en mayúsculas/minúsculas: se corrige solo, sin molestar
+              else{
+                alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+                return;
+              }
             }
           }else if(/^\d+$/.test(t)){
             alert(`Escribió "${t}" sin especificar si es una pila de RAMPA o de SKIP.\n\n`+
