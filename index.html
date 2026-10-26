@@ -2461,7 +2461,7 @@ function abrirFormulario(indice, base){
   if(ESTADO.modulo === 'patio') formularioPatio(indice, base);
   else if(ESTADO.modulo === 'proceso') formularioProceso(indice);
   else if(ESTADO.modulo === 'carbon') formularioCarbon(indice);
-  else formularioGenerico(indice);
+  else formularioGenerico(indice, base);
   $('#form-cuerpo').querySelectorAll('input,textarea,select').forEach(e=>{
     e.setAttribute('autocomplete','off');
     e.setAttribute('autocorrect','off');
@@ -2758,9 +2758,9 @@ function formularioPatio(indice, base){
   inTon.addEventListener('input', calcularVivo);
 }
 
-function formularioGenerico(indice){
+function formularioGenerico(indice, base){
   const campos = MODULOS[ESTADO.modulo].campos;
-  const d = indice === null ? {} : ESTADO.datos[indice];
+  const d = indice === null ? Object.assign({}, base || {}) : ESTADO.datos[indice];
   const sufijoLinea = ESTADO.modulo === 'alimentacion' ? ' — ' + nombreLinea(ESTADO.linea) : '';
   $('#form-titulo').textContent = (indice===null ? 'Registrar muestra' : 'Editar registro') + sufijoLinea;
   $('#btn-guardar').textContent = indice===null ? 'Guardar registro' : 'Guardar cambios';
@@ -3033,10 +3033,20 @@ $('#formulario').addEventListener('submit', async e=>{
       }
     }
     r.__id = ESTADO.editando===null ? Date.now().toString(36) : (ESTADO.datos[ESTADO.editando].__id || Date.now().toString(36));
+    // en Alimentación, cargar una muestra NUEVA (no al editar una ya existente) deja la "ventana"
+    // abierta para la siguiente: se reabre el formulario solo, con la misma fecha y la hora de
+    // inicio ya puesta en la hora final de la muestra anterior, para encadenar el turno sin tener
+    // que volver a escribir nada hasta que el usuario presione "Cancelar"
+    const esNuevaAliment = ESTADO.modulo === 'alimentacion' && ESTADO.editando === null;
     if(ESTADO.editando === null) ESTADO.datos.unshift(r); else ESTADO.datos[ESTADO.editando] = r;
     const ok = await escribir(MODULOS[ESTADO.modulo].clave, ESTADO.datos);
     avisar(ok ? (ESTADO.editando===null ? 'Registro guardado' : 'Cambios guardados')
               : 'Registro cargado solo en esta sesión: descargue el Excel antes de cerrar');
+    if(esNuevaAliment){
+      cerrarFormulario(); pintar();
+      abrirFormulario(null, {fecha:r.fecha, horaInicial:r.horaFinal});
+      return;
+    }
   }
   cerrarFormulario(); pintar();
 });
