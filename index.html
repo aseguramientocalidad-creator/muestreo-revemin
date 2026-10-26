@@ -362,6 +362,7 @@
   .rejilla-4{grid-template-columns:repeat(4,1fr)}
   .rejilla-lineal{display:flex; flex-wrap:nowrap; gap:10px}
   .rejilla-lineal .campo{flex:1; min-width:0}
+  .campos-alimentacion label{text-transform:uppercase; font-weight:bold}
   .grupo-orden{display:flex; gap:6px; align-items:center}
   .grupo-orden .prefijo{flex:0 0 74px; text-align:center; font-weight:bold; background:var(--t-hover)}
   .grupo-orden .correlativo{flex:1; min-width:0; text-align:center}
@@ -2748,7 +2749,7 @@ function formularioGenerico(indice){
   $('#btn-guardar').textContent = indice===null ? 'Guardar registro' : 'Guardar cambios';
   const esAlimentForm = ESTADO.modulo === 'alimentacion';
   $('#formulario').style.maxWidth = esAlimentForm ? '1300px' : '';
-  $('#form-cuerpo').innerHTML = '<div class="rejilla' + (esAlimentForm ? ' rejilla-lineal' : '') + '">' + campos.map(c=>{
+  const renderCampo = c => {
     const v = esc(d[c.id] ?? ''), req = c.requerido ? 'required' : '';
     let ctrl;
     if(c.tipo === 'textarea') ctrl = `<textarea name="${c.id}" ${req}>${v}</textarea>`;
@@ -2760,7 +2761,17 @@ function formularioGenerico(indice){
       `<small class="conv-ampm" data-ampm-de="${c.id}" style="display:block; color:var(--gris); margin-top:4px; font-size:0.85em"></small>`;
     else ctrl = `<input type="${c.tipo}" name="${c.id}" value="${v}" ${c.tipo==='number'?'step="any"':''} ${req}>`;
     return `<div class="campo ${c.ancho?'ancho':''}"><label>${esc(c.etiqueta)}${c.requerido?' *':''}</label>${ctrl}</div>`;
-  }).join('') + '</div>';
+  };
+  if(esAlimentForm){
+    // Fecha va sola en su propia fila; el resto de los cajetines queda en una sola fila debajo
+    const [campoFecha, ...resto] = campos;
+    $('#form-cuerpo').innerHTML = '<div class="campos-alimentacion">' +
+      '<div class="rejilla" style="grid-template-columns:240px; margin-bottom:14px">' + renderCampo(campoFecha) + '</div>' +
+      '<div class="rejilla rejilla-lineal">' + resto.map(renderCampo).join('') + '</div>' +
+      '</div>';
+  }else{
+    $('#form-cuerpo').innerHTML = '<div class="rejilla">' + campos.map(renderCampo).join('') + '</div>';
+  }
   if(ESTADO.modulo === 'alimentacion') engancharHorasAlimentacion();
 }
 
