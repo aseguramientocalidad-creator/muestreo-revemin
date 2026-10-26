@@ -999,10 +999,20 @@ function armarOrden(proc, fecha, correlativo){
   const c = String(correlativo ?? '').trim();
   return `${prefijoProc(proc)}-${mesDe(fecha)}-${c ? c.padStart(3,'0') : 'yyy'}`;
 }
+// pilas cargadas automáticamente desde el Excel de stock (sin muestreo real todavía) se guardan
+// con 5 códigos provisionales, todos literalmente "1" — nunca un código de laboratorio real
+const esPilaProvisional = g => {
+  const ms = g.muestras || [];
+  return ms.length > 0 && ms.every(m => String(m.codigo||'').trim() === '1');
+};
 function claveOrden(g){
   const partes = String(g.orden || '').split('-');
   const mes  = partes.length >= 3 ? partes[partes.length - 2] : (g.fecha || '').slice(5,7);
-  const corr = partes.length >= 3 ? partes[partes.length - 1] : (g.correlativo || '');
+  let corr = partes.length >= 3 ? partes[partes.length - 1] : (g.correlativo || '');
+  // sin orden ni correlativo real: si es una pila provisional, debe ir al final de su mes en vez
+  // de al principio (que es lo que pasaría con una clave vacía), sin necesidad de fabricar y
+  // guardar un correlativo falso que terminaría visible en el formulario de edición
+  if(!corr && esPilaProvisional(g)) corr = '99999';
   return String(mes).padStart(2,'0') + String(corr).padStart(5,'0') + String(g.pila || '');
 }
 
@@ -1683,11 +1693,9 @@ async function calcularPanel(){
       const faltan = ms.filter(sinTenor).length;
       if(faltan){
         const codigosFaltantes = ms.filter(sinTenor).map(m => String(m.codigo||'').trim()).filter(Boolean);
-        // pilas cargadas automáticamente desde el Excel de stock (sin muestreo real todavía) se
-        // guardan con 5 códigos provisionales, todos literalmente "1" — nunca un código de
-        // laboratorio real — y sin una orden real asociada. En vez de mostrar esa orden/códigos
-        // falsos, se muestra un aviso de que falta muestrear.
-        const esProvisional = codigosFaltantes.length > 0 && codigosFaltantes.every(c => c === '1');
+        // en vez de mostrar la orden/códigos falsos de una pila provisional, se muestra un aviso
+        // de que falta muestrear (ver esPilaProvisional)
+        const esProvisional = esPilaProvisional(g);
         pendientes.push({
           procId:p.id, proc:p.nombre, pila:String(g.pila||''),
           orden: esProvisional ? 'Pendiente por muestrear' : (g.orden||''),
