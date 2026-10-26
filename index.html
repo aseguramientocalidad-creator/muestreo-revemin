@@ -3120,6 +3120,7 @@ $('#btn-csv').addEventListener('click', async ()=>{
   }
   if(ESTADO.modulo === 'proceso'){ await exportarExcelProceso(); return; }
   if(ESTADO.modulo === 'carbon'){ await exportarExcelCarbon(); return; }
+  if(ESTADO.modulo === 'alimentacion'){ await exportarExcelAlimentacion(); return; }
   const linea = a => a.map(v=>`"${String(v ?? '').replace(/"/g,'""')}"`).join(';');
   let filas = [], nombre = ESTADO.modulo + '_revemin.csv';
 
@@ -4503,6 +4504,97 @@ function formularioCarbon(indice){
   inCorr.addEventListener('input', ()=>{ inCorr.value = inCorr.value.replace(/\D/g,''); refrescar(); });
   inFecha.addEventListener('change', refrescar);
   enganchar(); refrescar();
+}
+
+// convierte "HH:MM" (hora militar) a fracción de día (0 a 1), como Excel representa internamente
+// las celdas de hora
+function horaAFraccionDia(hhmm){
+  if(!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(hhmm||'')) return null;
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h*60+m)/1440;
+}
+// igual que diferenciaHoraDe(), pero sin redondear a 2 decimales: el Excel exportado deja que el
+// formato numérico (3 decimales) se encargue de la presentación, conservando el valor exacto
+function diferenciaHorasExacta(r){
+  if(!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(r.horaInicial||'') || !/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(r.horaFinal||'')) return null;
+  const [hi, mi] = r.horaInicial.split(':').map(Number);
+  const [hf, mf] = r.horaFinal.split(':').map(Number);
+  const minutos = ((hf*60+mf) - (hi*60+mi) + 1440) % 1440;
+  return minutos/60;
+}
+
+// exporta un libro con una hoja por día del mes (nombrada solo con el número del día), igual al
+// formato "HORAS DE ALIMENTACION <MES> <AÑO>" que ya se maneja en la planta: mismo título,
+// mismas columnas/encabezados que la tabla de Alimentación, horas como celdas de hora reales y
+// diferencia de hora como número. Se exporta el mes más reciente que tenga registros cargados,
+// combinando LÍNEA 1 y LÍNEA 2 en la misma hoja (como en el archivo de referencia), ordenadas por
+// hora ascendente.
+async function exportarExcelAlimentacion(){
+  if(typeof ExcelJS === 'undefined'){ avisar('No se pudo cargar el generador de Excel. Revise la conexión.'); return; }
+  const todos = (ESTADO.datos || []).filter(r => r.fecha);
+  if(!todos.length){ avisar('No hay registros que exportar'); return; }
+
+  const meses = [...new Set(todos.map(r => r.fecha.slice(0,7)))].sort();
+  const mesSel = meses[meses.length - 1];
+  const registrosMes = todos.filter(r => r.fecha.slice(0,7) === mesSel);
+  const dias = [...new Set(registrosMes.map(r => Number(r.fecha.slice(8,10))))].sort((a,b)=> a-b);
+
+  avisar('Generando el archivo…');
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Control de Muestreo — Planta Revemin';
+
+  const NC = COLS_ALIMENTACION.length;
+  const anchos = [8,8,26,12,12,16,16,16,16,14,16,14,18,18,22];
+  const tituloMes = `ALIMENTACION ${MESES[Number(mesSel.slice(5,7))-1]} ${mesSel.slice(0,4)} - ASEGURAMIENTO DE LA CALIDAD`;
+  const relleno = {type:'pattern', pattern:'solid', fgColor:{argb:'FF1F3864'}};
+
+  dias.forEach(dia=>{
+    const fechaDia = `${mesSel}-${String(dia).padStart(2,'0')}`;
+    const filas = registrosMes.filter(r => r.fecha === fechaDia)
+      .sort((a,b)=> (a.horaInicial||'').localeCompare(b.horaInicial||'') ||
+                    (a.horaFinal||'').localeCompare(b.horaFinal||'') ||
+                    (a.linea||'').localeCompare(b.linea||''));
+
+    const ws = wb.addWorksheet(String(dia));
+    anchos.forEach((w,i)=> ws.getColumn(i+1).width = w);
+
+    ws.mergeCells(1, 1, 1, NC);
+    const ct = ws.getCell(1,1);
+    ct.value = tituloMes;
+    ct.font = {bold:true, size:14, name:'Arial'};
+    ct.alignment = {horizontal:'center', vertical:'middle'};
+    ct.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFD9D9D9'}};
+    ws.getRow(1).height = 24;
+
+    encabezadoHoja(ws, 4, COLS_ALIMENTACION.map(c => c.etiqueta), relleno, 'FFFFFFFF');
+
+    let n = 5;
+    filas.forEach(r=>{
+      const f = formatearFila(ws, n, NC);
+      f.getCell(1).value = dia; f.getCell(1).numFmt = 'd';
+      f.getCell(2).value = r.linea || '';
+      f.getCell(3).value = turnosDe(r);
+      const fi = horaAFraccionDia(r.horaInicial), ff = horaAFraccionDia(r.horaFinal);
+      if(fi !== null){ f.getCell(4).value = fi; f.getCell(4).numFmt = 'h:mm AM/PM'; }
+      if(ff !== null){ f.getCell(5).value = ff; f.getCell(5).numFmt = 'h:mm AM/PM'; }
+      const dif = diferenciaHorasExacta(r);
+      if(dif !== null){ f.getCell(6).value = dif; f.getCell(6).numFmt = '0.000'; }
+      f.getCell(7).value = celda(r.procedencia || '');
+      f.getCell(8).value = celda(procedenciaDePila(r));
+      f.getCell(9).value = celda(codigoPatioFormateado(r));
+      f.getCell(10).value = celda(tipoMineralDe(r));
+      f.getCell(11).value = celda(r.humedad);
+      f.getCell(12).value = celda(r.tenor);
+      f.getCell(13).value = celda(r.pesometroInicial);
+      f.getCell(14).value = celda(r.pesometroFinal);
+      f.getCell(15).value = celda(r.obs);
+      n++;
+    });
+
+    ws.views = [{state:'frozen', ySplit:4}];
+  });
+
+  await descargarLibro(wb, `HORAS DE ALIMENTACION ${MESES[Number(mesSel.slice(5,7))-1].toUpperCase()} ${mesSel.slice(0,4)}`);
 }
 
 async function exportarExcelCarbon(){
