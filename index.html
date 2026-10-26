@@ -690,12 +690,13 @@ function codigoPatioFormateado(r){
   const m = t.match(/(\d+)\s*$/);
   return m ? `P-${m[1]}` : t;
 }
-// tipo de mineral: constante según la procedencia/proveedor para Skip, Rampa, Sosa Méndez (siempre
-// Primario) y Colas (siempre Relave), verificado contra el Excel de referencia; Pequeña Minería y
-// cualquier otro caso no se infiere (sí tiene variaciones) y queda en blanco para carga manual
+// tipo de mineral: constante según la procedencia/proveedor — Mina Colombia (sea Rampa, Skip o
+// cualquier otra pila suya) y Sosa Méndez son SIEMPRE Primario; las Colas son SIEMPRE Relave,
+// verificado contra el Excel de referencia; Pequeña Minería y cualquier otro caso no se infiere
+// (sí tiene variaciones) y queda en blanco para carga manual
 function tipoMineralDe(r){
   const texto = (procedenciaDePila(r) + ' ' + (r.procedencia || '')).toLowerCase();
-  if(/skip|rampa/.test(texto)) return 'PRIMARIO';
+  if(/colombia|skip|rampa/.test(texto)) return 'PRIMARIO';
   if(/sosa\s*m[ei]+ndez/.test(texto)) return 'PRIMARIO';
   if(/\bcolas?\b|camorra|revemin/.test(texto)) return 'RELAVE';
   return '';
@@ -2960,7 +2961,50 @@ $('#formulario').addEventListener('submit', async e=>{
   }else{
     const fd = new FormData(e.target), r = {};
     MODULOS[ESTADO.modulo].campos.forEach(c => r[c.id] = (fd.get(c.id)||'').toString().trim());
-    if(ESTADO.modulo === 'alimentacion') r.linea = ESTADO.linea;
+    if(ESTADO.modulo === 'alimentacion'){
+      r.linea = ESTADO.linea;
+      // misma advertencia/normalización de nombres de pila que en Muestreo en Patio: las pilas
+      // "Mezcla N" deben escribirse como "Arrime mezcla N" (Pequeña Minería), y las numéricas de
+      // Mina Colombia deben especificar si son "Rampa N" o "Skip N"
+      const t = r.codigoPatio;
+      if(t){
+        const tieneMezcla = /mezcla/i.test(t);
+        const numMezcla = (t.match(/\d+/) || [])[0];
+        if(tieneMezcla && numMezcla){
+          const canon = normalizarPilaArrime(t);
+          const tieneArrime = /arrime/i.test(t);
+          if(tieneArrime){
+            if(t !== canon){
+              alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+              return;
+            }
+          }else{
+            const esArrime = confirm(`Escribió "${t}" sin mencionar la palabra "Arrime".\n\n¿Es esta una pila de Arrime?\n\n`+
+              `Presione "Aceptar" si SÍ es una pila de Arrime (deberá corregir el nombre), `+
+              `o "Cancelar" si NO lo es (se guardará el nombre tal como lo escribió).`);
+            if(esArrime){
+              alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+              return;
+            }
+          }
+        }else{
+          const tieneRampa = /rampa/i.test(t);
+          const tieneSkip = /skip/i.test(t);
+          const numRS = (t.match(/\d+/) || [])[0];
+          if((tieneRampa || tieneSkip) && numRS){
+            const canon = normalizarPilaRampaSkip(t);
+            if(t !== canon){
+              alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+              return;
+            }
+          }else if(/^\d+$/.test(t)){
+            alert(`Escribió "${t}" sin especificar si es una pila de RAMPA o de SKIP.\n\n`+
+              `Por favor, especifique si es una pila de Rampa o Skip.`);
+            return;
+          }
+        }
+      }
+    }
     r.__id = ESTADO.editando===null ? Date.now().toString(36) : (ESTADO.datos[ESTADO.editando].__id || Date.now().toString(36));
     if(ESTADO.editando === null) ESTADO.datos.unshift(r); else ESTADO.datos[ESTADO.editando] = r;
     const ok = await escribir(MODULOS[ESTADO.modulo].clave, ESTADO.datos);
