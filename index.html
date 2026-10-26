@@ -660,6 +660,15 @@ function turnosDe(r){
   if(!r.horaInicial || !r.horaFinal) return '';
   return `(${horaAmPm(r.horaInicial)}-${horaAmPm(r.horaFinal)})`;
 }
+// diferencia de hora ya no se pide en el formulario (se quitó ese campo): se calcula aquí a partir
+// de horaInicial/horaFinal para que la columna de la tabla la siga mostrando (admite turnos que cruzan la medianoche)
+function diferenciaHoraDe(r){
+  if(!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(r.horaInicial||'') || !/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(r.horaFinal||'')) return '';
+  const [hi, mi] = r.horaInicial.split(':').map(Number);
+  const [hf, mf] = r.horaFinal.split(':').map(Number);
+  const minutos = ((hf*60+mf) - (hi*60+mi) + 1440) % 1440;
+  return (minutos/60).toFixed(2);
+}
 // la "Procedencia" de la tabla no es la que escribe el operador (esa es el PROVEEDOR) — se saca
 // del nombre de la pila quitándole el número final: "Skip 100" -> "Skip", "Rampa 106" -> "Rampa",
 // "Arrime mezcla 149" -> "Arrime mezcla"
@@ -691,7 +700,7 @@ const COLS_ALIMENTACION = [
   {id:'turnos', etiqueta:'TURNOS', calc:turnosDe},
   {id:'horaInicial', etiqueta:'HORA INICIAL'},
   {id:'horaFinal', etiqueta:'HORA FINAL'},
-  {id:'diferenciaHora', etiqueta:'DIFERENCIA DE HORA'},
+  {id:'diferenciaHora', etiqueta:'DIFERENCIA DE HORA', calc:diferenciaHoraDe},
   {id:'proveedor', etiqueta:'PROVEEDOR', calc: r => r.procedencia || ''},
   {id:'procedencia', etiqueta:'PROCEDENCIA', calc: procedenciaDePila},
   {id:'codigoPatio', etiqueta:'CODIGO DE PATIO', calc: codigoPatioFormateado},
@@ -773,11 +782,11 @@ const MODULOS = {
       {id:'fecha', etiqueta:'Fecha', tipo:'date', requerido:true},
       {id:'procedencia', etiqueta:'Procedencia', tipo:'text', requerido:true},
       {id:'codigoPatio', etiqueta:'Número de pila', tipo:'text', requerido:true},
-      {id:'horaInicial', etiqueta:'Hora inicial (militar)', tipo:'horaMilitar', requerido:true},
-      {id:'horaFinal', etiqueta:'Hora final (militar)', tipo:'horaMilitar', requerido:true},
-      {id:'diferenciaHora', etiqueta:'Diferencia de hora (h)', tipo:'calculado'},
-      {id:'pesometroInicial', etiqueta:'Pesómetro inicial', tipo:'number'},
-      {id:'pesometroFinal', etiqueta:'Pesómetro final', tipo:'number'}
+      {id:'horaInicial', etiqueta:'Hora (desde)', tipo:'horaMilitar', requerido:true},
+      {id:'horaFinal', etiqueta:'Hora (hasta)', tipo:'horaMilitar', requerido:true},
+      {id:'pesometroInicial', etiqueta:'Lectura inicial pesómetro', tipo:'number'},
+      {id:'pesometroFinal', etiqueta:'Lectura final pesómetro', tipo:'number'},
+      {id:'obs', etiqueta:'Observación', tipo:'text'}
     ]
   },
 };
