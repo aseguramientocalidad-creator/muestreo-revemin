@@ -1797,7 +1797,7 @@ function tarjetasProcedencia(mes, listaPendientes){
       : `<tr><td class="dc-vacio" colspan="2">Sin tenores cargados este mes</td></tr>`;
 
     const cuerpoPend = pend.length
-      ? `<table class="dc-pend"><thead><tr><th>FECHA</th><th>PILA</th><th>TURNO</th><th>ORDEN</th><th>CÓDIGOS</th></tr></thead><tbody>${
+      ? `<div class="dc-pend-wrap"><table class="dc-pend"><thead><tr><th>FECHA</th><th>PILA</th><th>TURNO</th><th>ORDEN</th><th>CÓDIGOS</th></tr></thead><tbody>${
           pend.map(x=> `<tr><td>${esc(fechaLegible(x.fecha))}</td><td>${esc(x.pila)}</td><td>${esc(x.turno)}</td><td><b>${esc(x.orden)}</b></td><td>${esc(rangoCodigos(x.codigosFaltantes))}</td></tr>`).join('')
         }</tbody></table>`
       : `<div class="dc-ok">✓ Todas con tenor</div>`;
