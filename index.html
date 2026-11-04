@@ -1822,8 +1822,10 @@ function panelPatio(){
   if(!pan) return '';
   // el panel sigue siempre al mes abierto en las carpetas
   const mes = ESTADO.mesPatio || pan.mesHoy;
-  const lista = pan.pendientes.filter(x => x.mes === mes)
-                              .sort((a,b)=> a.clave.localeCompare(b.clave));
+  // las órdenes pendientes por tenor se muestran todas, sin importar su mes, para que no se
+  // pierdan de vista pilas de meses anteriores que aún no recibieron tenor (ej. de octubre
+  // mientras ya se está trabajando en noviembre)
+  const lista = pan.pendientes.slice().sort((a,b)=> a.clave.localeCompare(b.clave));
   return `<div class="paneles-patio">${tarjetasProcedencia(mes, lista)}</div>`;
 }
 
@@ -4148,8 +4150,9 @@ async function exportarInformeDiarioPdf(){
   const pan = ESTADO.panel;
   if(!pan){ avisar('Aún no hay datos cargados'); return; }
 
-  const mes = pan.mesHoy;
-  const lista = pan.pendientes.filter(x => x.mes === mes).sort((a,b)=> a.clave.localeCompare(b.clave));
+  // igual que en el panel de Patio, se informan todas las pendientes por tenor sin importar su
+  // mes, para no dejar fuera pilas de meses anteriores que aún no recibieron tenor
+  const lista = pan.pendientes.slice().sort((a,b)=> a.clave.localeCompare(b.clave));
   if(!lista.length){ avisar('No hay pilas pendientes por tenor para informar'); return; }
   avisar('Generando el informe…');
 
