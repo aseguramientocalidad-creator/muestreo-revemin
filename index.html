@@ -45,7 +45,7 @@
     color:#000; line-height:1.25; margin:0;
   }
   .menu h1{margin-bottom:6px}
-  .tablero{display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); column-gap:clamp(12px,5vw,56px); row-gap:clamp(28px,7vw,80px)}
+  .tablero{display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,260px)); justify-content:center; column-gap:clamp(12px,5vw,56px); row-gap:clamp(28px,7vw,80px)}
   .caja{
     border:none; border-radius:999px;
     background:var(--t-acento); width:100%;
@@ -405,7 +405,7 @@
     body{font-size:15px}
     .menu{padding:calc(18px + env(safe-area-inset-top,0px)) 10px 24px}
     .banda{padding:12px 10px; margin-bottom:20px}
-    .tablero{grid-template-columns:repeat(2,1fr); column-gap:10px; row-gap:12px}
+    .tablero{grid-template-columns:repeat(2,minmax(0,200px)); justify-content:center; column-gap:10px; row-gap:12px}
     .caja{min-height:96px; font-size:13px}
     .barra{padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px; gap:10px}
     .herramientas{padding:10px 12px}
