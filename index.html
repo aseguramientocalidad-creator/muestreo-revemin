@@ -469,8 +469,6 @@
   <div class="tablero">
     <button class="caja" data-abrir="patio">MUESTREO EN PATIO<span class="conteo" id="c-patio"></span></button>
     <button class="caja" data-abrir="alimentacion">MUESTREO DE ALIMENTACION<span class="conteo" id="c-alimentacion"></span></button>
-    <button class="caja" data-abrir="proceso">MUESTREO DE PROCESO DE PLANTA<span class="conteo" id="c-proceso"></span></button>
-    <button class="caja" data-abrir="carbon">MUESTREO DE CARBON ACTIVADO<span class="conteo" id="c-carbon"></span></button>
   </div>
 
 </main>
@@ -4654,10 +4652,6 @@ async function actualizarConteos(){
     const f = await leer(MODULOS[k].clave);
     document.getElementById('c-'+k).textContent = f.length ? `${f.length} registro${f.length===1?'':'s'}` : 'sin registros';
   }
-  const carb = await leer(CLAVE_CARBON);
-  $('#c-carbon').textContent = carb.length ? `${carb.length} orden${carb.length===1?'':'es'}` : 'sin registros';
-  const proc = await leerProceso();
-  $('#c-proceso').textContent = proc.length ? `${proc.length} muestra${proc.length===1?'':'s'}` : 'sin registros';
 }
 (async ()=>{
   try{ await window.storage.set('revemin_prueba','1'); PERSISTE = true; }
