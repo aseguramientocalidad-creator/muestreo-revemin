@@ -78,6 +78,7 @@
   .herramientas{padding:12px 20px; display:flex; flex-direction:column; gap:12px; border-bottom:1px solid var(--gris-suave)}
   .fila-proc{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px}
   .fila-proc:empty{display:none}
+  .fila-lineas{grid-template-columns:repeat(auto-fit,minmax(150px,220px)); justify-content:center}
   .fila-acciones{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
   /* mismo estilo del botón "Registrar pila" (.link-patio) de más abajo: degradado azul con brillo
      superior, texto blanco en mayúsculas con sombra leve, y una sombra sólida debajo que da el
@@ -1343,6 +1344,7 @@ async function abrir(nombre){
     // lo primero que se ve al entrar es la elección de línea (1 o 2): cada una lleva su propia
     // tabla, igual que cada hoja del Excel separa los registros por línea
     ESTADO.filtrosAliment = {};
+    zonaProc.classList.add('fila-lineas');
     zonaProc.innerHTML = LINEAS_ALIMENTACION.map(l => `<button class="proc-btn linea-btn" data-linea="${l.id}">${esc(l.nombre)}</button>`).join('');
     zonaProc.querySelectorAll('[data-linea]').forEach(b =>
       b.addEventListener('click', ()=> elegirLinea(b.dataset.linea)));
@@ -1350,6 +1352,7 @@ async function abrir(nombre){
   }else{
     zonaProc.innerHTML = '';
   }
+  if(nombre !== 'alimentacion') zonaProc.classList.remove('fila-lineas');
 
   await cargarDatos();
   const clave = nombre === 'patio' ? clavePatio(ESTADO.procedencia)
