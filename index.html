@@ -2791,7 +2791,7 @@ function formularioGenerico(indice, base){
   const campos = MODULOS[ESTADO.modulo].campos;
   const d = indice === null ? Object.assign({}, base || {}) : ESTADO.datos[indice];
   const sufijoLinea = ESTADO.modulo === 'alimentacion' ? ' — ' + nombreLinea(ESTADO.linea) : '';
-  $('#form-titulo').textContent = (indice===null ? 'Registrar muestra' : 'Editar registro') + sufijoLinea;
+  $('#form-titulo').textContent = (indice===null ? 'Registrar pila' : 'Editar registro') + sufijoLinea;
   $('#btn-guardar').textContent = indice===null ? 'Guardar registro' : 'Guardar cambios';
   const esAlimentForm = ESTADO.modulo === 'alimentacion';
   $('#formulario').style.maxWidth = esAlimentForm ? '1300px' : '';
