@@ -1342,8 +1342,10 @@ async function abrir(nombre){
     $('#v-graficos').addEventListener('click', ()=>{ ESTADO.vista='graficos'; pintar(); });
   }else if(nombre === 'alimentacion'){
     // lo primero que se ve al entrar es la elección de línea (1 o 2): cada una lleva su propia
-    // tabla, igual que cada hoja del Excel separa los registros por línea
+    // tabla, igual que cada hoja del Excel separa los registros por línea — no debe quedar
+    // ninguna preseleccionada de una visita anterior, el usuario elige cada vez que entra
     ESTADO.filtrosAliment = {};
+    ESTADO.linea = '';
     zonaProc.classList.add('fila-lineas');
     zonaProc.innerHTML = LINEAS_ALIMENTACION.map(l => `<button class="proc-btn linea-btn" data-linea="${l.id}">${esc(l.nombre)}</button>`).join('');
     zonaProc.querySelectorAll('[data-linea]').forEach(b =>
@@ -2412,6 +2414,10 @@ function pintarGenerico(){
     ? `<div class="rotulo">${esc(nombreLinea(ESTADO.linea))}<small>PLANTA REVEMIN PIM II</small></div>` : '';
   const hayFiltroCol = esAliment && hayFiltroColumnaActivo();
   $('#btn-quitar-filtros').style.display = hayFiltroCol ? '' : 'none';
+  if(esAliment && !ESTADO.linea){
+    zona.innerHTML = `<div class="vacio"><strong>Elija Línea 1 o Línea 2</strong> arriba para ver sus registros.</div>`;
+    ponerPie('0 registros'); return;
+  }
   if(!filas.length){
     zona.innerHTML = rotulo + `<div class="vacio"><strong>${ESTADO.filtro||hayFiltroCol?'Ningún registro coincide':'Todavía no hay registros'}</strong>
       ${ESTADO.filtro||hayFiltroCol?'Pruebe con otro término o quite los filtros de columna.':'Use “Registrar muestra” para cargar el primero.'}</div>`;
