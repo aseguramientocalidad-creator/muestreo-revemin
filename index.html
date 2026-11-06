@@ -2886,7 +2886,9 @@ function filaAlimentNueva(){
 function bloqueAlimentNuevo(){
   return `<div class="aliment-bloque">
     <div class="aliment-cab">
-      <div class="campo"><label>Procedencia *</label><select name="procedencia"><option value=""></option>${PROCEDENCIAS.map(p=>`<option>${esc(p.nombre)}</option>`).join('')}</select></div>
+      <div class="campo"><label>Procedencia *</label><select name="procedencia"><option value=""></option>${PROCEDENCIAS.map(p=>`<option>${esc(p.nombre)}</option>`).join('')}<option value="__otro__">Otro…</option></select>
+        <input name="procedenciaOtro" placeholder="Escriba la procedencia" style="display:none; margin-top:6px">
+      </div>
       <div class="campo"><label>Número de pila *</label><input name="codigoPatio"></div>
     </div>
     <table class="tabla-aliment-nueva">
@@ -2936,11 +2938,22 @@ function formularioAlimentacionNuevo(){
   $('#form-cuerpo').addEventListener('focusout', e=>{
     if(e.target.matches('[name=horaInicial],[name=horaFinal]')) e.target.value = normalizarHoraMilitar(e.target.value);
   });
+  // "Otro…" en Procedencia: muestra el cajetín de texto para escribirla a mano
+  $('#form-cuerpo').addEventListener('change', e=>{
+    if(!e.target.matches('[name=procedencia]')) return;
+    const otro = e.target.closest('.campo').querySelector('[name=procedenciaOtro]');
+    const esOtro = e.target.value === '__otro__';
+    otro.style.display = esOtro ? '' : 'none';
+    if(esOtro) otro.focus(); else otro.value = '';
+  });
 }
 // valida y extrae las filas con datos de un bloque de pila; devuelve [] si el bloque está
 // completamente vacío (se ignora sin avisar), o null si hay un error (ya se mostró con alert)
 function extraerFilasBloque(bloque, fecha){
-  const procedencia = bloque.querySelector('[name=procedencia]').value.trim();
+  const selProc = bloque.querySelector('[name=procedencia]');
+  const procedencia = (selProc.value === '__otro__'
+    ? bloque.querySelector('[name=procedenciaOtro]').value
+    : selProc.value).trim();
   let codigoPatio = bloque.querySelector('[name=codigoPatio]').value.trim();
   const val = (tr,n) => tr.querySelector('[name='+n+']').value.trim();
   const filas = [...bloque.querySelectorAll('tbody tr')];
