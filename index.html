@@ -2895,13 +2895,19 @@ function bloqueAlimentNuevo(){
     </table>
   </div>`;
 }
+const camposFilaAliment = ['horaInicial','pesometroInicial','horaFinal','pesometroFinal','obs'];
+// pilas ya "cerradas" en la sesión de registro actual (con "Agregar otra pila" o al responder "No"
+// en el aviso final de Guardar registro), en espera de que se confirme que el turno ya terminó
+let ALIMENT_PENDIENTES = [];
 // formulario para registrar lecturas nuevas en Alimentación: una fecha para todo el turno y un
 // bloque de pila (Procedencia + Número de pila) con una tabla de varias filas para ir anotando las
-// lecturas de hora y pesómetro a medida que ocurren; "Guardar registro" transcribe de una vez todas
-// las filas que tengan algún dato a registros individuales (una fila vacía simplemente se ignora).
-// "Agregar otra pila" NO guarda — solo limpia el bloque para la siguiente pila, así que primero
-// confirma que la pila actual ya se guardó con "Guardar registro"
+// lecturas de hora y pesómetro a medida que ocurren. "Agregar otra pila" cierra la pila actual
+// (validando sus datos) y deja el bloque limpio para la siguiente. "Guardar registro" cierra
+// también la pila que está en pantalla y pregunta si ya se cargó todo el turno: si se confirma,
+// guarda de una vez todas las pilas acumuladas y cierra el formulario; si no, sigue acumulando
+// (igual que "Agregar otra pila") para que se complete la que faltaba.
 function formularioAlimentacionNuevo(){
+  ALIMENT_PENDIENTES = [];
   $('#form-titulo').textContent = 'Registrar pila — ' + nombreLinea(ESTADO.linea);
   $('#btn-guardar').textContent = 'Guardar registro';
   $('#formulario').style.maxWidth = '820px';
@@ -2912,8 +2918,15 @@ function formularioAlimentacionNuevo(){
     '<div id="aliment-bloques">' + bloqueAlimentNuevo() + '</div>' +
     '<button type="button" class="btn" id="btn-agregar-pila" style="margin-top:10px">+ Agregar otra pila</button>';
   $('#btn-agregar-pila').addEventListener('click', ()=>{
-    if(!confirm('¿Ya guardó los datos de esta pila con "Guardar registro"?\n\nSi no los ha guardado, se perderán al limpiar el formulario para la siguiente pila.')) return;
+    const fecha = $('[name=fecha]').value;
+    if(!fecha){ alert('Seleccione la fecha.'); return; }
+    const bloque = $('#aliment-bloques .aliment-bloque');
+    const filas = extraerFilasBloque(bloque, fecha);
+    if(filas === null) return; // ya se avisó el motivo
+    if(!filas.length){ alert('Complete los datos de esta pila (Procedencia, Número de pila y al menos una lectura) antes de agregar otra.'); return; }
+    ALIMENT_PENDIENTES.push(...filas);
     $('#aliment-bloques').innerHTML = bloqueAlimentNuevo();
+    avisar(`Pila "${filas[0].codigoPatio}" lista. Registre la siguiente.`);
   });
   $('#form-cuerpo').addEventListener('input', e=>{
     if(e.target.matches('[name=horaInicial],[name=horaFinal]')) e.target.value = formatearHoraMilitar(e.target.value);
@@ -2924,45 +2937,60 @@ function formularioAlimentacionNuevo(){
     if(e.target.matches('[name=horaInicial],[name=horaFinal]')) e.target.value = normalizarHoraMilitar(e.target.value);
   });
 }
-const camposFilaAliment = ['horaInicial','pesometroInicial','horaFinal','pesometroFinal','obs'];
-// junta todos los bloques de pila del formulario de registro nuevo y guarda, de una vez, un
-// registro por cada fila que tenga algún dato; valida que cada bloque con lecturas tenga
-// Procedencia y Número de pila, y que el nombre de pila sea válido (misma regla que Patio)
+// valida y extrae las filas con datos de un bloque de pila; devuelve [] si el bloque está
+// completamente vacío (se ignora sin avisar), o null si hay un error (ya se mostró con alert)
+function extraerFilasBloque(bloque, fecha){
+  const procedencia = bloque.querySelector('[name=procedencia]').value.trim();
+  let codigoPatio = bloque.querySelector('[name=codigoPatio]').value.trim();
+  const val = (tr,n) => tr.querySelector('[name='+n+']').value.trim();
+  const filas = [...bloque.querySelectorAll('tbody tr')];
+  const filasLlenas = filas.filter(tr => camposFilaAliment.some(n => val(tr,n) !== ''));
+  if(!procedencia && !codigoPatio && !filasLlenas.length) return [];
+  if(!procedencia || !codigoPatio){
+    alert('Complete Procedencia y Número de pila.');
+    return null;
+  }
+  const validado = validarCodigoPila(codigoPatio);
+  if(validado === null) return null;
+  codigoPatio = validado;
+  if(!filasLlenas.length){
+    alert(`Agregue al menos una lectura para la pila "${codigoPatio}", o quítela si no corresponde.`);
+    return null;
+  }
+  return filasLlenas.map((tr,i)=> ({
+    fecha, procedencia, codigoPatio, linea: ESTADO.linea,
+    horaInicial: val(tr,'horaInicial'), horaFinal: val(tr,'horaFinal'),
+    pesometroInicial: val(tr,'pesometroInicial'), pesometroFinal: val(tr,'pesometroFinal'),
+    obs: val(tr,'obs'),
+    __id: Date.now().toString(36) + '_' + i + '_' + Math.random().toString(36).slice(2,6)
+  }));
+}
+// se dispara con "Guardar registro": cierra la pila que está en pantalla, la suma a las ya
+// acumuladas con "Agregar otra pila", y pregunta si ya se cargó todo el turno
 async function guardarBloquesAlimentacion(){
   const fecha = $('[name=fecha]').value;
   if(!fecha){ alert('Seleccione la fecha.'); return; }
-  const nuevos = [];
-  for(const bloque of document.querySelectorAll('#aliment-bloques .aliment-bloque')){
-    const procedencia = bloque.querySelector('[name=procedencia]').value.trim();
-    let codigoPatio = bloque.querySelector('[name=codigoPatio]').value.trim();
-    const filas = [...bloque.querySelectorAll('tbody tr')];
-    const val = (tr,n) => tr.querySelector('[name='+n+']').value.trim();
-    const filasLlenas = filas.filter(tr => camposFilaAliment.some(n => val(tr,n) !== ''));
-    if(!procedencia && !codigoPatio && !filasLlenas.length) continue; // bloque vacío: se ignora
-    if(!procedencia || !codigoPatio){
-      alert('Complete Procedencia y Número de pila en cada bloque que tenga lecturas.');
-      return;
-    }
-    const validado = validarCodigoPila(codigoPatio);
-    if(validado === null) return;
-    codigoPatio = validado;
-    if(!filasLlenas.length){
-      alert(`Agregue al menos una lectura para la pila "${codigoPatio}", o quítela si no corresponde.`);
-      return;
-    }
-    filasLlenas.forEach((tr,i)=> nuevos.push({
-      fecha, procedencia, codigoPatio, linea: ESTADO.linea,
-      horaInicial: val(tr,'horaInicial'), horaFinal: val(tr,'horaFinal'),
-      pesometroInicial: val(tr,'pesometroInicial'), pesometroFinal: val(tr,'pesometroFinal'),
-      obs: val(tr,'obs'),
-      __id: Date.now().toString(36) + '_' + i + '_' + Math.random().toString(36).slice(2,6)
-    }));
+  const bloque = $('#aliment-bloques .aliment-bloque');
+  const filasActuales = extraerFilasBloque(bloque, fecha);
+  if(filasActuales === null) return; // ya se avisó el motivo
+  const todas = ALIMENT_PENDIENTES.concat(filasActuales);
+  if(!todas.length){ avisar('Agregue al menos una lectura antes de guardar'); return; }
+  const terminoElTurno = confirm(
+    '¿Ya ingresó todas las pilas alimentadas de este turno?\n\n' +
+    'Presione "Aceptar" si SÍ terminó: se guardará todo y se cerrará el formulario.\n' +
+    'Presione "Cancelar" si todavía falta otra pila: se guardará lo que lleva hasta ahora en esta sesión y podrá seguir agregando.');
+  if(!terminoElTurno){
+    ALIMENT_PENDIENTES = todas;
+    $('#aliment-bloques').innerHTML = bloqueAlimentNuevo();
+    avisar('Pila registrada. Agregue la que faltaba.');
+    return;
   }
-  if(!nuevos.length){ avisar('Agregue al menos una lectura antes de guardar'); return; }
-  ESTADO.datos.unshift(...nuevos);
+  todas.sort((a,b)=> (a.horaInicial||'').localeCompare(b.horaInicial||''));
+  ESTADO.datos.unshift(...todas);
   const ok = await escribir(MODULOS.alimentacion.clave, ESTADO.datos);
-  avisar(ok ? `${nuevos.length} lectura${nuevos.length===1?'':'s'} guardada${nuevos.length===1?'':'s'}`
+  avisar(ok ? `${todas.length} lectura${todas.length===1?'':'s'} guardada${todas.length===1?'':'s'}`
             : 'Registros cargados solo en esta sesión: descargue el Excel antes de cerrar');
+  ALIMENT_PENDIENTES = [];
   cerrarFormulario(); pintar();
 }
 
