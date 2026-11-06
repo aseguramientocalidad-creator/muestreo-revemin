@@ -2895,10 +2895,12 @@ function bloqueAlimentNuevo(){
     </table>
   </div>`;
 }
-// formulario para registrar lecturas nuevas en Alimentación: una fecha para todo el turno, y uno o
-// más bloques (uno por pila) con una tabla de varias filas para ir anotando las lecturas de hora y
-// pesómetro a medida que ocurren; "Guardar registro" transcribe de una vez todas las filas que
-// tengan algún dato a registros individuales (una fila vacía simplemente se ignora)
+// formulario para registrar lecturas nuevas en Alimentación: una fecha para todo el turno y un
+// bloque de pila (Procedencia + Número de pila) con una tabla de varias filas para ir anotando las
+// lecturas de hora y pesómetro a medida que ocurren; "Guardar registro" transcribe de una vez todas
+// las filas que tengan algún dato a registros individuales (una fila vacía simplemente se ignora).
+// "Agregar otra pila" NO guarda — solo limpia el bloque para la siguiente pila, así que primero
+// confirma que la pila actual ya se guardó con "Guardar registro"
 function formularioAlimentacionNuevo(){
   $('#form-titulo').textContent = 'Registrar pila — ' + nombreLinea(ESTADO.linea);
   $('#btn-guardar').textContent = 'Guardar registro';
@@ -2909,8 +2911,10 @@ function formularioAlimentacionNuevo(){
     '</div>' +
     '<div id="aliment-bloques">' + bloqueAlimentNuevo() + '</div>' +
     '<button type="button" class="btn" id="btn-agregar-pila" style="margin-top:10px">+ Agregar otra pila</button>';
-  $('#btn-agregar-pila').addEventListener('click', ()=>
-    $('#aliment-bloques').insertAdjacentHTML('beforeend', bloqueAlimentNuevo()));
+  $('#btn-agregar-pila').addEventListener('click', ()=>{
+    if(!confirm('¿Ya guardó los datos de esta pila con "Guardar registro"?\n\nSi no los ha guardado, se perderán al limpiar el formulario para la siguiente pila.')) return;
+    $('#aliment-bloques').innerHTML = bloqueAlimentNuevo();
+  });
   $('#form-cuerpo').addEventListener('input', e=>{
     if(e.target.matches('[name=horaInicial],[name=horaFinal]')) e.target.value = formatearHoraMilitar(e.target.value);
   });
