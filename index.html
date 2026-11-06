@@ -371,6 +371,15 @@
   .rejilla-lineal{display:flex; flex-wrap:nowrap; gap:10px}
   .rejilla-lineal .campo{flex:1; min-width:0}
   .campos-alimentacion label{text-transform:uppercase; font-weight:bold}
+  .aliment-bloque{border-top:2px solid var(--gris-suave); padding-top:16px; margin-top:16px}
+  .aliment-bloque:first-child{border-top:none; margin-top:0; padding-top:0}
+  .aliment-cab{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:10px}
+  .aliment-cab .campo{flex:1; min-width:180px}
+  .tabla-aliment-nueva{width:100%; border-collapse:collapse; margin-bottom:6px}
+  .tabla-aliment-nueva th,.tabla-aliment-nueva td{border:1px solid var(--gris-suave); padding:0}
+  .tabla-aliment-nueva th{background:var(--t-hover); font-size:12px; padding:6px 4px}
+  .tabla-aliment-nueva td input{width:100%; height:100%; border:none; padding:6px 4px; font-size:13px; background:transparent}
+  .tabla-aliment-nueva td input:focus{outline:2px solid var(--t-acento); outline-offset:-2px}
   .rejilla-lineal .campo label{min-height:36px; display:flex; align-items:flex-end}
   .grupo-orden{display:flex; gap:6px; align-items:center}
   .grupo-orden .prefijo{flex:0 0 74px; text-align:center; font-weight:bold; background:var(--t-hover)}
@@ -793,7 +802,6 @@ const MODULOS = {
     titulo:'MUESTREO DE ALIMENTACION', clave:'revemin_alimentacion',
     campos:[
       {id:'fecha', etiqueta:'Fecha', tipo:'date', requerido:true},
-      {id:'turno', etiqueta:'Turno', tipo:'select', opciones:['7/5','5/7'], requerido:true},
       {id:'procedencia', etiqueta:'Procedencia', tipo:'text', requerido:true},
       {id:'codigoPatio', etiqueta:'Número de pila', tipo:'text', requerido:true},
       {id:'horaInicial', etiqueta:'Hora (desde)', tipo:'horaMilitar', requerido:true},
@@ -848,6 +856,51 @@ function normalizarPilaRampaSkip(pila){
   if(/rampa/i.test(t)) return 'Rampa ' + m[0];
   if(/skip/i.test(t)) return 'Skip ' + m[0];
   return pila;
+}
+
+// valida/normaliza el nombre de pila escrito en Alimentación (misma regla que Patio): corrige
+// solas las diferencias de mayúsculas/minúsculas, pero si el nombre es ambiguo avisa y pide
+// corregirlo. Devuelve el nombre ya validado, o null si el usuario debe corregirlo (ya se le
+// avisó con alert/confirm) — en ese caso el llamador debe abortar el guardado.
+function validarCodigoPila(t){
+  t = String(t ?? '').trim();
+  if(!t) return t;
+  const tieneMezcla = /mezcla/i.test(t);
+  const numMezcla = (t.match(/\d+/) || [])[0];
+  if(tieneMezcla && numMezcla){
+    const canon = normalizarPilaArrime(t);
+    const tieneArrime = /arrime/i.test(t);
+    if(tieneArrime){
+      if(t === canon) return t;
+      if(t.toLowerCase() === canon.toLowerCase()) return canon; // solo difiere en mayúsculas/minúsculas: se corrige solo, sin molestar
+      alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+      return null;
+    }
+    const esArrime = confirm(`Escribió "${t}" sin mencionar la palabra "Arrime".\n\n¿Es esta una pila de Arrime?\n\n`+
+      `Presione "Aceptar" si SÍ es una pila de Arrime (deberá corregir el nombre), `+
+      `o "Cancelar" si NO lo es (se guardará el nombre tal como lo escribió).`);
+    if(esArrime){
+      alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+      return null;
+    }
+    return t;
+  }
+  const tieneRampa = /rampa/i.test(t);
+  const tieneSkip = /skip/i.test(t);
+  const numRS = (t.match(/\d+/) || [])[0];
+  if((tieneRampa || tieneSkip) && numRS){
+    const canon = normalizarPilaRampaSkip(t);
+    if(t === canon) return t;
+    if(t.toLowerCase() === canon.toLowerCase()) return canon;
+    alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+    return null;
+  }
+  if(/^\d+$/.test(t)){
+    alert(`Escribió "${t}" sin especificar si es una pila de RAMPA o de SKIP.\n\n`+
+      `Por favor, especifique si es una pila de Rampa o Skip.`);
+    return null;
+  }
+  return t;
 }
 
 async function leerPatioSinLimpiar(proc){
@@ -1098,14 +1151,6 @@ function fechaLegible(v){
   if(!v || !/^\d{4}-\d{2}-\d{2}/.test(v)) return v || '';
   const [a,m,d] = v.slice(0,10).split('-');
   return `${Number(d)}/${Number(m)}/${a}`;
-}
-// suma un día a una fecha ISO (YYYY-MM-DD) — usado para ajustar la fecha de las muestras de
-// Alimentación cuyo turno (5/7, de 17:00 a 07:00) cruza la medianoche
-function sumarUnDia(fechaISO){
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(fechaISO||'')) return fechaISO;
-  const d = new Date(fechaISO + 'T00:00:00');
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0,10);
 }
 function num(v){ const n = parseFloat(String(v).replace(',','.')); return isNaN(n) ? null : n; }
 // para el Excel: número solo cuando la celda es enteramente numérica; si no, se respeta el texto
@@ -2490,6 +2535,7 @@ function abrirFormulario(indice, base){
   if(ESTADO.modulo === 'patio') formularioPatio(indice, base);
   else if(ESTADO.modulo === 'proceso') formularioProceso(indice);
   else if(ESTADO.modulo === 'carbon') formularioCarbon(indice);
+  else if(ESTADO.modulo === 'alimentacion' && indice === null) formularioAlimentacionNuevo();
   else formularioGenerico(indice, base);
   $('#form-cuerpo').querySelectorAll('input,textarea,select').forEach(e=>{
     e.setAttribute('autocomplete','off');
@@ -2787,12 +2833,14 @@ function formularioPatio(indice, base){
   inTon.addEventListener('input', calcularVivo);
 }
 
+// esta función ahora solo se usa para EDITAR un registro ya guardado de Alimentación; registrar
+// uno nuevo usa formularioAlimentacionNuevo(), el formulario de varias pilas/lecturas a la vez
 function formularioGenerico(indice, base){
   const campos = MODULOS[ESTADO.modulo].campos;
   const d = indice === null ? Object.assign({}, base || {}) : ESTADO.datos[indice];
   const sufijoLinea = ESTADO.modulo === 'alimentacion' ? ' — ' + nombreLinea(ESTADO.linea) : '';
-  $('#form-titulo').textContent = (indice===null ? 'Registrar pila' : 'Editar registro') + sufijoLinea;
-  $('#btn-guardar').textContent = indice===null ? 'Guardar registro' : 'Guardar cambios';
+  $('#form-titulo').textContent = 'Editar registro' + sufijoLinea;
+  $('#btn-guardar').textContent = 'Guardar cambios';
   const esAlimentForm = ESTADO.modulo === 'alimentacion';
   $('#formulario').style.maxWidth = esAlimentForm ? '1300px' : '';
   const renderCampo = c => {
@@ -2809,18 +2857,101 @@ function formularioGenerico(indice, base){
     return `<div class="campo ${c.ancho?'ancho':''}"><label>${esc(c.etiqueta)}${c.requerido?' *':''}</label>${ctrl}</div>`;
   };
   if(esAlimentForm){
-    // Fecha y Turno van juntos en su propia fila (el turno define la ventana horaria del
-    // vaciado, de modo que si el horario cruza la medianoche la fecha de cada muestra se ajusta
-    // sola al día que realmente le corresponde); el resto de los cajetines queda en la fila de abajo
-    const [campoFecha, campoTurno, ...resto] = campos;
+    // Fecha va sola en su propia fila; el resto de los cajetines queda en una sola fila debajo
+    const [campoFecha, ...resto] = campos;
     $('#form-cuerpo').innerHTML = '<div class="campos-alimentacion">' +
-      '<div class="rejilla" style="grid-template-columns:200px 140px; margin-bottom:14px">' + renderCampo(campoFecha) + renderCampo(campoTurno) + '</div>' +
+      '<div class="rejilla" style="grid-template-columns:240px; margin-bottom:14px">' + renderCampo(campoFecha) + '</div>' +
       '<div class="rejilla rejilla-lineal">' + resto.map(renderCampo).join('') + '</div>' +
       '</div>';
   }else{
     $('#form-cuerpo').innerHTML = '<div class="rejilla">' + campos.map(renderCampo).join('') + '</div>';
   }
   if(ESTADO.modulo === 'alimentacion') engancharHorasAlimentacion();
+}
+
+// cuántas filas de lectura trae cada bloque de pila por defecto en el formulario de registro nuevo
+const FILAS_ALIMENT_NUEVO = 14;
+function filaAlimentNueva(){
+  return `<tr>
+    <td><input name="horaInicial" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
+    <td><input name="pesometroInicial" inputmode="decimal"></td>
+    <td><input name="horaFinal" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
+    <td><input name="pesometroFinal" inputmode="decimal"></td>
+    <td><input name="obs"></td>
+  </tr>`;
+}
+function bloqueAlimentNuevo(){
+  return `<div class="aliment-bloque">
+    <div class="aliment-cab">
+      <div class="campo"><label>Procedencia *</label><input name="procedencia"></div>
+      <div class="campo"><label>Número de pila *</label><input name="codigoPatio"></div>
+    </div>
+    <table class="tabla-aliment-nueva">
+      <thead><tr><th>Hora (desde)</th><th>Lectura inicial pesómetro</th><th>Hora (hasta)</th><th>Lectura final pesómetro</th><th>Observación</th></tr></thead>
+      <tbody>${Array.from({length:FILAS_ALIMENT_NUEVO}).map(filaAlimentNueva).join('')}</tbody>
+    </table>
+  </div>`;
+}
+// formulario para registrar lecturas nuevas en Alimentación: una fecha para todo el turno, y uno o
+// más bloques (uno por pila) con una tabla de varias filas para ir anotando las lecturas de hora y
+// pesómetro a medida que ocurren; "Guardar registro" transcribe de una vez todas las filas que
+// tengan algún dato a registros individuales (una fila vacía simplemente se ignora)
+function formularioAlimentacionNuevo(){
+  $('#form-titulo').textContent = 'Registrar pila — ' + nombreLinea(ESTADO.linea);
+  $('#btn-guardar').textContent = 'Guardar registro';
+  $('#formulario').style.maxWidth = '1300px';
+  $('#form-cuerpo').innerHTML =
+    '<div class="rejilla" style="grid-template-columns:240px; margin-bottom:14px">' +
+      '<div class="campo"><label>Fecha *</label><input type="date" name="fecha" required></div>' +
+    '</div>' +
+    '<div id="aliment-bloques">' + bloqueAlimentNuevo() + '</div>' +
+    '<button type="button" class="btn" id="btn-agregar-pila" style="margin-top:10px">+ Agregar otra pila</button>';
+  $('#btn-agregar-pila').addEventListener('click', ()=>
+    $('#aliment-bloques').insertAdjacentHTML('beforeend', bloqueAlimentNuevo()));
+  $('#form-cuerpo').addEventListener('input', e=>{
+    if(e.target.matches('[name=horaInicial],[name=horaFinal]')) e.target.value = formatearHoraMilitar(e.target.value);
+  });
+}
+const camposFilaAliment = ['horaInicial','pesometroInicial','horaFinal','pesometroFinal','obs'];
+// junta todos los bloques de pila del formulario de registro nuevo y guarda, de una vez, un
+// registro por cada fila que tenga algún dato; valida que cada bloque con lecturas tenga
+// Procedencia y Número de pila, y que el nombre de pila sea válido (misma regla que Patio)
+async function guardarBloquesAlimentacion(){
+  const fecha = $('[name=fecha]').value;
+  if(!fecha){ alert('Seleccione la fecha.'); return; }
+  const nuevos = [];
+  for(const bloque of document.querySelectorAll('#aliment-bloques .aliment-bloque')){
+    const procedencia = bloque.querySelector('[name=procedencia]').value.trim();
+    let codigoPatio = bloque.querySelector('[name=codigoPatio]').value.trim();
+    const filas = [...bloque.querySelectorAll('tbody tr')];
+    const val = (tr,n) => tr.querySelector('[name='+n+']').value.trim();
+    const filasLlenas = filas.filter(tr => camposFilaAliment.some(n => val(tr,n) !== ''));
+    if(!procedencia && !codigoPatio && !filasLlenas.length) continue; // bloque vacío: se ignora
+    if(!procedencia || !codigoPatio){
+      alert('Complete Procedencia y Número de pila en cada bloque que tenga lecturas.');
+      return;
+    }
+    const validado = validarCodigoPila(codigoPatio);
+    if(validado === null) return;
+    codigoPatio = validado;
+    if(!filasLlenas.length){
+      alert(`Agregue al menos una lectura para la pila "${codigoPatio}", o quítela si no corresponde.`);
+      return;
+    }
+    filasLlenas.forEach((tr,i)=> nuevos.push({
+      fecha, procedencia, codigoPatio, linea: ESTADO.linea,
+      horaInicial: val(tr,'horaInicial'), horaFinal: val(tr,'horaFinal'),
+      pesometroInicial: val(tr,'pesometroInicial'), pesometroFinal: val(tr,'pesometroFinal'),
+      obs: val(tr,'obs'),
+      __id: Date.now().toString(36) + '_' + i + '_' + Math.random().toString(36).slice(2,6)
+    }));
+  }
+  if(!nuevos.length){ avisar('Agregue al menos una lectura antes de guardar'); return; }
+  ESTADO.datos.unshift(...nuevos);
+  const ok = await escribir(MODULOS.alimentacion.clave, ESTADO.datos);
+  avisar(ok ? `${nuevos.length} lectura${nuevos.length===1?'':'s'} guardada${nuevos.length===1?'':'s'}`
+            : 'Registros cargados solo en esta sesión: descargue el Excel antes de cerrar');
+  cerrarFormulario(); pintar();
 }
 
 // completa "HH:MM" en formato militar mientras el usuario escribe solo dígitos (ej: "2200" -> "22:00"),
@@ -3010,85 +3141,28 @@ $('#formulario').addEventListener('submit', async e=>{
     const ok = await escribir(CLAVE_PROCESO, ESTADO.datos);
     avisar(ok ? (ESTADO.editando===null ? 'Muestra guardada' : 'Cambios guardados')
               : 'Muestra cargada solo en esta sesión: exporte antes de cerrar');
+  }else if(ESTADO.modulo === 'alimentacion' && ESTADO.editando === null){
+    await guardarBloquesAlimentacion();
+    return;
   }else{
     const fd = new FormData(e.target), r = {};
     MODULOS[ESTADO.modulo].campos.forEach(c => r[c.id] = (fd.get(c.id)||'').toString().trim());
-    let anclaFecha = '';
     if(ESTADO.modulo === 'alimentacion'){
       r.linea = ESTADO.linea;
-      // la fecha que elige el usuario es el inicio del turno (ancla); si el turno es 5/7
-      // (17:00 a 07:00 del día siguiente), una hora de inicio ya pasada la medianoche
-      // (antes de las 17:00) pertenece en realidad al día siguiente — se ajusta aquí la fecha
-      // que se guarda para que la tabla principal quede ordenada cronológicamente, y se guarda
-      // también el ancla original (sin ajustar) para seguir encadenando el turno correctamente
-      anclaFecha = r.fecha;
-      r.fecha = (r.turno === '5/7' && r.horaInicial && r.horaInicial < '17:00')
-        ? sumarUnDia(anclaFecha) : anclaFecha;
       // misma advertencia/normalización de nombres de pila que en Muestreo en Patio: las pilas
       // "Mezcla N" deben escribirse como "Arrime mezcla N" (Pequeña Minería), y las numéricas de
       // Mina Colombia deben especificar si son "Rampa N" o "Skip N"
-      const t = r.codigoPatio;
-      if(t){
-        const tieneMezcla = /mezcla/i.test(t);
-        const numMezcla = (t.match(/\d+/) || [])[0];
-        if(tieneMezcla && numMezcla){
-          const canon = normalizarPilaArrime(t);
-          const tieneArrime = /arrime/i.test(t);
-          if(tieneArrime){
-            if(t !== canon){
-              if(t.toLowerCase() === canon.toLowerCase()) r.codigoPatio = canon; // solo difiere en mayúsculas/minúsculas: se corrige solo, sin molestar
-              else{
-                alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-                return;
-              }
-            }
-          }else{
-            const esArrime = confirm(`Escribió "${t}" sin mencionar la palabra "Arrime".\n\n¿Es esta una pila de Arrime?\n\n`+
-              `Presione "Aceptar" si SÍ es una pila de Arrime (deberá corregir el nombre), `+
-              `o "Cancelar" si NO lo es (se guardará el nombre tal como lo escribió).`);
-            if(esArrime){
-              alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-              return;
-            }
-          }
-        }else{
-          const tieneRampa = /rampa/i.test(t);
-          const tieneSkip = /skip/i.test(t);
-          const numRS = (t.match(/\d+/) || [])[0];
-          if((tieneRampa || tieneSkip) && numRS){
-            const canon = normalizarPilaRampaSkip(t);
-            if(t !== canon){
-              if(t.toLowerCase() === canon.toLowerCase()) r.codigoPatio = canon; // solo difiere en mayúsculas/minúsculas: se corrige solo, sin molestar
-              else{
-                alert(`El nombre de la pila debe escribirse como "${canon}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-                return;
-              }
-            }
-          }else if(/^\d+$/.test(t)){
-            alert(`Escribió "${t}" sin especificar si es una pila de RAMPA o de SKIP.\n\n`+
-              `Por favor, especifique si es una pila de Rampa o Skip.`);
-            return;
-          }
-        }
+      if(r.codigoPatio){
+        const validado = validarCodigoPila(r.codigoPatio);
+        if(validado === null) return;
+        r.codigoPatio = validado;
       }
     }
     r.__id = ESTADO.editando===null ? Date.now().toString(36) : (ESTADO.datos[ESTADO.editando].__id || Date.now().toString(36));
-    // en Alimentación, cargar una muestra NUEVA (no al editar una ya existente) deja la "ventana"
-    // abierta para la siguiente: se reabre el formulario solo, con la misma fecha y la hora de
-    // inicio ya puesta en la hora final de la muestra anterior, para encadenar el turno sin tener
-    // que volver a escribir nada hasta que el usuario presione "Cancelar"
-    const esNuevaAliment = ESTADO.modulo === 'alimentacion' && ESTADO.editando === null;
     if(ESTADO.editando === null) ESTADO.datos.unshift(r); else ESTADO.datos[ESTADO.editando] = r;
     const ok = await escribir(MODULOS[ESTADO.modulo].clave, ESTADO.datos);
     avisar(ok ? (ESTADO.editando===null ? 'Registro guardado' : 'Cambios guardados')
               : 'Registro cargado solo en esta sesión: descargue el Excel antes de cerrar');
-    if(esNuevaAliment){
-      cerrarFormulario(); pintar();
-      // se reabre con el ancla del turno (fecha de inicio sin ajustar), no con la fecha ya
-      // corregida de esta muestra, para que el próximo cruce de medianoche se calcule bien también
-      abrirFormulario(null, {fecha:anclaFecha, turno:r.turno, horaInicial:r.horaFinal});
-      return;
-    }
   }
   cerrarFormulario(); pintar();
 });
