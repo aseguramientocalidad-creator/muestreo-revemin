@@ -2410,8 +2410,7 @@ function pintarGenerico(){
   if(esAliment) filas.sort((a,b)=>
     (a.fecha||'').localeCompare(b.fecha||'') || (a.horaInicial||'').localeCompare(b.horaInicial||'') || (a.horaFinal||'').localeCompare(b.horaFinal||''));
   const zona = $('#zona-tabla');
-  const rotulo = esAliment
-    ? `<div class="rotulo">${esc(nombreLinea(ESTADO.linea))}<small>PLANTA REVEMIN PIM II</small></div>` : '';
+  const rotulo = '';
   const hayFiltroCol = esAliment && hayFiltroColumnaActivo();
   $('#btn-quitar-filtros').style.display = hayFiltroCol ? '' : 'none';
   if(esAliment && !ESTADO.linea){
