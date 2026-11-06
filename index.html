@@ -2883,7 +2883,7 @@ function filaAlimentNueva(){
 function bloqueAlimentNuevo(){
   return `<div class="aliment-bloque">
     <div class="aliment-cab">
-      <div class="campo"><label>Procedencia *</label><input name="procedencia"></div>
+      <div class="campo"><label>Procedencia *</label><select name="procedencia"><option value=""></option>${PROCEDENCIAS.map(p=>`<option>${esc(p.nombre)}</option>`).join('')}</select></div>
       <div class="campo"><label>Número de pila *</label><input name="codigoPatio"></div>
     </div>
     <table class="tabla-aliment-nueva">
