@@ -793,6 +793,7 @@ const MODULOS = {
     titulo:'MUESTREO DE ALIMENTACION', clave:'revemin_alimentacion',
     campos:[
       {id:'fecha', etiqueta:'Fecha', tipo:'date', requerido:true},
+      {id:'turno', etiqueta:'Turno', tipo:'select', opciones:['7/5','5/7'], requerido:true},
       {id:'procedencia', etiqueta:'Procedencia', tipo:'text', requerido:true},
       {id:'codigoPatio', etiqueta:'Número de pila', tipo:'text', requerido:true},
       {id:'horaInicial', etiqueta:'Hora (desde)', tipo:'horaMilitar', requerido:true},
@@ -1097,6 +1098,14 @@ function fechaLegible(v){
   if(!v || !/^\d{4}-\d{2}-\d{2}/.test(v)) return v || '';
   const [a,m,d] = v.slice(0,10).split('-');
   return `${Number(d)}/${Number(m)}/${a}`;
+}
+// suma un día a una fecha ISO (YYYY-MM-DD) — usado para ajustar la fecha de las muestras de
+// Alimentación cuyo turno (5/7, de 17:00 a 07:00) cruza la medianoche
+function sumarUnDia(fechaISO){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fechaISO||'')) return fechaISO;
+  const d = new Date(fechaISO + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0,10);
 }
 function num(v){ const n = parseFloat(String(v).replace(',','.')); return isNaN(n) ? null : n; }
 // para el Excel: número solo cuando la celda es enteramente numérica; si no, se respeta el texto
@@ -2800,10 +2809,12 @@ function formularioGenerico(indice, base){
     return `<div class="campo ${c.ancho?'ancho':''}"><label>${esc(c.etiqueta)}${c.requerido?' *':''}</label>${ctrl}</div>`;
   };
   if(esAlimentForm){
-    // Fecha va sola en su propia fila; el resto de los cajetines queda en una sola fila debajo
-    const [campoFecha, ...resto] = campos;
+    // Fecha y Turno van juntos en su propia fila (el turno define la ventana horaria del
+    // vaciado, de modo que si el horario cruza la medianoche la fecha de cada muestra se ajusta
+    // sola al día que realmente le corresponde); el resto de los cajetines queda en la fila de abajo
+    const [campoFecha, campoTurno, ...resto] = campos;
     $('#form-cuerpo').innerHTML = '<div class="campos-alimentacion">' +
-      '<div class="rejilla" style="grid-template-columns:240px; margin-bottom:14px">' + renderCampo(campoFecha) + '</div>' +
+      '<div class="rejilla" style="grid-template-columns:200px 140px; margin-bottom:14px">' + renderCampo(campoFecha) + renderCampo(campoTurno) + '</div>' +
       '<div class="rejilla rejilla-lineal">' + resto.map(renderCampo).join('') + '</div>' +
       '</div>';
   }else{
@@ -3002,8 +3013,17 @@ $('#formulario').addEventListener('submit', async e=>{
   }else{
     const fd = new FormData(e.target), r = {};
     MODULOS[ESTADO.modulo].campos.forEach(c => r[c.id] = (fd.get(c.id)||'').toString().trim());
+    let anclaFecha = '';
     if(ESTADO.modulo === 'alimentacion'){
       r.linea = ESTADO.linea;
+      // la fecha que elige el usuario es el inicio del turno (ancla); si el turno es 5/7
+      // (17:00 a 07:00 del día siguiente), una hora de inicio ya pasada la medianoche
+      // (antes de las 17:00) pertenece en realidad al día siguiente — se ajusta aquí la fecha
+      // que se guarda para que la tabla principal quede ordenada cronológicamente, y se guarda
+      // también el ancla original (sin ajustar) para seguir encadenando el turno correctamente
+      anclaFecha = r.fecha;
+      r.fecha = (r.turno === '5/7' && r.horaInicial && r.horaInicial < '17:00')
+        ? sumarUnDia(anclaFecha) : anclaFecha;
       // misma advertencia/normalización de nombres de pila que en Muestreo en Patio: las pilas
       // "Mezcla N" deben escribirse como "Arrime mezcla N" (Pequeña Minería), y las numéricas de
       // Mina Colombia deben especificar si son "Rampa N" o "Skip N"
@@ -3064,7 +3084,9 @@ $('#formulario').addEventListener('submit', async e=>{
               : 'Registro cargado solo en esta sesión: descargue el Excel antes de cerrar');
     if(esNuevaAliment){
       cerrarFormulario(); pintar();
-      abrirFormulario(null, {fecha:r.fecha, horaInicial:r.horaFinal});
+      // se reabre con el ancla del turno (fecha de inicio sin ajustar), no con la fecha ya
+      // corregida de esta muestra, para que el próximo cruce de medianoche se calcule bien también
+      abrirFormulario(null, {fecha:anclaFecha, turno:r.turno, horaInicial:r.horaFinal});
       return;
     }
   }
