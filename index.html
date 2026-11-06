@@ -2918,6 +2918,11 @@ function formularioAlimentacionNuevo(){
   $('#form-cuerpo').addEventListener('input', e=>{
     if(e.target.matches('[name=horaInicial],[name=horaFinal]')) e.target.value = formatearHoraMilitar(e.target.value);
   });
+  // al salir de la celda (no en cada tecla) se normaliza a HH:MM: así "8:00", "8:0" u "800" se
+  // corrigen solos a "08:00" sin importar el orden en que se haya escrito el colon y los dígitos
+  $('#form-cuerpo').addEventListener('focusout', e=>{
+    if(e.target.matches('[name=horaInicial],[name=horaFinal]')) e.target.value = normalizarHoraMilitar(e.target.value);
+  });
 }
 const camposFilaAliment = ['horaInicial','pesometroInicial','horaFinal','pesometroFinal','obs'];
 // junta todos los bloques de pila del formulario de registro nuevo y guarda, de una vez, un
@@ -2961,13 +2966,37 @@ async function guardarBloquesAlimentacion(){
   cerrarFormulario(); pintar();
 }
 
-// completa "HH:MM" en formato militar mientras el usuario escribe solo dígitos (ej: "2200" -> "22:00"),
-// recortando horas/minutos fuera de rango a medida que se completan
+// mientras se escribe: deja solo dígitos y un colon (como mucho uno), sin acotar valores ni
+// autocompletar ceros — así no importa el orden en que se escriban los dígitos y el colon (p. ej.
+// escribir "8:00" no se mezcla con una reformateada previa y termina en algo como "23:0"). La
+// validación final ocurre al salir del campo, ver normalizarHoraMilitar
 function formatearHoraMilitar(bruto){
-  let d = bruto.replace(/\D/g,'').slice(0,4);
-  if(d.length >= 2) d = String(Math.min(23, parseInt(d.slice(0,2),10))).padStart(2,'0') + d.slice(2);
-  if(d.length === 4) d = d.slice(0,2) + String(Math.min(59, parseInt(d.slice(2,4),10))).padStart(2,'0');
-  return d.length <= 2 ? d : d.slice(0,2) + ':' + d.slice(2);
+  let v = String(bruto||'').replace(/[^\d:]/g,'');
+  const i = v.indexOf(':');
+  if(i !== -1) v = v.slice(0,i+1) + v.slice(i+1).replace(/:/g,'');
+  return v.slice(0,5);
+}
+// al salir del campo: interpreta lo que se haya escrito —con o sin colon, con o sin cero inicial,
+// como "8", "8:0", "800" o "08:00"— y lo deja en formato militar HH:MM, acotando horas a 0-23 y
+// minutos a 0-59
+function normalizarHoraMilitar(v){
+  v = String(v||'').trim();
+  if(!v) return '';
+  let h, m;
+  if(v.includes(':')){
+    const [hs, ms] = v.split(':');
+    h = hs === '' ? 0 : parseInt(hs,10);
+    m = ms === '' ? 0 : parseInt(ms,10);
+  }else{
+    const d = v.replace(/\D/g,'');
+    if(d.length <= 2){ h = parseInt(d,10); m = 0; }
+    else{ h = parseInt(d.slice(0,-2),10); m = parseInt(d.slice(-2),10); }
+  }
+  if(isNaN(h)) h = 0;
+  if(isNaN(m)) m = 0;
+  h = Math.min(23, Math.max(0,h));
+  m = Math.min(59, Math.max(0,m));
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
 }
 // convierte "HH:MM" en formato militar a su equivalente en horas AM/PM, para mostrarlo como referencia
 function horaAmPm(hhmm){
@@ -2998,8 +3027,15 @@ function engancharHorasAlimentacion(){
     input.value = formatearHoraMilitar(input.value);
     if(etiqueta) etiqueta.textContent = horaAmPm(input.value);
   };
-  [[inInicial,lblInicial],[inFinal,lblFinal]].forEach(([input,etiqueta])=>
-    input.addEventListener('input', ()=>{ actualizar(input, etiqueta); recalcularDiferencia(); }));
+  const normalizar = (input, etiqueta)=>{
+    input.value = normalizarHoraMilitar(input.value);
+    if(etiqueta) etiqueta.textContent = horaAmPm(input.value);
+    recalcularDiferencia();
+  };
+  [[inInicial,lblInicial],[inFinal,lblFinal]].forEach(([input,etiqueta])=>{
+    input.addEventListener('input', ()=>{ actualizar(input, etiqueta); recalcularDiferencia(); });
+    input.addEventListener('blur', ()=> normalizar(input, etiqueta));
+  });
   actualizar(inInicial, lblInicial);
   actualizar(inFinal, lblFinal);
   recalcularDiferencia();
