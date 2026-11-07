@@ -1431,17 +1431,15 @@ async function abrir(nombre){
     // lo primero que se ve al entrar es la elección de línea (1 o 2): cada una lleva su propia
     // tabla, igual que cada hoja del Excel separa los registros por línea — no debe quedar
     // ninguna preseleccionada de una visita anterior, el usuario elige cada vez que entra.
-    // Los botones de línea solo cambian la tabla que se ve; registrar una pila nueva es aparte,
-    // con el botón "Registrar pila" que aparece debajo una vez elegida la línea.
+    // Los botones de línea solo cambian la tabla que se ve; "Registrar pila", entre los dos, abre
+    // el formulario de registro para la línea elegida.
     ESTADO.filtrosAliment = {};
     ESTADO.linea = '';
+    zonaProc.classList.add('fila-lineas');
     zonaProc.innerHTML =
-      `<div class="fila-proc fila-lineas" style="margin:0">` +
-        LINEAS_ALIMENTACION.map(l => `<button class="proc-btn linea-btn" data-linea="${l.id}">${esc(l.nombre)}</button>`).join('') +
-      `</div>` +
-      `<div style="grid-column:1/-1; text-align:center; margin-top:14px">` +
-        `<button type="button" class="btn btn-primario" id="btn-registrar-pila-aliment" style="display:none">Registrar pila</button>` +
-      `</div>`;
+      `<button class="proc-btn linea-btn" data-linea="L1">${esc(nombreLinea('L1'))}</button>` +
+      `<button type="button" class="btn btn-primario" id="btn-registrar-pila-aliment" style="display:none">Registrar pila</button>` +
+      `<button class="proc-btn linea-btn" data-linea="L2">${esc(nombreLinea('L2'))}</button>`;
     zonaProc.querySelectorAll('[data-linea]').forEach(b =>
       b.addEventListener('click', ()=> elegirLinea(b.dataset.linea, false)));
     $('#btn-registrar-pila-aliment').addEventListener('click', ()=> abrirFormulario(null));
