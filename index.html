@@ -1492,15 +1492,6 @@ async function cargarDatos(){
     ESTADO.datos = filas.sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||'')));
   }else{
     ESTADO.datos = await leer(MODULOS[n].clave);
-    // al entrar a Alimentación (sin haber elegido línea todavía en esta visita), se muestra de
-    // una vez la línea con el registro más reciente, en vez de dejar la pantalla vacía pidiendo
-    // elegir — igual se puede cambiar de línea con los botones de arriba
-    if(n === 'alimentacion' && !ESTADO.linea && ESTADO.datos.length){
-      const masReciente = ESTADO.datos.slice().sort((a,b)=>
-        (b.fecha||'').localeCompare(a.fecha||'') || (b.horaInicial||'').localeCompare(a.horaInicial||''))[0];
-      elegirLinea(masReciente.linea, false);
-      return;
-    }
   }
   pintar();
 }
@@ -1515,11 +1506,10 @@ function elegirLinea(id, abrirForm = true){
   ESTADO.linea = id;
   ESTADO.filtrosAliment = {};
   ESTADO.mesAliment = ''; // se recalcula solo (carpetasMesAliment) al mes más reciente de esta línea
-  // al entrar no se mezclan todas las fechas cargadas en una sola tabla continua: se parte
-  // mostrando solo el día más reciente, y las fechas anteriores quedan ocultas detrás del filtro
-  // de columna "DIAS" (▾), donde se pueden volver a mostrar cuando se necesiten
-  const fechas = ESTADO.datos.filter(r => r.linea === id && r.fecha).map(r => r.fecha).sort();
-  if(fechas.length) ESTADO.filtrosAliment.fecha = new Set([fechaLegible(fechas[fechas.length-1])]);
+  // la tabla empieza vacía, a la espera de los datos que se vayan registrando ahora: las fechas ya
+  // cargadas (de este u otro día) quedan ocultas detrás del filtro de columna "DIAS" (▾), y solo
+  // aparecen si se eligen ahí o si se guarda algo nuevo con esa fecha
+  ESTADO.filtrosAliment.fecha = new Set();
   cerrarPopoverFiltro();
   marcarLinea();
   pintar();
@@ -1640,13 +1630,10 @@ function carpetasMesAliment(){
     ).join('') + `</div>`;
   return filaAnios + filaMeses;
 }
-// al cambiar de mes/año, la fecha que se muestra por defecto (ver elegirLinea) se recalcula para
-// que sea la más reciente DENTRO del mes recién elegido, en vez de arrastrar la de otro mes
+// al cambiar de mes/año se limpia el filtro de fecha (la tabla queda vacía otra vez), en vez de
+// arrastrar el filtro del mes anterior
 function fijarFechaPorDefecto(mes){
-  ESTADO.filtrosAliment = {};
-  const fechas = ESTADO.datos.filter(r => r.linea === ESTADO.linea && r.fecha && r.fecha.slice(0,7) === mes)
-    .map(r => r.fecha).sort();
-  if(fechas.length) ESTADO.filtrosAliment.fecha = new Set([fechaLegible(fechas[fechas.length-1])]);
+  ESTADO.filtrosAliment = {fecha: new Set()};
 }
 function enlazarCarpetasAliment(zona){
   zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
@@ -2553,10 +2540,6 @@ function pintarGenerico(){
   const esAliment = ESTADO.modulo === 'alimentacion';
   const cols = columnasLista();
   const zona = $('#zona-tabla');
-  if(esAliment && !ESTADO.linea){
-    zona.innerHTML = `<div class="vacio"><strong>Elija Línea 1 o Línea 2</strong> arriba para ver sus registros.</div>`;
-    ponerPie('0 registros'); return;
-  }
   // carpetas de AÑO/MES (igual que Patio), solo en Alimentación: fija ESTADO.mesAliment, por eso
   // se calcula antes de filtrar las filas
   const carpetas = esAliment ? carpetasMesAliment() : '';
@@ -2569,10 +2552,12 @@ function pintarGenerico(){
     (a.fecha||'').localeCompare(b.fecha||'') || (a.horaInicial||'').localeCompare(b.horaInicial||'') || (a.horaFinal||'').localeCompare(b.horaFinal||''));
   const rotulo = carpetas;
   const hayFiltroCol = esAliment && hayFiltroColumnaActivo();
-  if(!filas.length){
+  // en Alimentación la tabla (con sus columnas) se ve siempre, aunque no haya filas que mostrar —
+  // así queda lista para recibir los datos del turno en curso, o para buscar uno anterior con el
+  // filtro de la columna DIAS; en el resto de los módulos, sin filas se muestra el aviso de siempre
+  if(!filas.length && !esAliment){
     zona.innerHTML = rotulo + `<div class="vacio"><strong>${ESTADO.filtro||hayFiltroCol?'Ningún registro coincide':'Todavía no hay registros'}</strong>
       ${ESTADO.filtro||hayFiltroCol?'Pruebe con otro término o quite los filtros de columna.':'Use “Registrar muestra” para cargar el primero.'}</div>`;
-    if(esAliment) enlazarCarpetasAliment(zona);
     ponerPie('0 registros'); return;
   }
   const th = cols.map(c=>{
