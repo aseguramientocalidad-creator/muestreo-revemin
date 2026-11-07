@@ -1494,6 +1494,15 @@ async function cargarDatos(){
     ESTADO.datos = filas.sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||'')));
   }else{
     ESTADO.datos = await leer(MODULOS[n].clave);
+    // al entrar a Alimentación (sin haber elegido línea todavía en esta visita), se muestra de
+    // una vez la línea con el registro más reciente, en vez de dejar la pantalla vacía pidiendo
+    // elegir — igual se puede cambiar de línea con los botones de arriba
+    if(n === 'alimentacion' && !ESTADO.linea && ESTADO.datos.length){
+      const masReciente = ESTADO.datos.slice().sort((a,b)=>
+        (b.fecha||'').localeCompare(a.fecha||'') || (b.horaInicial||'').localeCompare(a.horaInicial||''))[0];
+      elegirLinea(masReciente.linea, false);
+      return;
+    }
   }
   pintar();
 }
@@ -1502,7 +1511,9 @@ function marcarLinea(){
   document.querySelectorAll('[data-linea]').forEach(b =>
     b.setAttribute('aria-pressed', b.dataset.linea === ESTADO.linea ? 'true' : 'false'));
 }
-function elegirLinea(id){
+// abrirForm=false se usa al entrar al módulo (para mostrar sola la línea con la alimentación más
+// reciente sin interrumpir con el formulario de registro); al elegir la línea a mano sí se abre
+function elegirLinea(id, abrirForm = true){
   ESTADO.linea = id;
   ESTADO.filtrosAliment = {};
   // al entrar no se mezclan todas las fechas cargadas en una sola tabla continua: se parte
@@ -1513,7 +1524,7 @@ function elegirLinea(id){
   cerrarPopoverFiltro();
   marcarLinea();
   pintar();
-  abrirFormulario(null);
+  if(abrirForm) abrirFormulario(null);
 }
 function marcarProcedencia(){
   document.querySelectorAll('[data-proc]').forEach(b =>
