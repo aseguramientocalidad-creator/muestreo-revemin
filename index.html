@@ -1623,6 +1623,9 @@ function diasEnMes(anioMes){
 function pintarTopAliment(){
   const zonaProc = $('#procedencias');
   zonaProc.classList.add('fila-lineas');
+  // "Registrar pila" solo tiene sentido en Inicio (sin año elegido); al entrar a un año/mes en
+  // particular, se oculta — ya no hace falta ahí, el registro se hace desde Inicio
+  $('#btn-nuevo').style.display = ESTADO.anioAliment ? 'none' : '';
   const hoyAnio = hoyISO().slice(0,4);
   const anios = [...new Set([hoyAnio, ...ESTADO.datos.filter(r=>r.fecha).map(r=>r.fecha.slice(0,4))])].sort();
   zonaProc.innerHTML = `<button class="proc-btn linea-btn" data-inicio-aliment="1" aria-pressed="${!ESTADO.anioAliment}">🏠 Inicio</button>` +
