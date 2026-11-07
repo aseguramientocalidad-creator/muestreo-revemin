@@ -2897,8 +2897,11 @@ function bloqueAlimentNuevo(){
       <div class="campo"><label>Procedencia *</label><select name="procedencia"><option value=""></option>${PROCEDENCIAS.map(p=>`<option>${esc(p.nombre)}</option>`).join('')}${PROCEDENCIAS_ALIMENT_EXTRA.map(n=>`<option>${esc(n)}</option>`).join('')}<option value="__otro__">Otro…</option></select>
         <input name="procedenciaOtro" placeholder="Escriba la procedencia" style="display:none; margin-top:6px">
       </div>
-      <div class="campo"><label>Número de pila *</label><input name="codigoPatio" list="datalist-pila-aliment">
-        <datalist id="datalist-pila-aliment"></datalist>
+      <div class="campo"><label>Número de pila *</label><input name="codigoPatio">
+        <div class="sugerencias-pila" style="display:none; margin-top:6px; gap:6px">
+          <button type="button" class="mini sugerir-pila" data-texto="Skip ">Skip</button>
+          <button type="button" class="mini sugerir-pila" data-texto="Rampa ">Rampa</button>
+        </div>
       </div>
     </div>
     <table class="tabla-aliment-nueva">
@@ -2939,12 +2942,17 @@ function formularioAlimentacionNuevo(){
     const esOtro = e.target.value === '__otro__';
     otro.style.display = esOtro ? '' : 'none';
     if(esOtro) otro.focus(); else otro.value = '';
-    // en Mina Colombia las pilas son "Skip N" o "Rampa N": se sugieren esos dos textos en
-    // Número de pila para que solo falte escribir el número
-    const bloque = e.target.closest('.aliment-bloque');
-    const listaPila = bloque.querySelector('#datalist-pila-aliment');
-    listaPila.innerHTML = e.target.value === 'MINA COLOMBIA'
-      ? '<option>Skip</option><option>Rampa</option>' : '';
+    // en Mina Colombia las pilas son "Skip N" o "Rampa N": se muestran dos botones con esos
+    // textos para que solo falte escribir el número
+    const sugerencias = e.target.closest('.aliment-cab').querySelector('.sugerencias-pila');
+    sugerencias.style.display = e.target.value === 'MINA COLOMBIA' ? 'flex' : 'none';
+  });
+  $('#form-cuerpo').addEventListener('click', e=>{
+    const boton = e.target.closest('.sugerir-pila');
+    if(!boton) return;
+    const input = boton.closest('.campo').querySelector('[name=codigoPatio]');
+    input.value = boton.dataset.texto;
+    input.focus();
   });
   // flechas del teclado para moverse entre celdas de la tabla de lecturas: arriba/abajo siempre
   // van a la misma columna de la fila anterior/siguiente; izquierda/derecha solo cuando el cursor
