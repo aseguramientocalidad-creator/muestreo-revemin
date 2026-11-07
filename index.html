@@ -79,6 +79,7 @@
   .fila-proc{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px}
   .fila-proc:empty{display:none}
   .fila-lineas{grid-template-columns:repeat(auto-fit,minmax(200px,320px)); justify-content:center}
+  .fila-anios{display:flex !important; flex-wrap:wrap; justify-content:flex-start; gap:14px}
   .fila-acciones{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
   /* mismo estilo del botón "Registrar pila" (.link-patio) de más abajo: degradado azul con brillo
      superior, texto blanco en mayúsculas con sombra leve, y una sombra sólida debajo que da el
@@ -1447,7 +1448,7 @@ async function abrir(nombre){
   }else{
     zonaProc.innerHTML = '';
   }
-  if(nombre !== 'alimentacion') zonaProc.classList.remove('fila-lineas');
+  if(nombre !== 'alimentacion'){ zonaProc.classList.remove('fila-lineas'); zonaProc.classList.remove('fila-anios'); }
 
   await cargarDatos();
   const clave = nombre === 'patio' ? clavePatio(ESTADO.procedencia)
@@ -1622,7 +1623,8 @@ function diasEnMes(anioMes){
 // fila de arriba (Inicio + AÑO), en el lugar donde antes estaban Línea 1/2
 function pintarTopAliment(){
   const zonaProc = $('#procedencias');
-  zonaProc.classList.add('fila-lineas');
+  zonaProc.classList.remove('fila-lineas');
+  zonaProc.classList.add('fila-anios');
   const hoyAnio = hoyISO().slice(0,4);
   const anios = [...new Set([hoyAnio, ...ESTADO.datos.filter(r=>r.fecha).map(r=>r.fecha.slice(0,4))])].sort();
   zonaProc.innerHTML = `<button class="proc-btn linea-btn" data-inicio-aliment="1" aria-pressed="${!ESTADO.anioAliment}">🏠 Inicio</button>` +
