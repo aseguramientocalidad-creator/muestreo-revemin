@@ -121,6 +121,10 @@
   .carpetas-mes{margin:8px 0 4px; padding-left:18px; border-left:3px solid var(--t-acento)}
   .carpetas-dias{margin:8px 0 4px; padding-left:34px; border-left:3px solid var(--gris-suave)}
   .carpetas-dias .carpeta{min-width:34px; text-align:center; padding:6px 8px}
+  .carpetas-dias-linea{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin:8px 0 4px}
+  .carpetas-dias-linea .carpetas-dias{margin:0; flex:1; min-width:260px}
+  .fila-lineas-dias{display:flex; gap:10px; flex-wrap:wrap}
+  .fila-lineas-dias .linea-btn{padding:14px 22px; font-size:14px}
   .carpeta-anio{font-weight:bold}
   .carpeta{
     border:1px solid var(--t-acento); background:#fff; color:#000;
@@ -1644,19 +1648,22 @@ function filaMesesAliment(){
 // fila de DÍAS del mes elegido + Línea 1/2 + Registrar pila, arriba de la tabla
 function filaDiasYLineaAliment(){
   const n = diasEnMes(ESTADO.mesAliment);
-  const filaDias = `<div class="carpetas carpetas-dias">` + Array.from({length:n}, (_,i)=>{
+  const dias = Array.from({length:n}, (_,i)=>{
     const d = `${ESTADO.mesAliment}-${String(i+1).padStart(2,'0')}`;
     return `<button class="carpeta" data-dia-aliment="${d}" aria-pressed="${d === ESTADO.diaAliment}">${i+1}</button>`;
-  }).join('') + `</div>`;
-  const filaLinea = `<div class="fila-proc fila-lineas" style="margin:14px 0 0">` +
-    `<button class="proc-btn linea-btn" data-linea="L1" aria-pressed="${ESTADO.linea==='L1'}">${esc(nombreLinea('L1'))}</button>` +
-    `<button class="proc-btn linea-btn" data-linea="L2" aria-pressed="${ESTADO.linea==='L2'}">${esc(nombreLinea('L2'))}</button>` +
+  }).join('');
+  // días a la izquierda y Línea 1/2 a la derecha, en la misma fila, justo arriba de la tabla
+  const filaDiasYLinea = `<div class="carpetas-dias-linea">` +
+    `<div class="carpetas carpetas-dias" style="margin:0">${dias}</div>` +
+    `<div class="fila-lineas-dias">` +
+      `<button class="proc-btn linea-btn" data-linea="L1" aria-pressed="${ESTADO.linea==='L1'}">${esc(nombreLinea('L1'))}</button>` +
+      `<button class="proc-btn linea-btn" data-linea="L2" aria-pressed="${ESTADO.linea==='L2'}">${esc(nombreLinea('L2'))}</button>` +
     `</div>` +
-    `<div style="text-align:center; margin:14px 0">` +
+  `</div>`;
+  const filaRegistrar = `<div style="text-align:center; margin:14px 0">` +
     `<button type="button" class="proc-btn linea-btn linea-btn-verde" id="btn-registrar-pila-aliment" style="display:inline-flex; width:260px">Registrar pila</button>` +
     `</div>`;
-  // Línea 1/2 y Registrar pila van primero, y los días quedan pegados justo arriba de la tabla
-  return filaLinea + filaDias;
+  return filaDiasYLinea + filaRegistrar;
 }
 function enlazarCarpetasAliment(zona){
   zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
