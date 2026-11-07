@@ -677,6 +677,11 @@ const LINEAS_ALIMENTACION = [
 ];
 const nombreLinea = id => (LINEAS_ALIMENTACION.find(l => l.id === id) || {}).nombre || id;
 
+// opciones extra del desplegable "Procedencia" de Alimentación que NO son procedencias de Patio
+// (no tienen tablero de tenores propio ahí, solo se usan para identificar de dónde viene lo que
+// entra a la planta en este registro)
+const PROCEDENCIAS_ALIMENT_EXTRA = ['RECHAZO DE CORREA', 'RECHAZO DE PATIO REVEMIN'];
+
 // columnas de la tabla/exportación de Alimentación: mismos títulos y mismo orden que el Excel de
 // referencia (ALIMENTACION OCTUBRE 2026). "linea" y "turnos" no son campos del formulario — se
 // obtienen solas (linea, de la navegación; turnos, calculado de hora inicial/final)
@@ -2886,7 +2891,7 @@ function filaAlimentNueva(){
 function bloqueAlimentNuevo(){
   return `<div class="aliment-bloque">
     <div class="aliment-cab">
-      <div class="campo"><label>Procedencia *</label><select name="procedencia"><option value=""></option>${PROCEDENCIAS.map(p=>`<option>${esc(p.nombre)}</option>`).join('')}<option value="__otro__">Otro…</option></select>
+      <div class="campo"><label>Procedencia *</label><select name="procedencia"><option value=""></option>${PROCEDENCIAS.map(p=>`<option>${esc(p.nombre)}</option>`).join('')}${PROCEDENCIAS_ALIMENT_EXTRA.map(n=>`<option>${esc(n)}</option>`).join('')}<option value="__otro__">Otro…</option></select>
         <input name="procedenciaOtro" placeholder="Escriba la procedencia" style="display:none; margin-top:6px">
       </div>
       <div class="campo"><label>Número de pila *</label><input name="codigoPatio"></div>
