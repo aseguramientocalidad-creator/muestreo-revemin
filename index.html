@@ -856,7 +856,7 @@ const COLS_PATIO = [
 // pantalla sí conserva TURNO; solo se pidió quitarlo de la exportación)
 const COLS_PATIO_EXPORT = COLS_PATIO.filter(c => c.id !== 'turno');
 
-const ESTADO = {modulo:null, procedencia:'mina_colombia', linea:'L1', filtrosAliment:{}, punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', datos:[], filtro:'', editando:null, panel:null, vistaPatio:'datos', patioInicio:true};
+const ESTADO = {modulo:null, procedencia:'mina_colombia', linea:'L1', filtrosAliment:{}, punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', mesAliment:'', datos:[], filtro:'', editando:null, panel:null, vistaPatio:'datos', patioInicio:true};
 
 const $ = s => document.querySelector(s);
 const clavePatio = p => 'revemin_patio_' + p;
@@ -1515,6 +1515,7 @@ function marcarLinea(){
 function elegirLinea(id, abrirForm = true){
   ESTADO.linea = id;
   ESTADO.filtrosAliment = {};
+  ESTADO.mesAliment = ''; // se recalcula solo (carpetasMesAliment) al mes más reciente de esta línea
   // al entrar no se mezclan todas las fechas cargadas en una sola tabla continua: se parte
   // mostrando solo el día más reciente, y las fechas anteriores quedan ocultas detrás del filtro
   // de columna "DIAS" (▾), donde se pueden volver a mostrar cuando se necesiten
@@ -1617,6 +1618,51 @@ function enlazarCarpetas(zona){
     const meses = [...new Set(ESTADO.datos.map(g => (g.fecha||'').slice(0,7)).filter(Boolean))]
       .filter(m => m.slice(0,4) === b.dataset.anio).sort();
     if(meses.length){ ESTADO.mesPatio = meses[meses.length - 1]; pintar(); }
+  }));
+}
+
+// mismas carpetas de AÑO/MES que Patio, pero para las lecturas de Alimentación de la línea activa
+function carpetasMesAliment(){
+  const deLaLinea = ESTADO.datos.filter(r => r.linea === ESTADO.linea && r.fecha);
+  const cuenta = {};
+  deLaLinea.forEach(r=>{ const m = r.fecha.slice(0,7); cuenta[m] = (cuenta[m]||0) + 1; });
+  const meses = Object.keys(cuenta).sort();
+  if(!meses.length){ ESTADO.mesAliment = ''; return ''; }
+  if(!ESTADO.mesAliment || !meses.includes(ESTADO.mesAliment)) ESTADO.mesAliment = meses[meses.length - 1];
+  const anio = ESTADO.mesAliment.slice(0,4);
+  const anios = [...new Set(meses.map(m => m.slice(0,4)))].sort();
+  const filaAnios = `<div class="carpetas">` + anios.map(a =>
+    `<button class="carpeta carpeta-anio" data-anio-aliment="${a}" aria-pressed="${a === anio}">AÑO ${a}</button>`
+  ).join('') + `</div>`;
+  const nombre = m => MESES[Number(m.slice(5,7)) - 1];
+  const filaMeses = `<div class="carpetas carpetas-mes">` +
+    meses.filter(m => m.slice(0,4) === anio).map(m =>
+      `<button class="carpeta" data-mes-aliment="${m}" aria-pressed="${m === ESTADO.mesAliment}">${esc(nombre(m))}</button>`
+    ).join('') + `</div>`;
+  return filaAnios + filaMeses;
+}
+// al cambiar de mes/año, la fecha que se muestra por defecto (ver elegirLinea) se recalcula para
+// que sea la más reciente DENTRO del mes recién elegido, en vez de arrastrar la de otro mes
+function fijarFechaPorDefecto(mes){
+  ESTADO.filtrosAliment = {};
+  const fechas = ESTADO.datos.filter(r => r.linea === ESTADO.linea && r.fecha && r.fecha.slice(0,7) === mes)
+    .map(r => r.fecha).sort();
+  if(fechas.length) ESTADO.filtrosAliment.fecha = new Set([fechaLegible(fechas[fechas.length-1])]);
+}
+function enlazarCarpetasAliment(zona){
+  zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
+    ESTADO.mesAliment = b.dataset.mesAliment;
+    fijarFechaPorDefecto(ESTADO.mesAliment);
+    pintar();
+  }));
+  zona.querySelectorAll('[data-anio-aliment]').forEach(b => b.addEventListener('click', ()=>{
+    const meses = [...new Set(ESTADO.datos.filter(r => r.linea === ESTADO.linea).map(r => (r.fecha||'').slice(0,7)).filter(Boolean))]
+      .filter(m => m.slice(0,4) === b.dataset.anioAliment).sort();
+    if(meses.length){
+      ESTADO.mesAliment = meses[meses.length - 1];
+      fijarFechaPorDefecto(ESTADO.mesAliment);
+      pintar();
+    }
   }));
 }
 
@@ -2507,15 +2553,7 @@ function abrirPopoverFiltro(colId, btnEl){
 function pintarGenerico(){
   const esAliment = ESTADO.modulo === 'alimentacion';
   const cols = columnasLista();
-  const filas = ESTADO.datos.filter(coincide);
-  // en Alimentación las muestras deben verse en orden cronológico (día y hora), no en el orden en
-  // que se fueron guardando — ordena una copia filtrada, sin tocar ESTADO.datos (edición/borrado
-  // siguen ubicando la fila por su índice real con indexOf)
-  if(esAliment) filas.sort((a,b)=>
-    (a.fecha||'').localeCompare(b.fecha||'') || (a.horaInicial||'').localeCompare(b.horaInicial||'') || (a.horaFinal||'').localeCompare(b.horaFinal||''));
   const zona = $('#zona-tabla');
-  const rotulo = '';
-  const hayFiltroCol = esAliment && hayFiltroColumnaActivo();
   const rotuloMes = $('#rotulo-mes-aliment');
   if(esAliment){
     const meses = [...new Set((ESTADO.datos||[]).filter(r=>r.fecha).map(r=>r.fecha.slice(0,7)))].sort();
@@ -2529,9 +2567,22 @@ function pintarGenerico(){
     zona.innerHTML = `<div class="vacio"><strong>Elija Línea 1 o Línea 2</strong> arriba para ver sus registros.</div>`;
     ponerPie('0 registros'); return;
   }
+  // carpetas de AÑO/MES (igual que Patio), solo en Alimentación: fija ESTADO.mesAliment, por eso
+  // se calcula antes de filtrar las filas
+  const carpetas = esAliment ? carpetasMesAliment() : '';
+  const filas = ESTADO.datos.filter(coincide)
+    .filter(r => !esAliment || !ESTADO.mesAliment || (r.fecha||'').slice(0,7) === ESTADO.mesAliment);
+  // en Alimentación las muestras deben verse en orden cronológico (día y hora), no en el orden en
+  // que se fueron guardando — ordena una copia filtrada, sin tocar ESTADO.datos (edición/borrado
+  // siguen ubicando la fila por su índice real con indexOf)
+  if(esAliment) filas.sort((a,b)=>
+    (a.fecha||'').localeCompare(b.fecha||'') || (a.horaInicial||'').localeCompare(b.horaInicial||'') || (a.horaFinal||'').localeCompare(b.horaFinal||''));
+  const rotulo = carpetas;
+  const hayFiltroCol = esAliment && hayFiltroColumnaActivo();
   if(!filas.length){
     zona.innerHTML = rotulo + `<div class="vacio"><strong>${ESTADO.filtro||hayFiltroCol?'Ningún registro coincide':'Todavía no hay registros'}</strong>
       ${ESTADO.filtro||hayFiltroCol?'Pruebe con otro término o quite los filtros de columna.':'Use “Registrar muestra” para cargar el primero.'}</div>`;
+    if(esAliment) enlazarCarpetasAliment(zona);
     ponerPie('0 registros'); return;
   }
   const th = cols.map(c=>{
@@ -2548,8 +2599,11 @@ function pintarGenerico(){
   }).join('');
   zona.innerHTML = rotulo + `<table class="${esAliment?'tabla-alimentacion':''}"><thead><tr>${th}<th></th></tr></thead><tbody>${tb}</tbody></table>`;
   enlazarAcciones(zona);
-  if(esAliment) zona.querySelectorAll('[data-filtro-col]').forEach(b =>
-    b.addEventListener('click', ()=> abrirPopoverFiltro(b.dataset.filtroCol, b)));
+  if(esAliment){
+    enlazarCarpetasAliment(zona);
+    zona.querySelectorAll('[data-filtro-col]').forEach(b =>
+      b.addEventListener('click', ()=> abrirPopoverFiltro(b.dataset.filtroCol, b)));
+  }
   ponerPie(`${filas.length} registro${filas.length===1?'':'s'}`);
 }
 
