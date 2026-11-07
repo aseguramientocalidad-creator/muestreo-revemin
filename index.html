@@ -723,9 +723,13 @@ function codigoPatioFormateado(r){
 }
 // tipo de mineral: constante según la procedencia/proveedor — Mina Colombia (sea Rampa, Skip o
 // cualquier otra pila suya) y Sosa Méndez son SIEMPRE Primario; las Colas son SIEMPRE Relave,
-// verificado contra el Excel de referencia; Pequeña Minería y cualquier otro caso no se infiere
-// (sí tiene variaciones) y queda en blanco para carga manual
+// verificado contra el Excel de referencia; en Pequeña Minería, las pilas "Primario ..." son
+// Primario y las "Arenas ..." son Relave (las "Arrime mezcla ..." sí varían y quedan en blanco
+// para carga manual, igual que cualquier otro caso que no se pueda inferir)
 function tipoMineralDe(r){
+  const cod = (r.codigoPatio || '').trim().toLowerCase();
+  if(/^primario\b/.test(cod)) return 'PRIMARIO';
+  if(/^arenas\b/.test(cod)) return 'RELAVE';
   const texto = (procedenciaDePila(r) + ' ' + (r.procedencia || '')).toLowerCase();
   if(/colombia|skip|rampa/.test(texto)) return 'PRIMARIO';
   if(/sosa\s*m[ei]+ndez/.test(texto)) return 'PRIMARIO';
