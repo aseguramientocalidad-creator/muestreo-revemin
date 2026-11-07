@@ -709,8 +709,14 @@ function diferenciaHoraDe(r){
 }
 // la "Procedencia" de la tabla no es la que escribe el operador (esa es el PROVEEDOR) — se saca
 // del nombre de la pila quitándole el número final: "Skip 100" -> "Skip", "Rampa 106" -> "Rampa",
-// "Arrime mezcla 149" -> "Arrime mezcla"
+// "Arrime mezcla 149" -> "Arrime mezcla". Las que no tienen esa convención de nombre (solo un
+// número, como "007") repiten el mismo Proveedor en Procedencia
+const PROVEEDORES_SIN_PREFIJO_PILA = [
+  'ARENAS COLAS PLANTA CAMORRA', 'ARENAS COLAS PLANTA CARATAL',
+  'RECHAZO DE PATIO REVEMIN', 'RECHAZO DE CORREA'
+];
 function procedenciaDePila(r){
+  if(PROVEEDORES_SIN_PREFIJO_PILA.includes(String(r.procedencia||'').trim().toUpperCase())) return r.procedencia || '';
   const t = (r.codigoPatio || '').trim();
   if(!t) return '';
   return t.replace(/[\s#-]*\d+\s*$/, '').trim() || t;
