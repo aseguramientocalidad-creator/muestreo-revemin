@@ -102,6 +102,7 @@
     padding:28px 24px; font-size:17px;
   }
   .linea-btn:active,.linea-btn[aria-pressed="true"]{transform:none; box-shadow:inset 0 0 0 3px rgba(255,255,255,.55)}
+  .linea-btn-verde{background:#1D7A3E}
   .proc-btn[aria-pressed="true"]{transform:translateY(3px); box-shadow:0 0 0 rgba(0,0,0,.35), 0 2px 3px rgba(0,0,0,.2)}
   .btn-excel{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
   .btn-pdf{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
@@ -1428,20 +1429,24 @@ async function abrir(nombre){
     $('#v-registros').addEventListener('click', ()=>{ ESTADO.vista='registros'; pintar(); });
     $('#v-graficos').addEventListener('click', ()=>{ ESTADO.vista='graficos'; pintar(); });
   }else if(nombre === 'alimentacion'){
-    // lo primero que se ve al entrar es la elección de línea (1 o 2): cada una lleva su propia
-    // tabla, igual que cada hoja del Excel separa los registros por línea — no debe quedar
-    // ninguna preseleccionada de una visita anterior, el usuario elige cada vez que entra.
-    // Los botones de línea solo cambian la tabla que se ve; "Registrar pila", entre los dos, abre
-    // el formulario de registro para la línea elegida.
-    ESTADO.filtrosAliment = {};
-    ESTADO.linea = '';
-    zonaProc.classList.add('fila-lineas');
+    // por defecto se ve la Línea 1 (tabla vacía, a la espera de datos o de filtrar por DIAS);
+    // los botones de línea solo cambian cuál se ve, sin perder la fecha que se esté mirando.
+    // "Registrar pila" siempre está visible: puede usarse sobre cualquier fecha elegida, para
+    // agregarle otra pila a esa alimentación.
+    ESTADO.filtrosAliment = {fecha: new Set()};
+    ESTADO.linea = 'L1';
+    ESTADO.mesAliment = '';
+    zonaProc.classList.remove('fila-lineas');
     zonaProc.innerHTML =
-      `<button class="proc-btn linea-btn" data-linea="L1">${esc(nombreLinea('L1'))}</button>` +
-      `<button type="button" class="btn btn-primario" id="btn-registrar-pila-aliment" style="display:none">Registrar pila</button>` +
-      `<button class="proc-btn linea-btn" data-linea="L2">${esc(nombreLinea('L2'))}</button>`;
+      `<div class="fila-proc fila-lineas" style="margin:0">` +
+        `<button class="proc-btn linea-btn" data-linea="L1">${esc(nombreLinea('L1'))}</button>` +
+        `<button class="proc-btn linea-btn" data-linea="L2">${esc(nombreLinea('L2'))}</button>` +
+      `</div>` +
+      `<div style="text-align:center; margin-top:14px">` +
+        `<button type="button" class="proc-btn linea-btn linea-btn-verde" id="btn-registrar-pila-aliment" style="display:inline-flex; width:260px">Registrar pila</button>` +
+      `</div>`;
     zonaProc.querySelectorAll('[data-linea]').forEach(b =>
-      b.addEventListener('click', ()=> elegirLinea(b.dataset.linea, false)));
+      b.addEventListener('click', ()=> elegirLinea(b.dataset.linea)));
     $('#btn-registrar-pila-aliment').addEventListener('click', ()=> abrirFormulario(null));
     marcarLinea();
   }else{
@@ -1508,20 +1513,13 @@ function marcarLinea(){
 }
 // abrirForm=false se usa al entrar al módulo (para mostrar sola la línea con la alimentación más
 // reciente sin interrumpir con el formulario de registro); al elegir la línea a mano sí se abre
-function elegirLinea(id, abrirForm = true){
+// solo cambia cuál línea se ve; conserva la fecha (y el mes/año) que ya se esté mirando, para que
+// al elegir la otra línea se vea esa misma fecha en vez de perderla
+function elegirLinea(id){
   ESTADO.linea = id;
-  ESTADO.filtrosAliment = {};
-  ESTADO.mesAliment = ''; // se recalcula solo (carpetasMesAliment) al mes más reciente de esta línea
-  // la tabla empieza vacía, a la espera de los datos que se vayan registrando ahora: las fechas ya
-  // cargadas (de este u otro día) quedan ocultas detrás del filtro de columna "DIAS" (▾), y solo
-  // aparecen si se eligen ahí o si se guarda algo nuevo con esa fecha
-  ESTADO.filtrosAliment.fecha = new Set();
   cerrarPopoverFiltro();
   marcarLinea();
-  const btnRegistrar = $('#btn-registrar-pila-aliment');
-  if(btnRegistrar) btnRegistrar.style.display = id ? '' : 'none';
   pintar();
-  if(abrirForm) abrirFormulario(null);
 }
 function marcarProcedencia(){
   document.querySelectorAll('[data-proc]').forEach(b =>
