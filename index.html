@@ -1645,7 +1645,7 @@ function filaMesesAliment(){
     return `<button class="carpeta" data-mes-aliment="${m}" aria-pressed="${m === ESTADO.mesAliment}">${esc(nom)}</button>`;
   }).join('') + `</div>`;
 }
-// fila de DÍAS del mes elegido + Línea 1/2 + Registrar pila, arriba de la tabla
+// fila de DÍAS del mes elegido + Línea 1/2, arriba de la tabla
 function filaDiasYLineaAliment(){
   const n = diasEnMes(ESTADO.mesAliment);
   const dias = Array.from({length:n}, (_,i)=>{
@@ -1660,10 +1660,7 @@ function filaDiasYLineaAliment(){
       `<button class="proc-btn linea-btn" data-linea="L2" aria-pressed="${ESTADO.linea==='L2'}">${esc(nombreLinea('L2'))}</button>` +
     `</div>` +
   `</div>`;
-  const filaRegistrar = `<div style="text-align:center; margin:14px 0">` +
-    `<button type="button" class="proc-btn linea-btn linea-btn-verde" id="btn-registrar-pila-aliment" style="display:inline-flex; width:260px">Registrar pila</button>` +
-    `</div>`;
-  return filaDiasYLinea + filaRegistrar;
+  return filaDiasYLinea;
 }
 function enlazarCarpetasAliment(zona){
   zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
@@ -1677,8 +1674,6 @@ function enlazarCarpetasAliment(zona){
     pintar();
   }));
   zona.querySelectorAll('[data-linea]').forEach(b => b.addEventListener('click', ()=> elegirLinea(b.dataset.linea)));
-  const btnRegistrar = zona.querySelector('#btn-registrar-pila-aliment');
-  if(btnRegistrar) btnRegistrar.addEventListener('click', ()=> abrirFormulario(null, {fecha: ESTADO.diaAliment}));
 }
 
 // líneas horizontales de referencia: máximo, media y mínimo de los valores graficados
