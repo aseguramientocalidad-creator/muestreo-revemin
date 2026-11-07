@@ -746,6 +746,7 @@ function tipoMineralDe(r){
   const texto = (procedenciaDePila(r) + ' ' + (r.procedencia || '')).toLowerCase();
   if(/colombia|skip|rampa/.test(texto)) return 'PRIMARIO';
   if(/sosa\s*m[ei]+ndez/.test(texto)) return 'PRIMARIO';
+  if(/rechazo\s*de\s*correa/.test(texto)) return 'PRIMARIO';
   if(/\bcolas?\b|camorra|revemin/.test(texto)) return 'RELAVE';
   return '';
 }
@@ -3062,6 +3063,10 @@ function formularioAlimentacionNuevo(base){
     const esOtro = e.target.value === '__otro__';
     otro.style.display = esOtro ? '' : 'none';
     if(esOtro) otro.focus(); else otro.value = '';
+    // Rechazo de Correa no tiene número de pila: se completa solo con "S/N"
+    const inPila = e.target.closest('.aliment-cab').querySelector('[name=codigoPatio]');
+    if(e.target.value === 'RECHAZO DE CORREA') inPila.value = 'S/N';
+    else if(inPila.value === 'S/N') inPila.value = '';
     // botones de inicio de texto para Número de pila, según la procedencia elegida (ver
     // SUGERENCIAS_PILA_ALIMENT) — solo falta completar con el número o el nombre particular
     const sugerencias = e.target.closest('.aliment-cab').querySelector('.sugerencias-pila');
