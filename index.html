@@ -2897,7 +2897,9 @@ function bloqueAlimentNuevo(){
       <div class="campo"><label>Procedencia *</label><select name="procedencia"><option value=""></option>${PROCEDENCIAS.map(p=>`<option>${esc(p.nombre)}</option>`).join('')}${PROCEDENCIAS_ALIMENT_EXTRA.map(n=>`<option>${esc(n)}</option>`).join('')}<option value="__otro__">Otro…</option></select>
         <input name="procedenciaOtro" placeholder="Escriba la procedencia" style="display:none; margin-top:6px">
       </div>
-      <div class="campo"><label>Número de pila *</label><input name="codigoPatio"></div>
+      <div class="campo"><label>Número de pila *</label><input name="codigoPatio" list="datalist-pila-aliment">
+        <datalist id="datalist-pila-aliment"></datalist>
+      </div>
     </div>
     <table class="tabla-aliment-nueva">
       <thead><tr><th class="col-hora">Hora (desde)</th><th class="col-peso">Lectura inicial pesómetro</th><th class="col-hora">Hora (hasta)</th><th class="col-peso">Lectura final pesómetro</th><th class="col-obs">Observación</th></tr></thead>
@@ -2937,6 +2939,12 @@ function formularioAlimentacionNuevo(){
     const esOtro = e.target.value === '__otro__';
     otro.style.display = esOtro ? '' : 'none';
     if(esOtro) otro.focus(); else otro.value = '';
+    // en Mina Colombia las pilas son "Skip N" o "Rampa N": se sugieren esos dos textos en
+    // Número de pila para que solo falte escribir el número
+    const bloque = e.target.closest('.aliment-bloque');
+    const listaPila = bloque.querySelector('#datalist-pila-aliment');
+    listaPila.innerHTML = e.target.value === 'MINA COLOMBIA'
+      ? '<option>Skip</option><option>Rampa</option>' : '';
   });
   // flechas del teclado para moverse entre celdas de la tabla de lecturas: arriba/abajo siempre
   // van a la misma columna de la fila anterior/siguiente; izquierda/derecha solo cuando el cursor
