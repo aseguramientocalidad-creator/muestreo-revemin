@@ -121,7 +121,10 @@
   .carpetas-mes{margin:8px 0 4px; padding-left:18px; border-left:3px solid var(--t-acento)}
   .carpetas-dias{margin:8px 0 4px; padding-left:34px; border-left:3px solid var(--gris-suave)}
   .carpetas-dias .carpeta{min-width:34px; text-align:center; padding:6px 8px}
-  .fila-lineas-top{display:flex; gap:14px; flex-wrap:wrap; margin:0 0 16px}
+  .carpetas-dias-linea{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin:8px 0 4px}
+  .carpetas-dias-linea .carpetas-dias{margin:0; flex:1; min-width:260px}
+  .fila-lineas-dias{display:flex; gap:10px; flex-wrap:wrap}
+  .fila-lineas-dias .linea-btn{padding:14px 22px; font-size:14px}
   .carpeta-anio{font-weight:bold}
   .carpeta{
     border:1px solid var(--t-acento); background:#fff; color:#000;
@@ -1644,18 +1647,19 @@ function filaMesesAliment(){
 }
 // fila de DÍAS del mes elegido + Línea 1/2, arriba de la tabla
 function filaDiasYLineaAliment(){
-  // Línea 1/2 (tamaño grande) arriba a la izquierda, y debajo los botones de los días
-  const filaLinea = `<div class="fila-lineas-top">` +
-    `<button class="proc-btn linea-btn" data-linea="L1" aria-pressed="${ESTADO.linea==='L1'}">${esc(nombreLinea('L1'))}</button>` +
-    `<button class="proc-btn linea-btn" data-linea="L2" aria-pressed="${ESTADO.linea==='L2'}">${esc(nombreLinea('L2'))}</button>` +
-  `</div>`;
   const n = diasEnMes(ESTADO.mesAliment);
   const dias = Array.from({length:n}, (_,i)=>{
     const d = `${ESTADO.mesAliment}-${String(i+1).padStart(2,'0')}`;
     return `<button class="carpeta" data-dia-aliment="${d}" aria-pressed="${d === ESTADO.diaAliment}">${i+1}</button>`;
   }).join('');
-  const filaDias = `<div class="carpetas carpetas-dias">${dias}</div>`;
-  return filaLinea + filaDias;
+  // días a la izquierda y Línea 1/2 a la derecha, en la misma fila, justo arriba de la tabla
+  return `<div class="carpetas-dias-linea">` +
+    `<div class="carpetas carpetas-dias" style="margin:0">${dias}</div>` +
+    `<div class="fila-lineas-dias">` +
+      `<button class="proc-btn linea-btn" data-linea="L1" aria-pressed="${ESTADO.linea==='L1'}">${esc(nombreLinea('L1'))}</button>` +
+      `<button class="proc-btn linea-btn" data-linea="L2" aria-pressed="${ESTADO.linea==='L2'}">${esc(nombreLinea('L2'))}</button>` +
+    `</div>` +
+  `</div>`;
 }
 function enlazarCarpetasAliment(zona){
   zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
