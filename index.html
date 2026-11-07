@@ -1393,8 +1393,8 @@ async function abrir(nombre){
     : esProc ? 'MUESTREO DE PROCESO DE PLANTA'
     : (esCons ? 'CONSOLIDADO' : MODULOS[nombre].titulo);
   $('#mod-sub').textContent = 'Planta Revemin PIM II — Aseguramiento de la calidad QA/QC';
-  $('#btn-nuevo').style.display = (esCons || esPatio) ? 'none' : '';
-  $('#btn-nuevo').textContent = esCarbon ? 'Registrar orden' : nombre === 'alimentacion' ? 'Registrar pila' : 'Registrar muestra';
+  $('#btn-nuevo').style.display = (esCons || esPatio || nombre === 'alimentacion') ? 'none' : '';
+  $('#btn-nuevo').textContent = esCarbon ? 'Registrar orden' : 'Registrar muestra';
   $('#mod-provisional').style.display = (!esPatio && !esProc && !esCarbon && !esCons && MODULOS[nombre].provisional) ? '' : 'none';
 
   const zonaProc = $('#procedencias');
@@ -1623,9 +1623,6 @@ function diasEnMes(anioMes){
 function pintarTopAliment(){
   const zonaProc = $('#procedencias');
   zonaProc.classList.add('fila-lineas');
-  // "Registrar pila" solo tiene sentido en Inicio (sin año elegido); al entrar a un año/mes en
-  // particular, se oculta — ya no hace falta ahí, el registro se hace desde Inicio
-  $('#btn-nuevo').style.display = ESTADO.anioAliment ? 'none' : '';
   const hoyAnio = hoyISO().slice(0,4);
   const anios = [...new Set([hoyAnio, ...ESTADO.datos.filter(r=>r.fecha).map(r=>r.fecha.slice(0,4))])].sort();
   zonaProc.innerHTML = `<button class="proc-btn linea-btn" data-inicio-aliment="1" aria-pressed="${!ESTADO.anioAliment}">🏠 Inicio</button>` +
@@ -2656,8 +2653,7 @@ function enlazarAcciones(zona){
 }
 
 /* ---------- formulario ---------- */
-$('#btn-nuevo').addEventListener('click', ()=>
-  abrirFormulario(null, ESTADO.modulo === 'alimentacion' ? {fecha: ESTADO.diaAliment} : undefined));
+$('#btn-nuevo').addEventListener('click', ()=> abrirFormulario(null));
 $('#btn-cancelar').addEventListener('click', cerrarFormulario);
 $('#btn-finalizar-aliment').addEventListener('click', finalizarAlimentacion);
 $('#telon').addEventListener('mousedown', e=>{ if(e.target.id==='telon') cerrarFormulario(); });
