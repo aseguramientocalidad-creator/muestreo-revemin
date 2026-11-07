@@ -1652,13 +1652,13 @@ function filaDiasYLineaAliment(){
     const d = `${ESTADO.mesAliment}-${String(i+1).padStart(2,'0')}`;
     return `<button class="carpeta" data-dia-aliment="${d}" aria-pressed="${d === ESTADO.diaAliment}">${i+1}</button>`;
   }).join('');
-  // días a la izquierda y Línea 1/2 a la derecha, en la misma fila, justo arriba de la tabla
+  // Línea 1/2 a la izquierda y días a la derecha, en la misma fila, justo arriba de la tabla
   return `<div class="carpetas-dias-linea">` +
-    `<div class="carpetas carpetas-dias" style="margin:0">${dias}</div>` +
     `<div class="fila-lineas-dias">` +
       `<button class="proc-btn linea-btn" data-linea="L1" aria-pressed="${ESTADO.linea==='L1'}">${esc(nombreLinea('L1'))}</button>` +
       `<button class="proc-btn linea-btn" data-linea="L2" aria-pressed="${ESTADO.linea==='L2'}">${esc(nombreLinea('L2'))}</button>` +
     `</div>` +
+    `<div class="carpetas carpetas-dias" style="margin:0">${dias}</div>` +
   `</div>`;
 }
 function enlazarCarpetasAliment(zona){
