@@ -523,7 +523,6 @@
         Exportar
       </button>
       <span class="rotulo-filtro" id="rotulo-mes-aliment" style="display:none"></span>
-      <button class="btn" id="btn-quitar-filtros" style="display:none">Quitar filtros</button>
       <button class="btn btn-pdf" id="btn-informe-diario" style="display:none">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M14 2H6.5A1.5 1.5 0 0 0 5 3.5v17A1.5 1.5 0 0 0 6.5 22h11a1.5 1.5 0 0 0 1.5-1.5V7z" fill="#fff" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
@@ -2517,7 +2516,6 @@ function pintarGenerico(){
   const zona = $('#zona-tabla');
   const rotulo = '';
   const hayFiltroCol = esAliment && hayFiltroColumnaActivo();
-  $('#btn-quitar-filtros').style.display = hayFiltroCol ? '' : 'none';
   const rotuloMes = $('#rotulo-mes-aliment');
   if(esAliment){
     const meses = [...new Set((ESTADO.datos||[]).filter(r=>r.fecha).map(r=>r.fecha.slice(0,7)))].sort();
@@ -2583,7 +2581,6 @@ function enlazarAcciones(zona){
 
 /* ---------- formulario ---------- */
 $('#btn-nuevo').addEventListener('click', ()=> abrirFormulario(null));
-$('#btn-quitar-filtros').addEventListener('click', ()=>{ ESTADO.filtrosAliment = {}; pintar(); });
 $('#btn-cancelar').addEventListener('click', cerrarFormulario);
 $('#btn-finalizar-aliment').addEventListener('click', finalizarAlimentacion);
 $('#telon').addEventListener('mousedown', e=>{ if(e.target.id==='telon') cerrarFormulario(); });
