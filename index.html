@@ -605,6 +605,7 @@
     <footer>
       <button type="button" class="btn" id="btn-cancelar">Cancelar</button>
       <button type="button" class="btn" id="btn-misma-orden" style="display:none">Guardar y agregar otra pila de esta orden</button>
+      <button type="button" class="btn" id="btn-finalizar-aliment" style="display:none">Finalizar</button>
       <button type="submit" class="btn btn-primario" id="btn-guardar">Guardar</button>
     </footer>
   </form>
@@ -2533,6 +2534,7 @@ function enlazarAcciones(zona){
 $('#btn-nuevo').addEventListener('click', ()=> abrirFormulario(null));
 $('#btn-quitar-filtros').addEventListener('click', ()=>{ ESTADO.filtrosAliment = {}; pintar(); });
 $('#btn-cancelar').addEventListener('click', cerrarFormulario);
+$('#btn-finalizar-aliment').addEventListener('click', finalizarAlimentacion);
 $('#telon').addEventListener('mousedown', e=>{ if(e.target.id==='telon') cerrarFormulario(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ cerrarFormulario(); cerrarDialogoExport(); cerrarPopoverFiltro(); } });
 
@@ -2540,6 +2542,7 @@ function abrirFormulario(indice, base){
   ESTADO.editando = indice;
   $('#formulario').style.maxWidth = '';
   $('#btn-misma-orden').style.display = (ESTADO.modulo === 'patio') ? '' : 'none';
+  $('#btn-finalizar-aliment').style.display = (ESTADO.modulo === 'alimentacion' && indice === null) ? '' : 'none';
   if(ESTADO.modulo === 'patio') formularioPatio(indice, base);
   else if(ESTADO.modulo === 'proceso') formularioProceso(indice);
   else if(ESTADO.modulo === 'carbon') formularioCarbon(indice);
@@ -2903,18 +2906,14 @@ function bloqueAlimentNuevo(){
   </div>`;
 }
 const camposFilaAliment = ['horaInicial','pesometroInicial','horaFinal','pesometroFinal','obs'];
-// pilas ya "cerradas" en la sesión de registro actual (con "Agregar otra pila" o al responder "No"
-// en el aviso final de Guardar registro), en espera de que se confirme que el turno ya terminó
-let ALIMENT_PENDIENTES = [];
 // formulario para registrar lecturas nuevas en Alimentación: una fecha para todo el turno y un
 // bloque de pila (Procedencia + Número de pila) con una tabla de varias filas para ir anotando las
-// lecturas de hora y pesómetro a medida que ocurren. "Agregar otra pila" cierra la pila actual
-// (validando sus datos) y deja el bloque limpio para la siguiente. "Guardar registro" cierra
-// también la pila que está en pantalla y pregunta si ya se cargó todo el turno: si se confirma,
-// guarda de una vez todas las pilas acumuladas y cierra el formulario; si no, sigue acumulando
-// (igual que "Agregar otra pila") para que se complete la que faltaba.
+// lecturas de hora y pesómetro a medida que ocurren. "Guardar registro" valida y escribe de una
+// vez en Firestore las lecturas de la pila que está en pantalla, y deja el bloque limpio (con la
+// misma fecha) para registrar la siguiente, sin cerrar el formulario. "Finalizar" pregunta si ya
+// se ingresaron bien todas las horas del turno y, si se confirma, cierra el formulario (si quedó
+// algo sin guardar en el bloque, lo guarda también antes de cerrar).
 function formularioAlimentacionNuevo(){
-  ALIMENT_PENDIENTES = [];
   $('#form-titulo').textContent = 'Registrar pila — ' + nombreLinea(ESTADO.linea);
   $('#btn-guardar').textContent = 'Guardar registro';
   $('#formulario').style.maxWidth = '820px';
@@ -2922,19 +2921,7 @@ function formularioAlimentacionNuevo(){
     '<div class="rejilla" style="grid-template-columns:240px; margin-bottom:14px">' +
       '<div class="campo"><label>Fecha *</label><input type="date" name="fecha" required></div>' +
     '</div>' +
-    '<div id="aliment-bloques">' + bloqueAlimentNuevo() + '</div>' +
-    '<button type="button" class="btn" id="btn-agregar-pila" style="margin-top:10px">+ Agregar otra pila</button>';
-  $('#btn-agregar-pila').addEventListener('click', ()=>{
-    const fecha = $('[name=fecha]').value;
-    if(!fecha){ alert('Seleccione la fecha.'); return; }
-    const bloque = $('#aliment-bloques .aliment-bloque');
-    const filas = extraerFilasBloque(bloque, fecha);
-    if(filas === null) return; // ya se avisó el motivo
-    if(!filas.length){ alert('Complete los datos de esta pila (Procedencia, Número de pila y al menos una lectura) antes de agregar otra.'); return; }
-    ALIMENT_PENDIENTES.push(...filas);
-    $('#aliment-bloques').innerHTML = bloqueAlimentNuevo();
-    avisar(`Pila "${filas[0].codigoPatio}" lista. Registre la siguiente.`);
-  });
+    '<div id="aliment-bloques">' + bloqueAlimentNuevo() + '</div>';
   $('#form-cuerpo').addEventListener('input', e=>{
     if(e.target.matches('[name=horaInicial],[name=horaFinal]')) e.target.value = formatearHoraMilitar(e.target.value);
   });
@@ -3005,32 +2992,38 @@ function extraerFilasBloque(bloque, fecha){
     __id: Date.now().toString(36) + '_' + i + '_' + Math.random().toString(36).slice(2,6)
   }));
 }
-// se dispara con "Guardar registro": cierra la pila que está en pantalla, la suma a las ya
-// acumuladas con "Agregar otra pila", y pregunta si ya se cargó todo el turno
+// escribe en Firestore las lecturas de un conjunto de filas ya extraídas (ordenadas por hora de
+// inicio) y avisa el resultado; usada tanto por "Guardar registro" como por "Finalizar"
+async function escribirFilasAlimentacion(filas){
+  filas.sort((a,b)=> (a.horaInicial||'').localeCompare(b.horaInicial||''));
+  ESTADO.datos.unshift(...filas);
+  const ok = await escribir(MODULOS.alimentacion.clave, ESTADO.datos);
+  avisar(ok ? `${filas.length} lectura${filas.length===1?'':'s'} guardada${filas.length===1?'':'s'}`
+            : 'Registros cargados solo en esta sesión: descargue el Excel antes de cerrar');
+}
+// "Guardar registro": valida y escribe de inmediato las lecturas de la pila en pantalla, y deja el
+// bloque limpio (conservando la fecha) para registrar la siguiente, sin cerrar el formulario
 async function guardarBloquesAlimentacion(){
   const fecha = $('[name=fecha]').value;
   if(!fecha){ alert('Seleccione la fecha.'); return; }
   const bloque = $('#aliment-bloques .aliment-bloque');
-  const filasActuales = extraerFilasBloque(bloque, fecha);
-  if(filasActuales === null) return; // ya se avisó el motivo
-  const todas = ALIMENT_PENDIENTES.concat(filasActuales);
-  if(!todas.length){ avisar('Agregue al menos una lectura antes de guardar'); return; }
-  const terminoElTurno = confirm(
-    '¿Ya ingresó todas las pilas alimentadas de este turno?\n\n' +
-    'Presione "Aceptar" si SÍ terminó: se guardará todo y se cerrará el formulario.\n' +
-    'Presione "Cancelar" si todavía falta otra pila: se guardará lo que lleva hasta ahora en esta sesión y podrá seguir agregando.');
-  if(!terminoElTurno){
-    ALIMENT_PENDIENTES = todas;
-    $('#aliment-bloques').innerHTML = bloqueAlimentNuevo();
-    avisar('Pila registrada. Agregue la que faltaba.');
-    return;
-  }
-  todas.sort((a,b)=> (a.horaInicial||'').localeCompare(b.horaInicial||''));
-  ESTADO.datos.unshift(...todas);
-  const ok = await escribir(MODULOS.alimentacion.clave, ESTADO.datos);
-  avisar(ok ? `${todas.length} lectura${todas.length===1?'':'s'} guardada${todas.length===1?'':'s'}`
-            : 'Registros cargados solo en esta sesión: descargue el Excel antes de cerrar');
-  ALIMENT_PENDIENTES = [];
+  const filas = extraerFilasBloque(bloque, fecha);
+  if(filas === null) return; // ya se avisó el motivo
+  if(!filas.length){ avisar('Complete los datos de esta pila (Procedencia, Número de pila y al menos una lectura) antes de guardar'); return; }
+  await escribirFilasAlimentacion(filas);
+  $('#aliment-bloques').innerHTML = bloqueAlimentNuevo();
+  pintar();
+}
+// "Finalizar": pregunta si ya se ingresaron bien todas las horas del turno; si se confirma, guarda
+// lo que haya quedado sin guardar en el bloque actual (si lo hay) y cierra el formulario
+async function finalizarAlimentacion(){
+  const fecha = $('[name=fecha]').value;
+  const bloque = $('#aliment-bloques .aliment-bloque');
+  const filas = bloque ? extraerFilasBloque(bloque, fecha) : [];
+  if(filas === null) return; // ya se avisó el motivo; no cierra para que pueda corregir
+  const seguro = confirm('¿Está seguro de haber ingresado todas las horas correctamente?\n\nEn caso de que no sea así, debe revisar antes de finalizar.');
+  if(!seguro) return;
+  if(filas.length) await escribirFilasAlimentacion(filas);
   cerrarFormulario(); pintar();
 }
 
