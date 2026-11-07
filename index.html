@@ -1655,7 +1655,8 @@ function filaDiasYLineaAliment(){
     `<div style="text-align:center; margin:14px 0">` +
     `<button type="button" class="proc-btn linea-btn linea-btn-verde" id="btn-registrar-pila-aliment" style="display:inline-flex; width:260px">Registrar pila</button>` +
     `</div>`;
-  return filaDias + filaLinea;
+  // Línea 1/2 y Registrar pila van primero, y los días quedan pegados justo arriba de la tabla
+  return filaLinea + filaDias;
 }
 function enlazarCarpetasAliment(zona){
   zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
