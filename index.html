@@ -1393,8 +1393,8 @@ async function abrir(nombre){
     : esProc ? 'MUESTREO DE PROCESO DE PLANTA'
     : (esCons ? 'CONSOLIDADO' : MODULOS[nombre].titulo);
   $('#mod-sub').textContent = 'Planta Revemin PIM II — Aseguramiento de la calidad QA/QC';
-  $('#btn-nuevo').style.display = (esCons || esPatio || nombre === 'alimentacion') ? 'none' : '';
-  $('#btn-nuevo').textContent = esCarbon ? 'Registrar orden' : 'Registrar muestra';
+  $('#btn-nuevo').style.display = (esCons || esPatio) ? 'none' : '';
+  $('#btn-nuevo').textContent = esCarbon ? 'Registrar orden' : nombre === 'alimentacion' ? 'Registrar pila' : 'Registrar muestra';
   $('#mod-provisional').style.display = (!esPatio && !esProc && !esCarbon && !esCons && MODULOS[nombre].provisional) ? '' : 'none';
 
   const zonaProc = $('#procedencias');
@@ -2643,7 +2643,8 @@ function enlazarAcciones(zona){
 }
 
 /* ---------- formulario ---------- */
-$('#btn-nuevo').addEventListener('click', ()=> abrirFormulario(null));
+$('#btn-nuevo').addEventListener('click', ()=>
+  abrirFormulario(null, ESTADO.modulo === 'alimentacion' ? {fecha: ESTADO.diaAliment} : undefined));
 $('#btn-cancelar').addEventListener('click', cerrarFormulario);
 $('#btn-finalizar-aliment').addEventListener('click', finalizarAlimentacion);
 $('#telon').addEventListener('mousedown', e=>{ if(e.target.id==='telon') cerrarFormulario(); });
