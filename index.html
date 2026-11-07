@@ -119,6 +119,8 @@
   .tabla-resumen{max-width:560px; margin:12px 0 26px}
   .carpetas{display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 4px}
   .carpetas-mes{margin:8px 0 4px; padding-left:18px; border-left:3px solid var(--t-acento)}
+  .carpetas-dias{margin:8px 0 4px; padding-left:34px; border-left:3px solid var(--gris-suave)}
+  .carpetas-dias .carpeta{min-width:34px; text-align:center; padding:6px 8px}
   .carpeta-anio{font-weight:bold}
   .carpeta{
     border:1px solid var(--t-acento); background:#fff; color:#000;
@@ -856,7 +858,7 @@ const COLS_PATIO = [
 // pantalla sí conserva TURNO; solo se pidió quitarlo de la exportación)
 const COLS_PATIO_EXPORT = COLS_PATIO.filter(c => c.id !== 'turno');
 
-const ESTADO = {modulo:null, procedencia:'mina_colombia', linea:'L1', filtrosAliment:{}, punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', mesAliment:'', datos:[], filtro:'', editando:null, panel:null, vistaPatio:'datos', patioInicio:true};
+const ESTADO = {modulo:null, procedencia:'mina_colombia', linea:'L1', filtrosAliment:{}, punto:'*', vista:'registros', desde:'', hasta:'', grupo:'', mesPatio:'', anioAliment:'', mesAliment:'', diaAliment:'', datos:[], filtro:'', editando:null, panel:null, vistaPatio:'datos', patioInicio:true};
 
 const $ = s => document.querySelector(s);
 const clavePatio = p => 'revemin_patio_' + p;
@@ -1429,26 +1431,15 @@ async function abrir(nombre){
     $('#v-registros').addEventListener('click', ()=>{ ESTADO.vista='registros'; pintar(); });
     $('#v-graficos').addEventListener('click', ()=>{ ESTADO.vista='graficos'; pintar(); });
   }else if(nombre === 'alimentacion'){
-    // por defecto se ve la Línea 1 (tabla vacía, a la espera de datos o de filtrar por DIAS);
-    // los botones de línea solo cambian cuál se ve, sin perder la fecha que se esté mirando.
-    // "Registrar pila" siempre está visible: puede usarse sobre cualquier fecha elegida, para
-    // agregarle otra pila a esa alimentación.
+    // navegación al estilo de Patio: arriba, Inicio + AÑO (ver pintarTopAliment, llamada desde
+    // pintarGenerico en cada repintado); al elegir año aparece el MES sobre la tabla, y al elegir
+    // mes aparecen los DÍAS + Línea 1/2 + Registrar pila, también sobre la tabla
     ESTADO.filtrosAliment = {fecha: new Set()};
     ESTADO.linea = 'L1';
+    ESTADO.anioAliment = '';
     ESTADO.mesAliment = '';
+    ESTADO.diaAliment = '';
     zonaProc.classList.remove('fila-lineas');
-    zonaProc.innerHTML =
-      `<div class="fila-proc fila-lineas" style="margin:0">` +
-        `<button class="proc-btn linea-btn" data-linea="L1">${esc(nombreLinea('L1'))}</button>` +
-        `<button class="proc-btn linea-btn" data-linea="L2">${esc(nombreLinea('L2'))}</button>` +
-      `</div>` +
-      `<div style="text-align:center; margin-top:14px">` +
-        `<button type="button" class="proc-btn linea-btn linea-btn-verde" id="btn-registrar-pila-aliment" style="display:inline-flex; width:260px">Registrar pila</button>` +
-      `</div>`;
-    zonaProc.querySelectorAll('[data-linea]').forEach(b =>
-      b.addEventListener('click', ()=> elegirLinea(b.dataset.linea)));
-    $('#btn-registrar-pila-aliment').addEventListener('click', ()=> abrirFormulario(null));
-    marcarLinea();
   }else{
     zonaProc.innerHTML = '';
   }
@@ -1616,46 +1607,70 @@ function enlazarCarpetas(zona){
   }));
 }
 
-// mismas carpetas de AÑO/MES que Patio, pero para las lecturas de Alimentación de la línea activa
-function carpetasMesAliment(){
-  const deLaLinea = ESTADO.datos.filter(r => r.linea === ESTADO.linea && r.fecha);
-  const cuenta = {};
-  deLaLinea.forEach(r=>{ const m = r.fecha.slice(0,7); cuenta[m] = (cuenta[m]||0) + 1; });
-  const meses = Object.keys(cuenta).sort();
-  if(!meses.length){ ESTADO.mesAliment = ''; return ''; }
-  if(!ESTADO.mesAliment || !meses.includes(ESTADO.mesAliment)) ESTADO.mesAliment = meses[meses.length - 1];
-  const anio = ESTADO.mesAliment.slice(0,4);
-  const anios = [...new Set(meses.map(m => m.slice(0,4)))].sort();
-  const filaAnios = `<div class="carpetas">` + anios.map(a =>
-    `<button class="carpeta carpeta-anio" data-anio-aliment="${a}" aria-pressed="${a === anio}">AÑO ${a}</button>`
-  ).join('') + `</div>`;
-  const nombre = m => MESES[Number(m.slice(5,7)) - 1];
-  const filaMeses = `<div class="carpetas carpetas-mes">` +
-    meses.filter(m => m.slice(0,4) === anio).map(m =>
-      `<button class="carpeta" data-mes-aliment="${m}" aria-pressed="${m === ESTADO.mesAliment}">${esc(nombre(m))}</button>`
-    ).join('') + `</div>`;
-  return filaAnios + filaMeses;
+// ---------- navegación de Alimentación al estilo de Patio: Inicio + AÑO (arriba, en #procedencias),
+// luego MES (los 12, igual que Patio no limita a los que ya tienen datos) y DÍA (todos los del mes)
+// + Línea 1/2 + Registrar pila, estos últimos tres ya arriba de la tabla principal ----------
+function hoyISO(){ return new Date().toISOString().slice(0,10); }
+function diasEnMes(anioMes){
+  const [a,m] = anioMes.split('-').map(Number);
+  return new Date(a, m, 0).getDate();
 }
-// al cambiar de mes/año se limpia el filtro de fecha (la tabla queda vacía otra vez), en vez de
-// arrastrar el filtro del mes anterior
-function fijarFechaPorDefecto(mes){
-  ESTADO.filtrosAliment = {fecha: new Set()};
+// fila de arriba (Inicio + AÑO), en el lugar donde antes estaban Línea 1/2
+function pintarTopAliment(){
+  const zonaProc = $('#procedencias');
+  zonaProc.classList.remove('fila-lineas');
+  const hoyAnio = hoyISO().slice(0,4);
+  const anios = [...new Set([hoyAnio, ...ESTADO.datos.filter(r=>r.fecha).map(r=>r.fecha.slice(0,4))])].sort();
+  zonaProc.innerHTML = `<button class="proc-btn" data-inicio-aliment="1" aria-pressed="${!ESTADO.anioAliment}">🏠 Inicio</button>` +
+    anios.map(a => `<button class="proc-btn" data-anio-aliment-top="${a}" aria-pressed="${a === ESTADO.anioAliment}">AÑO ${esc(a)}</button>`).join('');
+  zonaProc.querySelector('[data-inicio-aliment]').addEventListener('click', ()=>{
+    ESTADO.anioAliment = ''; ESTADO.mesAliment = ''; ESTADO.diaAliment = '';
+    ESTADO.filtrosAliment = {fecha: new Set()};
+    pintar();
+  });
+  zonaProc.querySelectorAll('[data-anio-aliment-top]').forEach(b => b.addEventListener('click', ()=>{
+    ESTADO.anioAliment = b.dataset.anioAlimentTop; ESTADO.mesAliment = ''; ESTADO.diaAliment = '';
+    ESTADO.filtrosAliment = {fecha: new Set()};
+    pintar();
+  }));
+}
+// fila de MES (Enero a Diciembre), arriba de la tabla
+function filaMesesAliment(){
+  return `<div class="carpetas carpetas-mes">` + MESES.map((nom,i)=>{
+    const m = `${ESTADO.anioAliment}-${String(i+1).padStart(2,'0')}`;
+    return `<button class="carpeta" data-mes-aliment="${m}" aria-pressed="${m === ESTADO.mesAliment}">${esc(nom)}</button>`;
+  }).join('') + `</div>`;
+}
+// fila de DÍAS del mes elegido + Línea 1/2 + Registrar pila, arriba de la tabla
+function filaDiasYLineaAliment(){
+  const n = diasEnMes(ESTADO.mesAliment);
+  const filaDias = `<div class="carpetas carpetas-dias">` + Array.from({length:n}, (_,i)=>{
+    const d = `${ESTADO.mesAliment}-${String(i+1).padStart(2,'0')}`;
+    return `<button class="carpeta" data-dia-aliment="${d}" aria-pressed="${d === ESTADO.diaAliment}">${i+1}</button>`;
+  }).join('') + `</div>`;
+  const filaLinea = `<div class="fila-proc fila-lineas" style="margin:14px 0 0">` +
+    `<button class="proc-btn linea-btn" data-linea="L1" aria-pressed="${ESTADO.linea==='L1'}">${esc(nombreLinea('L1'))}</button>` +
+    `<button class="proc-btn linea-btn" data-linea="L2" aria-pressed="${ESTADO.linea==='L2'}">${esc(nombreLinea('L2'))}</button>` +
+    `</div>` +
+    `<div style="text-align:center; margin:14px 0">` +
+    `<button type="button" class="proc-btn linea-btn linea-btn-verde" id="btn-registrar-pila-aliment" style="display:inline-flex; width:260px">Registrar pila</button>` +
+    `</div>`;
+  return filaDias + filaLinea;
 }
 function enlazarCarpetasAliment(zona){
   zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
-    ESTADO.mesAliment = b.dataset.mesAliment;
-    fijarFechaPorDefecto(ESTADO.mesAliment);
+    ESTADO.mesAliment = b.dataset.mesAliment; ESTADO.diaAliment = '';
+    ESTADO.filtrosAliment = {fecha: new Set()};
     pintar();
   }));
-  zona.querySelectorAll('[data-anio-aliment]').forEach(b => b.addEventListener('click', ()=>{
-    const meses = [...new Set(ESTADO.datos.filter(r => r.linea === ESTADO.linea).map(r => (r.fecha||'').slice(0,7)).filter(Boolean))]
-      .filter(m => m.slice(0,4) === b.dataset.anioAliment).sort();
-    if(meses.length){
-      ESTADO.mesAliment = meses[meses.length - 1];
-      fijarFechaPorDefecto(ESTADO.mesAliment);
-      pintar();
-    }
+  zona.querySelectorAll('[data-dia-aliment]').forEach(b => b.addEventListener('click', ()=>{
+    ESTADO.diaAliment = b.dataset.diaAliment;
+    ESTADO.filtrosAliment = {fecha: new Set([fechaLegible(ESTADO.diaAliment)])};
+    pintar();
   }));
+  zona.querySelectorAll('[data-linea]').forEach(b => b.addEventListener('click', ()=> elegirLinea(b.dataset.linea)));
+  const btnRegistrar = zona.querySelector('#btn-registrar-pila-aliment');
+  if(btnRegistrar) btnRegistrar.addEventListener('click', ()=> abrirFormulario(null, {fecha: ESTADO.diaAliment}));
 }
 
 // líneas horizontales de referencia: máximo, media y mínimo de los valores graficados
@@ -2546,11 +2561,21 @@ function pintarGenerico(){
   const esAliment = ESTADO.modulo === 'alimentacion';
   const cols = columnasLista();
   const zona = $('#zona-tabla');
-  // carpetas de AÑO/MES (igual que Patio), solo en Alimentación: fija ESTADO.mesAliment, por eso
-  // se calcula antes de filtrar las filas
-  const carpetas = esAliment ? carpetasMesAliment() : '';
+  if(esAliment){
+    pintarTopAliment();
+    if(!ESTADO.anioAliment){
+      zona.innerHTML = `<div class="vacio"><strong>Elija un año</strong> arriba para comenzar.</div>`;
+      ponerPie('0 registros'); return;
+    }
+    if(!ESTADO.mesAliment){
+      zona.innerHTML = filaMesesAliment() + `<div class="vacio"><strong>Elija un mes</strong> arriba para ver sus registros.</div>`;
+      enlazarCarpetasAliment(zona);
+      ponerPie('0 registros'); return;
+    }
+  }
+  const carpetas = esAliment ? filaMesesAliment() + filaDiasYLineaAliment() : '';
   const filas = ESTADO.datos.filter(coincide)
-    .filter(r => !esAliment || !ESTADO.mesAliment || (r.fecha||'').slice(0,7) === ESTADO.mesAliment);
+    .filter(r => !esAliment || (r.fecha||'').slice(0,7) === ESTADO.mesAliment);
   // en Alimentación las muestras deben verse en orden cronológico (día y hora), no en el orden en
   // que se fueron guardando — ordena una copia filtrada, sin tocar ESTADO.datos (edición/borrado
   // siguen ubicando la fila por su índice real con indexOf)
@@ -2629,7 +2654,7 @@ function abrirFormulario(indice, base){
   if(ESTADO.modulo === 'patio') formularioPatio(indice, base);
   else if(ESTADO.modulo === 'proceso') formularioProceso(indice);
   else if(ESTADO.modulo === 'carbon') formularioCarbon(indice);
-  else if(ESTADO.modulo === 'alimentacion' && indice === null) formularioAlimentacionNuevo();
+  else if(ESTADO.modulo === 'alimentacion' && indice === null) formularioAlimentacionNuevo(base);
   else formularioGenerico(indice, base);
   $('#form-cuerpo').querySelectorAll('input,textarea,select').forEach(e=>{
     e.setAttribute('autocomplete','off');
@@ -2998,13 +3023,13 @@ const camposFilaAliment = ['horaInicial','pesometroInicial','horaFinal','pesomet
 // misma fecha) para registrar la siguiente, sin cerrar el formulario. "Finalizar" pregunta si ya
 // se ingresaron bien todas las horas del turno y, si se confirma, cierra el formulario (si quedó
 // algo sin guardar en el bloque, lo guarda también antes de cerrar).
-function formularioAlimentacionNuevo(){
+function formularioAlimentacionNuevo(base){
   $('#form-titulo').textContent = 'Registrar pila — ' + nombreLinea(ESTADO.linea);
   $('#btn-guardar').textContent = 'Guardar registro';
   $('#formulario').style.maxWidth = '820px';
   $('#form-cuerpo').innerHTML =
     '<div class="rejilla" style="grid-template-columns:240px; margin-bottom:14px">' +
-      '<div class="campo"><label>Fecha *</label><input type="date" name="fecha" required></div>' +
+      `<div class="campo"><label>Fecha *</label><input type="date" name="fecha" value="${esc((base&&base.fecha)||'')}" required></div>` +
     '</div>' +
     '<div id="aliment-bloques">' + bloqueAlimentNuevo() + '</div>';
   $('#form-cuerpo').addEventListener('input', e=>{
