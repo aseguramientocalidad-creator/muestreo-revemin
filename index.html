@@ -522,6 +522,7 @@
         </svg>
         Exportar
       </button>
+      <span class="rotulo-filtro" id="rotulo-mes-aliment" style="display:none"></span>
       <button class="btn" id="btn-quitar-filtros" style="display:none">Quitar filtros</button>
       <button class="btn btn-pdf" id="btn-informe-diario" style="display:none">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
@@ -2495,6 +2496,15 @@ function pintarGenerico(){
   const rotulo = '';
   const hayFiltroCol = esAliment && hayFiltroColumnaActivo();
   $('#btn-quitar-filtros').style.display = hayFiltroCol ? '' : 'none';
+  const rotuloMes = $('#rotulo-mes-aliment');
+  if(esAliment){
+    const meses = [...new Set((ESTADO.datos||[]).filter(r=>r.fecha).map(r=>r.fecha.slice(0,7)))].sort();
+    const ultimoMes = meses[meses.length-1];
+    if(ultimoMes){
+      rotuloMes.textContent = `${MESES[Number(ultimoMes.slice(5,7))-1]} ${ultimoMes.slice(0,4)}`;
+      rotuloMes.style.display = '';
+    }else rotuloMes.style.display = 'none';
+  }else rotuloMes.style.display = 'none';
   if(esAliment && !ESTADO.linea){
     zona.innerHTML = `<div class="vacio"><strong>Elija Línea 1 o Línea 2</strong> arriba para ver sus registros.</div>`;
     ponerPie('0 registros'); return;
