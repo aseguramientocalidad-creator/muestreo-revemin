@@ -2951,6 +2951,28 @@ function formularioAlimentacionNuevo(){
     otro.style.display = esOtro ? '' : 'none';
     if(esOtro) otro.focus(); else otro.value = '';
   });
+  // flechas del teclado para moverse entre celdas de la tabla de lecturas: arriba/abajo siempre
+  // van a la misma columna de la fila anterior/siguiente; izquierda/derecha solo cuando el cursor
+  // ya está en el extremo del texto (para no interferir con mover el cursor dentro de lo escrito)
+  $('#form-cuerpo').addEventListener('keydown', e=>{
+    const input = e.target;
+    if(!input.matches('.tabla-aliment-nueva input')) return;
+    const tr = input.closest('tr');
+    const filas = [...input.closest('table').querySelectorAll('tbody tr')];
+    const fIdx = filas.indexOf(tr);
+    const celdas = [...tr.children];
+    const cIdx = celdas.indexOf(input.closest('td'));
+    const ir = (fi, ci)=>{
+      const destino = (filas[fi] && filas[fi].children[ci]) ? filas[fi].children[ci].querySelector('input') : null;
+      if(!destino) return false;
+      destino.focus(); destino.select();
+      return true;
+    };
+    if(e.key === 'ArrowDown'){ if(ir(fIdx+1, cIdx)) e.preventDefault(); }
+    else if(e.key === 'ArrowUp'){ if(ir(fIdx-1, cIdx)) e.preventDefault(); }
+    else if(e.key === 'ArrowLeft' && input.selectionStart === 0 && input.selectionEnd === 0){ if(ir(fIdx, cIdx-1)) e.preventDefault(); }
+    else if(e.key === 'ArrowRight' && input.selectionStart === input.value.length && input.selectionEnd === input.value.length){ if(ir(fIdx, cIdx+1)) e.preventDefault(); }
+  });
 }
 // valida y extrae las filas con datos de un bloque de pila; devuelve [] si el bloque está
 // completamente vacío (se ignora sin avisar), o null si hay un error (ya se mostró con alert)
