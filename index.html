@@ -2570,7 +2570,17 @@ function pintarGenerico(){
   if(esAliment){
     pintarTopAliment();
     if(!ESTADO.anioAliment){
-      zona.innerHTML = `<div class="vacio"><strong>Elija un año</strong> arriba para comenzar.</div>`;
+      // Inicio: el primer contacto para registrar — se elige la línea y se abre el formulario
+      // directo; sea cual sea la fecha que se escriba ahí, luego se ubica sola en su año/mes/día
+      // al navegar por las carpetas de arriba
+      zona.innerHTML = `<div class="fila-proc fila-lineas" style="margin:24px 0">` +
+        `<button class="proc-btn linea-btn" data-linea-inicio="L1">${esc(nombreLinea('L1'))}</button>` +
+        `<button class="proc-btn linea-btn" data-linea-inicio="L2">${esc(nombreLinea('L2'))}</button>` +
+        `</div>`;
+      zona.querySelectorAll('[data-linea-inicio]').forEach(b => b.addEventListener('click', ()=>{
+        ESTADO.linea = b.dataset.lineaInicio;
+        abrirFormulario(null);
+      }));
       ponerPie('0 registros'); return;
     }
     if(!ESTADO.mesAliment){
