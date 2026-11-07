@@ -878,12 +878,19 @@ function normalizarPilaRampaSkip(pila){
 // solas las diferencias de mayúsculas/minúsculas, pero si el nombre es ambiguo avisa y pide
 // corregirlo. Devuelve el nombre ya validado, o null si el usuario debe corregirlo (ya se le
 // avisó con alert/confirm) — en ese caso el llamador debe abortar el guardado.
-function validarCodigoPila(t){
+// Las reglas de Arrime-mezcla y Rampa/Skip son específicas de Pequeña Minería y Mina Colombia
+// respectivamente (igual que en Patio): con cualquier otra procedencia no aplican, así que un
+// número suelto como "182" en Mina Sosa Méndez no debe pedir que se aclare si es Rampa o Skip.
+function validarCodigoPila(t, procedencia){
   t = String(t ?? '').trim();
   if(!t) return t;
+  const procLimpia = String(procedencia ?? '').trim().toUpperCase();
+  const esPequenaMineria = procLimpia === 'PEQUEÑA MINERIA';
+  const esMinaColombia = procLimpia === 'MINA COLOMBIA';
+  if(!esPequenaMineria && !esMinaColombia) return t;
   const tieneMezcla = /mezcla/i.test(t);
   const numMezcla = (t.match(/\d+/) || [])[0];
-  if(tieneMezcla && numMezcla){
+  if(esPequenaMineria && tieneMezcla && numMezcla){
     const canon = normalizarPilaArrime(t);
     const tieneArrime = /arrime/i.test(t);
     if(tieneArrime){
@@ -901,6 +908,7 @@ function validarCodigoPila(t){
     }
     return t;
   }
+  if(!esMinaColombia) return t;
   const tieneRampa = /rampa/i.test(t);
   const tieneSkip = /skip/i.test(t);
   const numRS = (t.match(/\d+/) || [])[0];
@@ -3005,7 +3013,7 @@ function extraerFilasBloque(bloque, fecha){
     alert('Complete Procedencia y Número de pila.');
     return null;
   }
-  const validado = validarCodigoPila(codigoPatio);
+  const validado = validarCodigoPila(codigoPatio, procedencia);
   if(validado === null) return null;
   codigoPatio = validado;
   if(!filasLlenas.length){
@@ -3285,7 +3293,7 @@ $('#formulario').addEventListener('submit', async e=>{
       // "Mezcla N" deben escribirse como "Arrime mezcla N" (Pequeña Minería), y las numéricas de
       // Mina Colombia deben especificar si son "Rampa N" o "Skip N"
       if(r.codigoPatio){
-        const validado = validarCodigoPila(r.codigoPatio);
+        const validado = validarCodigoPila(r.codigoPatio, r.procedencia);
         if(validado === null) return;
         r.codigoPatio = validado;
       }
