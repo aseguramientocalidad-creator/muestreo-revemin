@@ -683,6 +683,13 @@ const nombreLinea = id => (LINEAS_ALIMENTACION.find(l => l.id === id) || {}).nom
 // entra a la planta en este registro)
 const PROCEDENCIAS_ALIMENT_EXTRA = ['RECHAZO DE CORREA', 'RECHAZO DE PATIO REVEMIN', 'ARENAS DE RESERVORIO REVEMIN'];
 
+// botones de inicio de texto que se sugieren en Número de pila, según la Procedencia elegida en
+// Alimentación, para que solo falte completar con lo que distingue a esa pila en particular
+const SUGERENCIAS_PILA_ALIMENT = {
+  'MINA COLOMBIA':   ['Skip ', 'Rampa '],
+  'PEQUEÑA MINERIA': ['Arrime mezcla ', 'Arenas ', 'Primario ']
+};
+
 // columnas de la tabla/exportación de Alimentación: mismos títulos y mismo orden que el Excel de
 // referencia (ALIMENTACION OCTUBRE 2026). "linea" y "turnos" no son campos del formulario — se
 // obtienen solas (linea, de la navegación; turnos, calculado de hora inicial/final)
@@ -2898,10 +2905,7 @@ function bloqueAlimentNuevo(){
         <input name="procedenciaOtro" placeholder="Escriba la procedencia" style="display:none; margin-top:6px">
       </div>
       <div class="campo"><label>Número de pila *</label><input name="codigoPatio">
-        <div class="sugerencias-pila" style="display:none; margin-top:6px; gap:6px">
-          <button type="button" class="mini sugerir-pila" data-texto="Skip ">Skip</button>
-          <button type="button" class="mini sugerir-pila" data-texto="Rampa ">Rampa</button>
-        </div>
+        <div class="sugerencias-pila" style="display:none; margin-top:6px; gap:6px"></div>
       </div>
     </div>
     <table class="tabla-aliment-nueva">
@@ -2942,10 +2946,18 @@ function formularioAlimentacionNuevo(){
     const esOtro = e.target.value === '__otro__';
     otro.style.display = esOtro ? '' : 'none';
     if(esOtro) otro.focus(); else otro.value = '';
-    // en Mina Colombia las pilas son "Skip N" o "Rampa N": se muestran dos botones con esos
-    // textos para que solo falte escribir el número
+    // botones de inicio de texto para Número de pila, según la procedencia elegida (ver
+    // SUGERENCIAS_PILA_ALIMENT) — solo falta completar con el número o el nombre particular
     const sugerencias = e.target.closest('.aliment-cab').querySelector('.sugerencias-pila');
-    sugerencias.style.display = e.target.value === 'MINA COLOMBIA' ? 'flex' : 'none';
+    const textos = SUGERENCIAS_PILA_ALIMENT[e.target.value];
+    if(textos){
+      sugerencias.innerHTML = textos.map(t=>
+        `<button type="button" class="mini sugerir-pila" data-texto="${esc(t)}">${esc(t.trim())}</button>`).join('');
+      sugerencias.style.display = 'flex';
+    }else{
+      sugerencias.innerHTML = '';
+      sugerencias.style.display = 'none';
+    }
   });
   $('#form-cuerpo').addEventListener('click', e=>{
     const boton = e.target.closest('.sugerir-pila');
