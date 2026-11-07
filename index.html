@@ -1664,8 +1664,9 @@ function filaDiasYLineaAliment(){
 }
 function enlazarCarpetasAliment(zona){
   zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
-    ESTADO.mesAliment = b.dataset.mesAliment; ESTADO.diaAliment = '';
-    ESTADO.filtrosAliment = {fecha: new Set()};
+    ESTADO.mesAliment = b.dataset.mesAliment;
+    ESTADO.diaAliment = `${ESTADO.mesAliment}-01`; // al elegir el mes se ve de una vez el día 1
+    ESTADO.filtrosAliment = {fecha: new Set([fechaLegible(ESTADO.diaAliment)])};
     pintar();
   }));
   zona.querySelectorAll('[data-dia-aliment]').forEach(b => b.addEventListener('click', ()=>{
