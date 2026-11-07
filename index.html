@@ -1627,8 +1627,8 @@ function pintarTopAliment(){
   zonaProc.classList.add('fila-anios');
   const hoyAnio = hoyISO().slice(0,4);
   const anios = [...new Set([hoyAnio, ...ESTADO.datos.filter(r=>r.fecha).map(r=>r.fecha.slice(0,4))])].sort();
-  zonaProc.innerHTML = `<button class="proc-btn linea-btn" data-inicio-aliment="1" aria-pressed="${!ESTADO.anioAliment}">🏠 Inicio</button>` +
-    anios.map(a => `<button class="proc-btn linea-btn" data-anio-aliment-top="${a}" aria-pressed="${a === ESTADO.anioAliment}">AÑO ${esc(a)}</button>`).join('');
+  zonaProc.innerHTML = `<button class="proc-btn" data-inicio-aliment="1" aria-pressed="${!ESTADO.anioAliment}">🏠 Inicio</button>` +
+    anios.map(a => `<button class="proc-btn" data-anio-aliment-top="${a}" aria-pressed="${a === ESTADO.anioAliment}">AÑO ${esc(a)}</button>`).join('');
   zonaProc.querySelector('[data-inicio-aliment]').addEventListener('click', ()=>{
     ESTADO.anioAliment = ''; ESTADO.mesAliment = ''; ESTADO.diaAliment = '';
     ESTADO.filtrosAliment = {fecha: new Set()};
