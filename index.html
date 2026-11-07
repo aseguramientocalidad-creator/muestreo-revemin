@@ -1430,13 +1430,21 @@ async function abrir(nombre){
   }else if(nombre === 'alimentacion'){
     // lo primero que se ve al entrar es la elección de línea (1 o 2): cada una lleva su propia
     // tabla, igual que cada hoja del Excel separa los registros por línea — no debe quedar
-    // ninguna preseleccionada de una visita anterior, el usuario elige cada vez que entra
+    // ninguna preseleccionada de una visita anterior, el usuario elige cada vez que entra.
+    // Los botones de línea solo cambian la tabla que se ve; registrar una pila nueva es aparte,
+    // con el botón "Registrar pila" que aparece debajo una vez elegida la línea.
     ESTADO.filtrosAliment = {};
     ESTADO.linea = '';
-    zonaProc.classList.add('fila-lineas');
-    zonaProc.innerHTML = LINEAS_ALIMENTACION.map(l => `<button class="proc-btn linea-btn" data-linea="${l.id}">${esc(l.nombre)}</button>`).join('');
+    zonaProc.innerHTML =
+      `<div class="fila-proc fila-lineas" style="margin:0">` +
+        LINEAS_ALIMENTACION.map(l => `<button class="proc-btn linea-btn" data-linea="${l.id}">${esc(l.nombre)}</button>`).join('') +
+      `</div>` +
+      `<div style="grid-column:1/-1; text-align:center; margin-top:14px">` +
+        `<button type="button" class="btn btn-primario" id="btn-registrar-pila-aliment" style="display:none">Registrar pila</button>` +
+      `</div>`;
     zonaProc.querySelectorAll('[data-linea]').forEach(b =>
-      b.addEventListener('click', ()=> elegirLinea(b.dataset.linea)));
+      b.addEventListener('click', ()=> elegirLinea(b.dataset.linea, false)));
+    $('#btn-registrar-pila-aliment').addEventListener('click', ()=> abrirFormulario(null));
     marcarLinea();
   }else{
     zonaProc.innerHTML = '';
@@ -1512,6 +1520,8 @@ function elegirLinea(id, abrirForm = true){
   ESTADO.filtrosAliment.fecha = new Set();
   cerrarPopoverFiltro();
   marcarLinea();
+  const btnRegistrar = $('#btn-registrar-pila-aliment');
+  if(btnRegistrar) btnRegistrar.style.display = id ? '' : 'none';
   pintar();
   if(abrirForm) abrirFormulario(null);
 }
