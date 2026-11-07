@@ -1505,6 +1505,11 @@ function marcarLinea(){
 function elegirLinea(id){
   ESTADO.linea = id;
   ESTADO.filtrosAliment = {};
+  // al entrar no se mezclan todas las fechas cargadas en una sola tabla continua: se parte
+  // mostrando solo el día más reciente, y las fechas anteriores quedan ocultas detrás del filtro
+  // de columna "DIAS" (▾), donde se pueden volver a mostrar cuando se necesiten
+  const fechas = ESTADO.datos.filter(r => r.linea === id && r.fecha).map(r => r.fecha).sort();
+  if(fechas.length) ESTADO.filtrosAliment.fecha = new Set([fechaLegible(fechas[fechas.length-1])]);
   cerrarPopoverFiltro();
   marcarLinea();
   pintar();
@@ -3056,6 +3061,10 @@ async function escribirFilasAlimentacion(filas){
   const ok = await escribir(MODULOS.alimentacion.clave, ESTADO.datos);
   avisar(ok ? `${filas.length} lectura${filas.length===1?'':'s'} guardada${filas.length===1?'':'s'}`
             : 'Registros cargados solo en esta sesión: descargue el Excel antes de cerrar');
+  // si la tabla está filtrada a una sola fecha (el comportamiento por defecto al entrar a la
+  // línea), se agrega también la fecha recién guardada para que la lectura aparezca de inmediato,
+  // sin volver a mezclar todas las fechas anteriores
+  if(ESTADO.filtrosAliment.fecha) filas.forEach(f => ESTADO.filtrosAliment.fecha.add(fechaLegible(f.fecha)));
 }
 // "Guardar registro": valida y escribe de inmediato las lecturas de la pila en pantalla, y deja el
 // bloque limpio (conservando la fecha) para registrar la siguiente, sin cerrar el formulario
