@@ -362,7 +362,7 @@
   .vacio strong{display:block; color:#000; font-size:15px; margin-bottom:6px}
   .pie{padding:10px 20px; font-size:12px; color:var(--gris); border-top:1px solid var(--gris-suave)}
 
-  #telon-import{z-index:60}
+  #telon-import,#telon-finalizar-aliment{z-index:60}
   .imp-tabla{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px}
   .imp-tabla th,.imp-tabla td{border:1px solid #999; padding:4px 7px; text-align:center}
   .imp-tabla th{background:#595959; color:#fff}
@@ -553,6 +553,19 @@
   <div class="pie" id="pie"></div>
 </section>
 
+<div class="telon" id="telon-finalizar-aliment">
+  <div class="panel" style="max-width:440px">
+    <header>Finalizar registro</header>
+    <div class="cuerpo" style="padding:20px; font-size:14px; line-height:1.5">
+      ¿Está seguro de haber ingresado todas las horas correctamente y de que ya no le falta
+      ninguna pila por registrar en este turno?
+    </div>
+    <footer>
+      <button type="button" class="btn" id="btn-seguir-registrando-aliment">SEGUIR REGISTRANDO DATOS</button>
+      <button type="button" class="btn btn-primario" id="btn-confirmar-finalizar-aliment">FINALIZAR</button>
+    </footer>
+  </div>
+</div>
 <div class="telon" id="telon-export">
   <div class="panel" style="max-width:540px">
     <header id="export-titulo">Exportar a Excel</header>
@@ -3179,17 +3192,22 @@ async function guardarBloquesAlimentacion(){
 }
 // "Finalizar": guarda lo que haya quedado sin guardar en el bloque actual (si lo hay) y cierra el
 // formulario, sin preguntar nada más (esa confirmación ya quedó en "Guardar registro")
-async function finalizarAlimentacion(){
-  // confirma antes de cerrar: un clic accidental en "Finalizar" mientras se está cargando no debe
-  // cortar el registro a medias
-  if(!confirm('¿Finalizar y cerrar el formulario?\n\nSi todavía le falta cargar datos, presione "Cancelar" aquí y siga registrando.')) return;
+// "Finalizar" abre un diálogo propio (en vez del confirm() nativo, que no permite personalizar el
+// texto de los botones) para que un clic accidental no cierre el formulario a medias
+function finalizarAlimentacion(){
+  $('#telon-finalizar-aliment').classList.add('activo');
+}
+$('#btn-seguir-registrando-aliment').addEventListener('click', ()=>
+  $('#telon-finalizar-aliment').classList.remove('activo'));
+$('#btn-confirmar-finalizar-aliment').addEventListener('click', async ()=>{
+  $('#telon-finalizar-aliment').classList.remove('activo');
   const fecha = $('[name=fecha]').value;
   const bloque = $('#aliment-bloques .aliment-bloque');
   const filas = bloque ? extraerFilasBloque(bloque, fecha) : [];
   if(filas === null) return; // ya se avisó el motivo; no cierra para que pueda corregir
   if(filas.length) await escribirFilasAlimentacion(filas);
   cerrarFormulario(); pintar();
-}
+});
 
 // mientras se escribe: deja solo dígitos y un colon (como mucho uno), sin acotar valores ni
 // autocompletar ceros — así no importa el orden en que se escriban los dígitos y el colon (p. ej.
