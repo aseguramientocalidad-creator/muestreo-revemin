@@ -133,6 +133,9 @@
   }
   .carpeta:hover{background:var(--t-hover)}
   .carpeta[aria-pressed="true"]{background:var(--t-cons-bg); font-weight:bold}
+  .carpeta-verde{border-color:#3B8C4A; background:#EAF6EC; color:#1D5C2A}
+  .carpeta-verde:hover{background:#D8EEDB}
+  .carpeta-verde[aria-pressed="true"]{background:#BFE3C4; font-weight:bold}
   .barra-accion{display:flex; justify-content:flex-end; margin:8px 0 -4px}
   .barra-vista-patio{display:flex; justify-content:flex-end; margin:16px 0 0}
   /* fila única de acciones de patio (Registrar pila, Mezclar pilas, Stock de patio, Gráficos…),
@@ -1645,7 +1648,7 @@ function pintarTopAliment(){
 function filaMesesAliment(){
   return `<div class="carpetas carpetas-mes">` + MESES.map((nom,i)=>{
     const m = `${ESTADO.anioAliment}-${String(i+1).padStart(2,'0')}`;
-    return `<button class="carpeta" data-mes-aliment="${m}" aria-pressed="${m === ESTADO.mesAliment}">${esc(nom)}</button>`;
+    return `<button class="carpeta carpeta-verde" data-mes-aliment="${m}" aria-pressed="${m === ESTADO.mesAliment}">${esc(nom)}</button>`;
   }).join('') + `</div>`;
 }
 // fila de DÍAS del mes elegido + Línea 1/2, arriba de la tabla
