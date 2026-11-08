@@ -362,7 +362,7 @@
   .vacio strong{display:block; color:#000; font-size:15px; margin-bottom:6px}
   .pie{padding:10px 20px; font-size:12px; color:var(--gris); border-top:1px solid var(--gris-suave)}
 
-  #telon-import,#telon-finalizar-aliment{z-index:60}
+  #telon-import,#telon-finalizar-aliment,#telon-guardar-aliment{z-index:60}
   .imp-tabla{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px}
   .imp-tabla th,.imp-tabla td{border:1px solid #999; padding:4px 7px; text-align:center}
   .imp-tabla th{background:#595959; color:#fff}
@@ -563,6 +563,19 @@
     <footer>
       <button type="button" class="btn" id="btn-seguir-registrando-aliment">SEGUIR REGISTRANDO DATOS</button>
       <button type="button" class="btn btn-primario" id="btn-confirmar-finalizar-aliment">FINALIZAR</button>
+    </footer>
+  </div>
+</div>
+<div class="telon" id="telon-guardar-aliment">
+  <div class="panel" style="max-width:440px">
+    <header>Guardar pila</header>
+    <div class="cuerpo" style="padding:20px; font-size:14px; line-height:1.5">
+      ¿Está seguro de haber ingresado todas las horas correctamente?<br><br>
+      En caso de que no sea así, debe revisar antes de guardar.
+    </div>
+    <footer>
+      <button type="button" class="btn" id="btn-revisar-aliment">REVISAR</button>
+      <button type="button" class="btn btn-primario" id="btn-confirmar-guardar-aliment">GUARDAR</button>
     </footer>
   </div>
 </div>
@@ -3177,19 +3190,29 @@ async function escribirFilasAlimentacion(filas){
 // "Guardar registro": pregunta si las horas de esta pila ya están bien, y si se confirma, valida
 // y escribe de inmediato las lecturas en pantalla, dejando el bloque limpio (conservando la fecha)
 // para registrar la siguiente, sin cerrar el formulario
-async function guardarBloquesAlimentacion(){
+// valida la pila en pantalla y, si está todo bien, abre el diálogo propio de confirmación (en vez
+// de confirm() nativo, que no permite personalizar el texto de los botones)
+function guardarBloquesAlimentacion(){
   const fecha = $('[name=fecha]').value;
   if(!fecha){ alert('Seleccione la fecha.'); return; }
   const bloque = $('#aliment-bloques .aliment-bloque');
   const filas = extraerFilasBloque(bloque, fecha);
   if(filas === null) return; // ya se avisó el motivo
   if(!filas.length){ avisar('Complete los datos de esta pila (Procedencia, Número de pila y al menos una lectura) antes de guardar'); return; }
-  const seguro = confirm('¿Está seguro de haber ingresado todas las horas correctamente?\n\nEn caso de que no sea así, debe revisar antes de guardar.');
-  if(!seguro) return;
+  $('#telon-guardar-aliment').classList.add('activo');
+}
+$('#btn-revisar-aliment').addEventListener('click', ()=>
+  $('#telon-guardar-aliment').classList.remove('activo'));
+$('#btn-confirmar-guardar-aliment').addEventListener('click', async ()=>{
+  $('#telon-guardar-aliment').classList.remove('activo');
+  const fecha = $('[name=fecha]').value;
+  const bloque = $('#aliment-bloques .aliment-bloque');
+  const filas = extraerFilasBloque(bloque, fecha);
+  if(filas === null || !filas.length) return; // ya se avisó el motivo si hiciera falta
   await escribirFilasAlimentacion(filas);
   $('#aliment-bloques').innerHTML = bloqueAlimentNuevo();
   pintar();
-}
+});
 // "Finalizar": guarda lo que haya quedado sin guardar en el bloque actual (si lo hay) y cierra el
 // formulario, sin preguntar nada más (esa confirmación ya quedó en "Guardar registro")
 // "Finalizar" abre un diálogo propio (en vez del confirm() nativo, que no permite personalizar el
