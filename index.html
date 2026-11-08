@@ -2666,7 +2666,6 @@ function enlazarAcciones(zona){
 $('#btn-nuevo').addEventListener('click', ()=> abrirFormulario(null));
 $('#btn-cancelar').addEventListener('click', cerrarFormulario);
 $('#btn-finalizar-aliment').addEventListener('click', finalizarAlimentacion);
-$('#telon').addEventListener('mousedown', e=>{ if(e.target.id==='telon') cerrarFormulario(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ cerrarFormulario(); cerrarDialogoExport(); cerrarPopoverFiltro(); } });
 
 function abrirFormulario(indice, base){
