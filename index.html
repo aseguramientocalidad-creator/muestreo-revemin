@@ -4187,85 +4187,35 @@ function nombreArchivo(t){
   return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                   .replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').trim();
 }
-/* ---------- guardado automático del Excel de Alimentación en su carpeta del mes ----------
-   el handle de la carpeta "REPORTE DE ALIMENTACION" (elegida una sola vez por el usuario) se
-   guarda en IndexedDB —no es serializable a JSON, por eso no usa localStorage— y de ahí en
-   adelante el permiso se reutiliza sin volver a preguntar, salvo que el navegador lo revoque */
-const IDB_CARPETAS_NOMBRE = 'revemin_carpetas', IDB_CARPETAS_TIENDA = 'handles';
-function abrirIdbCarpetas(){
-  return new Promise((resolve, reject)=>{
-    const req = indexedDB.open(IDB_CARPETAS_NOMBRE, 1);
-    req.onupgradeneeded = ()=> req.result.createObjectStore(IDB_CARPETAS_TIENDA);
-    req.onsuccess = ()=> resolve(req.result);
-    req.onerror = ()=> reject(req.error);
-  });
-}
-async function guardarHandleCarpeta(clave, handle){
-  const db = await abrirIdbCarpetas();
-  await new Promise((resolve, reject)=>{
-    const tx = db.transaction(IDB_CARPETAS_TIENDA, 'readwrite');
-    tx.objectStore(IDB_CARPETAS_TIENDA).put(handle, clave);
-    tx.oncomplete = resolve; tx.onerror = ()=> reject(tx.error);
-  });
-}
-async function leerHandleCarpeta(clave){
-  const db = await abrirIdbCarpetas();
-  return new Promise((resolve, reject)=>{
-    const tx = db.transaction(IDB_CARPETAS_TIENDA, 'readonly');
-    const req = tx.objectStore(IDB_CARPETAS_TIENDA).get(clave);
-    req.onsuccess = ()=> resolve(req.result || null);
-    req.onerror = ()=> reject(req.error);
-  });
-}
-// pide la carpeta "REPORTE DE ALIMENTACION" solo la primera vez (o si el permiso se perdió);
-// luego de concedida, las siguientes exportaciones no muestran ningún diálogo
-async function obtenerCarpetaAlimentacion(){
-  if(!('showDirectoryPicker' in window)) return null;
-  let handle = await leerHandleCarpeta('alimentacion').catch(()=> null);
-  if(handle){
-    try{
-      let permiso = await handle.queryPermission({mode:'readwrite'});
-      if(permiso === 'prompt') permiso = await handle.requestPermission({mode:'readwrite'});
-      if(permiso === 'granted') return handle;
-    }catch(e){}
-    handle = null; // la carpeta guardada ya no es válida (se movió, se borró, etc.)
-  }
+/* ---------- guardado del Excel de Alimentación eligiendo la carpeta cada vez ----------
+   en vez de recordar una carpeta y escribir ahí en silencio (eso terminó creando una carpeta
+   "2026" anidada donde no debía, porque el usuario había elegido como base la propia carpeta
+   del mes), cada exportación abre el diálogo nativo "Guardar como" de Chrome: el usuario elige
+   la ubicación esa vez. Chrome recuerda la última carpeta usada para este mismo "id" y abre ahí
+   la próxima vez, así que en la práctica solo hay que bajar un nivel al mes correspondiente */
+async function guardarConDialogo(blob, nombreArch){
+  if(!('showSaveFilePicker' in window)) return false;
   try{
-    handle = await window.showDirectoryPicker({id:'reporte-alimentacion', mode:'readwrite', startIn:'documents'});
-    await guardarHandleCarpeta('alimentacion', handle);
-    return handle;
-  }catch(e){ return null; } // el usuario cerró el diálogo sin elegir carpeta
-}
-function nombreMesCarpeta(numMes){
-  const m = MESES[numMes-1];
-  return `${String(numMes).padStart(2,'0')}-${m.charAt(0)}${m.slice(1).toLowerCase()}`;
-}
-// intenta escribir el archivo directo en …\REPORTE DE ALIMENTACION\<año>\<NN-Mes>\; true si lo logró
-async function guardarEnCarpetaMesAliment(blob, nombreArch, anio, numMes){
-  const base = await obtenerCarpetaAlimentacion();
-  if(!base) return false;
-  try{
-    const carpetaAnio = await base.getDirectoryHandle(String(anio), {create:true});
-    const carpetaMes = await carpetaAnio.getDirectoryHandle(nombreMesCarpeta(numMes), {create:true});
-    const archivo = await carpetaMes.getFileHandle(nombreArch, {create:true});
-    const writable = await archivo.createWritable();
+    const handle = await window.showSaveFilePicker({
+      suggestedName: nombreArch,
+      id: 'reporte-alimentacion',
+      startIn: 'documents',
+      types: [{description: 'Libro de Excel', accept: {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']}}]
+    });
+    const writable = await handle.createWritable();
     await writable.write(blob);
     await writable.close();
     return true;
-  }catch(e){ return false; }
+  }catch(e){ return false; } // el usuario canceló el diálogo: no es un error, solo no se guardó así
 }
 
-async function descargarLibro(wb, nombre, carpetaDestino){
+async function descargarLibro(wb, nombre, usarDialogo){
   nombre = nombreArchivo(nombre);
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  if(carpetaDestino){
+  if(usarDialogo){
     const nombreXlsx = nombre.toLowerCase().endsWith('.xlsx') ? nombre : nombre + '.xlsx';
-    const guardado = await guardarEnCarpetaMesAliment(blob, nombreXlsx, carpetaDestino.anio, carpetaDestino.numMes);
-    if(guardado){
-      avisar(`Guardado en REPORTE DE ALIMENTACION\\${carpetaDestino.anio}\\${nombreMesCarpeta(carpetaDestino.numMes)}`);
-      return;
-    }
+    if(await guardarConDialogo(blob, nombreXlsx)){ avisar('Archivo guardado'); return; }
   }
   const a = document.createElement('a');
   const url = URL.createObjectURL(blob);
@@ -5136,8 +5086,7 @@ async function exportarExcelAlimentacion(){
     ws.views = [{state:'frozen', ySplit:4}];
   });
 
-  await descargarLibro(wb, `HORAS DE ALIMENTACION ${MESES[Number(mesSel.slice(5,7))-1].toUpperCase()} ${mesSel.slice(0,4)}`,
-    {anio: mesSel.slice(0,4), numMes: Number(mesSel.slice(5,7))});
+  await descargarLibro(wb, `HORAS DE ALIMENTACION ${MESES[Number(mesSel.slice(5,7))-1].toUpperCase()} ${mesSel.slice(0,4)}`, true);
 }
 
 async function exportarExcelCarbon(){
