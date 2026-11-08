@@ -3180,6 +3180,9 @@ async function guardarBloquesAlimentacion(){
 // "Finalizar": guarda lo que haya quedado sin guardar en el bloque actual (si lo hay) y cierra el
 // formulario, sin preguntar nada más (esa confirmación ya quedó en "Guardar registro")
 async function finalizarAlimentacion(){
+  // confirma antes de cerrar: un clic accidental en "Finalizar" mientras se está cargando no debe
+  // cortar el registro a medias
+  if(!confirm('¿Finalizar y cerrar el formulario?\n\nSi todavía le falta cargar datos, presione "Cancelar" aquí y siga registrando.')) return;
   const fecha = $('[name=fecha]').value;
   const bloque = $('#aliment-bloques .aliment-bloque');
   const filas = bloque ? extraerFilasBloque(bloque, fecha) : [];
