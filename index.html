@@ -1,4 +1,4 @@
-<meta charset="utf-8">
+﻿<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#185FA5">
 <meta name="mobile-web-app-capable" content="yes">
@@ -872,6 +872,8 @@ const MODULOS = {
       {id:'codigoPatio', etiqueta:'Número de pila', tipo:'text', requerido:true},
       {id:'horaInicial', etiqueta:'Hora (desde)', tipo:'horaMilitar', requerido:true},
       {id:'horaFinal', etiqueta:'Hora (hasta)', tipo:'horaMilitar', requerido:true},
+      {id:'humedad', etiqueta:'Porcentaje de humedad (%)', tipo:'number'},
+      {id:'tenor', etiqueta:'Tenor M1S (g/t)', tipo:'number'},
       {id:'pesometroInicial', etiqueta:'Lectura inicial pesómetro', tipo:'number'},
       {id:'pesometroFinal', etiqueta:'Lectura final pesómetro', tipo:'number'},
       {id:'obs', etiqueta:'Observación', tipo:'text'}
@@ -5089,3 +5091,4 @@ if('serviceWorker' in navigator){
   window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 </script>
+
