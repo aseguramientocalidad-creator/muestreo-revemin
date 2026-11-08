@@ -3017,8 +3017,8 @@ const FILAS_ALIMENT_NUEVO = 14;
 function filaAlimentNueva(){
   return `<tr>
     <td><input name="horaInicial" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
-    <td><input name="pesometroInicial" inputmode="decimal"></td>
     <td><input name="horaFinal" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
+    <td><input name="pesometroInicial" inputmode="decimal"></td>
     <td><input name="pesometroFinal" inputmode="decimal"></td>
     <td><input name="obs"></td>
   </tr>`;
@@ -3034,7 +3034,7 @@ function bloqueAlimentNuevo(){
       </div>
     </div>
     <table class="tabla-aliment-nueva">
-      <thead><tr><th class="col-hora">Hora (desde)</th><th class="col-peso">Lectura inicial pesómetro</th><th class="col-hora">Hora (hasta)</th><th class="col-peso">Lectura final pesómetro</th><th class="col-obs">Observación</th></tr></thead>
+      <thead><tr><th class="col-hora">Hora (desde)</th><th class="col-hora">Hora (hasta)</th><th class="col-peso">Lectura inicial pesómetro</th><th class="col-peso">Lectura final pesómetro</th><th class="col-obs">Observación</th></tr></thead>
       <tbody>${Array.from({length:FILAS_ALIMENT_NUEVO}).map(filaAlimentNueva).join('')}</tbody>
     </table>
   </div>`;
