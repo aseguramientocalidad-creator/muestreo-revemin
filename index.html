@@ -2673,6 +2673,7 @@ function abrirFormulario(indice, base){
   $('#formulario').style.maxWidth = '';
   $('#btn-misma-orden').style.display = (ESTADO.modulo === 'patio') ? '' : 'none';
   $('#btn-finalizar-aliment').style.display = (ESTADO.modulo === 'alimentacion' && indice === null) ? '' : 'none';
+  $('#btn-cancelar').style.display = (ESTADO.modulo === 'alimentacion' && indice === null) ? 'none' : '';
   if(ESTADO.modulo === 'patio') formularioPatio(indice, base);
   else if(ESTADO.modulo === 'proceso') formularioProceso(indice);
   else if(ESTADO.modulo === 'carbon') formularioCarbon(indice);
