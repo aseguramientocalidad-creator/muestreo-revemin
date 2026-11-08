@@ -252,6 +252,10 @@
     color:#C9D6EC; font-size:10px; cursor:pointer; padding:4px 5px; line-height:1; border-radius:3px}
   .btn-filtro:hover{background:rgba(255,255,255,.15)}
   .btn-filtro.activo{color:#F2C811}
+  .input-tabla-aliment{width:70px; text-align:center; border:1px solid transparent; background:transparent;
+    font:inherit; text-transform:uppercase; padding:3px; border-radius:3px}
+  .input-tabla-aliment:hover{border-color:var(--gris-suave)}
+  .input-tabla-aliment:focus{border-color:var(--t-acento); background:#fff; outline:none}
   .panel-filtro{position:fixed; z-index:200; background:#fff; border:1px solid #9A9A95; box-shadow:0 6px 18px rgba(0,0,0,.25);
     width:230px; max-height:320px; display:flex; flex-direction:column; font-size:13px; color:#000; text-transform:none}
   .panel-filtro .pf-buscar{margin:8px; padding:6px 8px; border:1px solid var(--gris-suave); font-size:12px}
@@ -2646,9 +2650,16 @@ function pintarGenerico(){
     const activo = ESTADO.filtrosAliment[c.id] ? 'activo' : '';
     return `<th>${esc(c.etiqueta)}<button type="button" class="btn-filtro ${activo}" data-filtro-col="${c.id}" aria-label="Filtrar ${esc(c.etiqueta)}">▾</button></th>`;
   }).join('');
+  const edItableAliment = esAliment && (c => c.id === 'humedad' || c.id === 'tenor');
   const tb = filas.map(r=>{
     const i = ESTADO.datos.indexOf(r);
-    const tds = cols.map(c=>`<td>${esc(valorColumna(c,r))}</td>`).join('');
+    const tds = cols.map(c=>{
+      if(edItableAliment(c)){
+        const v = r[c.id];
+        return `<td><input type="number" step="any" inputmode="decimal" class="input-tabla-aliment" data-row="${i}" data-campo="${c.id}" value="${v===undefined||v===null||v===''?'':esc(v)}"></td>`;
+      }
+      return `<td>${esc(valorColumna(c,r))}</td>`;
+    }).join('');
     return `<tr>${tds}<td class="col-acc">
       <button class="mini" data-editar="${i}">Editar</button>
       <button class="mini borrar" data-borrar="${i}">Eliminar</button></td></tr>`;
@@ -2659,6 +2670,16 @@ function pintarGenerico(){
     enlazarCarpetasAliment(zona);
     zona.querySelectorAll('[data-filtro-col]').forEach(b =>
       b.addEventListener('click', ()=> abrirPopoverFiltro(b.dataset.filtroCol, b)));
+    zona.querySelectorAll('.input-tabla-aliment').forEach(inp => {
+      inp.addEventListener('change', async ()=>{
+        const idx = Number(inp.dataset.row);
+        const campo = inp.dataset.campo;
+        const texto = inp.value.trim();
+        ESTADO.datos[idx][campo] = texto === '' ? '' : num(texto);
+        await escribir(MODULOS.alimentacion.clave, ESTADO.datos);
+        avisar('Guardado');
+      });
+    });
   }
   ponerPie(`${filas.length} registro${filas.length===1?'':'s'}`);
 }
