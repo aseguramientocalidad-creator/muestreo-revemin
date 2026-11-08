@@ -2656,7 +2656,7 @@ function pintarGenerico(){
     const tds = cols.map(c=>{
       if(edItableAliment(c)){
         const v = r[c.id];
-        return `<td><input type="number" step="any" inputmode="decimal" class="input-tabla-aliment" data-row="${i}" data-campo="${c.id}" value="${v===undefined||v===null||v===''?'':esc(v)}"></td>`;
+        return `<td><input type="text" inputmode="decimal" autocomplete="off" class="input-tabla-aliment" data-row="${i}" data-campo="${c.id}" value="${v===undefined||v===null||v===''?'':esc(v)}"></td>`;
       }
       return `<td>${esc(valorColumna(c,r))}</td>`;
     }).join('');
@@ -2678,6 +2678,25 @@ function pintarGenerico(){
         ESTADO.datos[idx][campo] = texto === '' ? '' : num(texto);
         await escribir(MODULOS.alimentacion.clave, ESTADO.datos);
         avisar('Guardado');
+      });
+      // flechas arriba/abajo: misma columna, fila anterior/siguiente; izquierda/derecha (al borde
+      // del texto): salta entre humedad y tenor de la misma fila, como en una hoja de cálculo
+      inp.addEventListener('keydown', e=>{
+        const tr = inp.closest('tr');
+        if(e.key === 'ArrowUp' || e.key === 'ArrowDown'){
+          const trDestino = e.key === 'ArrowUp' ? tr.previousElementSibling : tr.nextElementSibling;
+          const destino = trDestino && trDestino.querySelector(`.input-tabla-aliment[data-campo="${inp.dataset.campo}"]`);
+          if(destino){ e.preventDefault(); destino.focus(); destino.select(); }
+          return;
+        }
+        if(e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+          const enInicio = inp.selectionStart === 0 && inp.selectionEnd === 0;
+          const enFin = inp.selectionStart === inp.value.length && inp.selectionEnd === inp.value.length;
+          if((e.key === 'ArrowLeft' && !enInicio) || (e.key === 'ArrowRight' && !enFin)) return;
+          const otroCampo = inp.dataset.campo === 'humedad' ? 'tenor' : 'humedad';
+          const destino = tr.querySelector(`.input-tabla-aliment[data-campo="${otroCampo}"]`);
+          if(destino){ e.preventDefault(); destino.focus(); destino.select(); }
+        }
       });
     });
   }
