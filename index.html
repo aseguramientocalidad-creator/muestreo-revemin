@@ -3160,8 +3160,9 @@ async function escribirFilasAlimentacion(filas){
   // sin volver a mezclar todas las fechas anteriores
   if(ESTADO.filtrosAliment.fecha) filas.forEach(f => ESTADO.filtrosAliment.fecha.add(fechaLegible(f.fecha)));
 }
-// "Guardar registro": valida y escribe de inmediato las lecturas de la pila en pantalla, y deja el
-// bloque limpio (conservando la fecha) para registrar la siguiente, sin cerrar el formulario
+// "Guardar registro": pregunta si las horas de esta pila ya están bien, y si se confirma, valida
+// y escribe de inmediato las lecturas en pantalla, dejando el bloque limpio (conservando la fecha)
+// para registrar la siguiente, sin cerrar el formulario
 async function guardarBloquesAlimentacion(){
   const fecha = $('[name=fecha]').value;
   if(!fecha){ alert('Seleccione la fecha.'); return; }
@@ -3169,19 +3170,19 @@ async function guardarBloquesAlimentacion(){
   const filas = extraerFilasBloque(bloque, fecha);
   if(filas === null) return; // ya se avisó el motivo
   if(!filas.length){ avisar('Complete los datos de esta pila (Procedencia, Número de pila y al menos una lectura) antes de guardar'); return; }
+  const seguro = confirm('¿Está seguro de haber ingresado todas las horas correctamente?\n\nEn caso de que no sea así, debe revisar antes de guardar.');
+  if(!seguro) return;
   await escribirFilasAlimentacion(filas);
   $('#aliment-bloques').innerHTML = bloqueAlimentNuevo();
   pintar();
 }
-// "Finalizar": pregunta si ya se ingresaron bien todas las horas del turno; si se confirma, guarda
-// lo que haya quedado sin guardar en el bloque actual (si lo hay) y cierra el formulario
+// "Finalizar": guarda lo que haya quedado sin guardar en el bloque actual (si lo hay) y cierra el
+// formulario, sin preguntar nada más (esa confirmación ya quedó en "Guardar registro")
 async function finalizarAlimentacion(){
   const fecha = $('[name=fecha]').value;
   const bloque = $('#aliment-bloques .aliment-bloque');
   const filas = bloque ? extraerFilasBloque(bloque, fecha) : [];
   if(filas === null) return; // ya se avisó el motivo; no cierra para que pueda corregir
-  const seguro = confirm('¿Está seguro de haber ingresado todas las horas correctamente?\n\nEn caso de que no sea así, debe revisar antes de finalizar.');
-  if(!seguro) return;
   if(filas.length) await escribirFilasAlimentacion(filas);
   cerrarFormulario(); pintar();
 }
