@@ -2766,18 +2766,6 @@ function filaMuestra(m){
     <td><button type="button" class="mini borrar quitar">Quitar</button></td></tr>`;
 }
 
-// nombres de pila ya usados en esta procedencia (todas las fechas cargadas), para sugerir con datalist
-// y para el aviso de nombres parecidos; se respeta la primera forma con la que se escribió cada uno
-function listaPilasConocidas(){
-  const vistos = new Set();
-  const nombres = [];
-  (ESTADO.datos || []).forEach(x=>{
-    const clave = normalizaPila(x.pila);
-    if(x.pila && !vistos.has(clave)){ vistos.add(clave); nombres.push(String(x.pila)); }
-  });
-  return nombres.sort((a,b)=> a.localeCompare(b));
-}
-
 /* ---------- mezcla de pilas ---------- */
 // pilas del mes abierto que se pueden mezclar: cualquier registro que todavía no pertenezca
 // a otra mezcla (una pila ya mezclada no puede entrar en una segunda mezcla sin revertir la primera)
@@ -2929,8 +2917,7 @@ function formularioPatio(indice, base){
   $('#form-cuerpo').innerHTML = `
     <div class="rejilla">
       <div class="campo"><label>Fecha de ingreso *</label><input type="date" name="fecha" value="${esc(g.fecha)}" min="2000-01-01" max="2099-12-31" required></div>
-      <div class="campo"><label>Pila *</label><input type="text" name="pila" value="${esc(g.pila)}" list="lista-pilas-patio" autocomplete="off" required>
-        <datalist id="lista-pilas-patio">${listaPilasConocidas().map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
+      <div class="campo"><label>Pila *</label><input type="text" name="pila" value="${esc(g.pila)}" autocomplete="off" required>
         ${ESTADO.procedencia === 'mina_colombia' ? `<div style="display:flex; margin-top:6px; gap:6px">
           <button type="button" class="mini sugerir-pila-patio" data-texto="Skip ">Skip</button>
           <button type="button" class="mini sugerir-pila-patio" data-texto="Rampa ">Rampa</button>
