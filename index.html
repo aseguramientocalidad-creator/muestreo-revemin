@@ -366,7 +366,7 @@
   .vacio strong{display:block; color:#000; font-size:15px; margin-bottom:6px}
   .pie{padding:10px 20px; font-size:12px; color:var(--gris); border-top:1px solid var(--gris-suave)}
 
-  #telon-import,#telon-finalizar-aliment,#telon-guardar-aliment,#telon-compartir-archivo{z-index:60}
+  #telon-import,#telon-finalizar-aliment,#telon-guardar-aliment{z-index:60}
   .imp-tabla{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px}
   .imp-tabla th,.imp-tabla td{border:1px solid #999; padding:4px 7px; text-align:center}
   .imp-tabla th{background:#595959; color:#fff}
@@ -579,18 +579,6 @@
     <footer>
       <button type="button" class="btn" id="btn-revisar-aliment">REVISAR</button>
       <button type="button" class="btn btn-primario" id="btn-confirmar-guardar-aliment">GUARDAR</button>
-    </footer>
-  </div>
-</div>
-<div class="telon" id="telon-compartir-archivo">
-  <div class="panel" style="max-width:420px">
-    <header>Archivo exportado</header>
-    <div class="cuerpo" style="padding:20px; font-size:14px; line-height:1.5">
-      ¿Desea compartir este archivo (por ejemplo, por WhatsApp)?
-    </div>
-    <footer>
-      <button type="button" class="btn" id="btn-no-compartir">No</button>
-      <button type="button" class="btn btn-primario" id="btn-si-compartir">Compartir</button>
     </footer>
   </div>
 </div>
@@ -4228,47 +4216,6 @@ async function guardarConDialogo(blob, nombreArch){
   }catch(e){ return false; } // el usuario canceló el diálogo: no es un error, solo no se guardó así
 }
 
-// después de descargar/guardar un archivo, pregunta si se quiere compartir (por ejemplo, por
-// WhatsApp) usando el panel nativo de "Compartir" del dispositivo — no existe forma de mandarlo
-// directo a una app en particular desde una página web, así que WhatsApp aparece ahí como una de
-// las opciones (junto con correo, Drive, etc.), igual que al compartir desde cualquier app. Se
-// ofrece solo cuando el navegador lo soporta (celulares, sobre todo); en muchos de escritorio no
-// está disponible y simplemente no se pregunta.
-// el panel de "Compartir" del sistema solo se puede abrir dentro del mismo clic del usuario que lo
-// pide — si antes se usa confirm() (u otro await), varios navegadores (sobre todo en celular)
-// invalidan ese permiso y el share() falla en silencio, sin mostrar ninguna app. Por eso el aviso
-// usa un botón propio ("Compartir"), y navigator.share() se llama directo dentro de su clic.
-// Chrome (y otros) solo dejan compartir archivos de ciertas extensiones por este sistema;
-// uno como .xlsx no está permitido y share() siempre falla con "Permission denied" aunque
-// canShare() diga que sí. Por eso no se ofrece compartir en esos casos (igual queda guardado).
-const EXTENSIONES_COMPARTIBLES = new Set(['avif','bmp','css','csv','ehtml','flac','gif','htm','html',
-  'ico','jpeg','jpg','m4a','mp3','mp4','mpg','mpeg','oga','ogg','ogv','opus','pdf','png','shtm',
-  'shtml','svg','text','tif','tiff','txt','wav','webm','webp','xbm']);
-let ARCHIVO_PENDIENTE_COMPARTIR = null;
-function ofrecerCompartir(blob, nombre, tipoMime){
-  if(!navigator.canShare || !navigator.share) return;
-  const ext = (nombre.split('.').pop() || '').toLowerCase();
-  if(!EXTENSIONES_COMPARTIBLES.has(ext)) return;
-  const archivo = new File([blob], nombre, {type: tipoMime});
-  if(!navigator.canShare({files:[archivo]})) return;
-  ARCHIVO_PENDIENTE_COMPARTIR = archivo;
-  $('#telon-compartir-archivo').classList.add('activo');
-}
-$('#btn-no-compartir').addEventListener('click', ()=>{
-  $('#telon-compartir-archivo').classList.remove('activo');
-  ARCHIVO_PENDIENTE_COMPARTIR = null;
-});
-$('#btn-si-compartir').addEventListener('click', ()=>{
-  const archivo = ARCHIVO_PENDIENTE_COMPARTIR;
-  ARCHIVO_PENDIENTE_COMPARTIR = null;
-  if(!archivo) return;
-  // share() se llama ANTES de cerrar el cuadro (ningún cambio en la página de por medio): en
-  // algunos navegadores de celular, modificar el DOM justo antes invalida el permiso de compartir
-  navigator.share({files:[archivo], title: archivo.name})
-    .catch(e=>{ if(e && e.name !== 'AbortError') alert('No se pudo abrir "Compartir": ' + (e && (e.name+': '+e.message) || e)); })
-    .finally(()=> $('#telon-compartir-archivo').classList.remove('activo'));
-});
-
 async function descargarLibro(wb, nombre, usarDialogo){
   nombre = nombreArchivo(nombre);
   const buffer = await wb.xlsx.writeBuffer();
@@ -4278,7 +4225,6 @@ async function descargarLibro(wb, nombre, usarDialogo){
   if(usarDialogo){
     if(await guardarConDialogo(blob, nombreXlsx)){
       avisar('Archivo guardado');
-      await ofrecerCompartir(blob, nombreXlsx, tipoMime);
       return;
     }
   }
@@ -4294,7 +4240,6 @@ async function descargarLibro(wb, nombre, usarDialogo){
   a.click();
   setTimeout(()=>{ a.remove(); URL.revokeObjectURL(url); }, 4000);
   avisar('Archivo Excel descargado');
-  await ofrecerCompartir(blob, nombreXlsx, tipoMime);
 }
 
 function periodo(grupos){
@@ -4806,7 +4751,6 @@ async function exportarInformeDiarioPdf(){
 
     const nombrePdf = `INFORME DIARIO QA-QC ${fechaHoyLegible.replace(/\//g,'-')}.pdf`;
     pdf.save(nombrePdf);
-    await ofrecerCompartir(pdf.output('blob'), nombrePdf, 'application/pdf');
   } catch(e){
     avisar('No se pudo generar el informe');
   }
