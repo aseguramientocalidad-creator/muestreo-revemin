@@ -2717,8 +2717,8 @@ function pintarGenerico(){
         await escribir(MODULOS.alimentacion.clave, ESTADO.datos);
         avisar('Guardado');
       });
-      // flechas arriba/abajo: misma columna, fila anterior/siguiente; izquierda/derecha (al borde
-      // del texto): salta entre humedad y tenor de la misma fila, como en una hoja de cálculo
+      // flechas arriba/abajo: misma columna, fila anterior/siguiente; izquierda/derecha: salta
+      // directo entre humedad y tenor de la misma fila, sin recorrer los dígitos del número
       inp.addEventListener('keydown', e=>{
         const tr = inp.closest('tr');
         if(e.key === 'ArrowUp' || e.key === 'ArrowDown'){
@@ -2728,9 +2728,6 @@ function pintarGenerico(){
           return;
         }
         if(e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
-          const enInicio = inp.selectionStart === 0 && inp.selectionEnd === 0;
-          const enFin = inp.selectionStart === inp.value.length && inp.selectionEnd === inp.value.length;
-          if((e.key === 'ArrowLeft' && !enInicio) || (e.key === 'ArrowRight' && !enFin)) return;
           const otroCampo = inp.dataset.campo === 'humedad' ? 'tenor' : 'humedad';
           const destino = tr.querySelector(`.input-tabla-aliment[data-campo="${otroCampo}"]`);
           if(destino){ e.preventDefault(); destino.focus(); destino.select(); }
