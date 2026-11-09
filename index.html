@@ -4216,13 +4216,34 @@ async function guardarConDialogo(blob, nombreArch){
   }catch(e){ return false; } // el usuario canceló el diálogo: no es un error, solo no se guardó así
 }
 
+// después de descargar/guardar un archivo, pregunta si se quiere compartir (por ejemplo, por
+// WhatsApp) usando el panel nativo de "Compartir" del dispositivo — no existe forma de mandarlo
+// directo a una app en particular desde una página web, así que WhatsApp aparece ahí como una de
+// las opciones (junto con correo, Drive, etc.), igual que al compartir desde cualquier app. Se
+// ofrece solo cuando el navegador lo soporta (celulares, sobre todo); en muchos de escritorio no
+// está disponible y simplemente no se pregunta.
+async function ofrecerCompartir(blob, nombre, tipoMime){
+  if(!navigator.canShare || !navigator.share) return;
+  try{
+    const archivo = new File([blob], nombre, {type: tipoMime});
+    if(!navigator.canShare({files:[archivo]})) return;
+    if(!confirm('¿Desea compartir este archivo (por ejemplo, por WhatsApp)?')) return;
+    await navigator.share({files:[archivo], title: nombre});
+  }catch(e){} // el usuario canceló el panel de compartir, o el navegador lo rechazó: no es un error
+}
+
 async function descargarLibro(wb, nombre, usarDialogo){
   nombre = nombreArchivo(nombre);
   const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const tipoMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const blob = new Blob([buffer], {type:tipoMime});
+  const nombreXlsx = nombre.toLowerCase().endsWith('.xlsx') ? nombre : nombre + '.xlsx';
   if(usarDialogo){
-    const nombreXlsx = nombre.toLowerCase().endsWith('.xlsx') ? nombre : nombre + '.xlsx';
-    if(await guardarConDialogo(blob, nombreXlsx)){ avisar('Archivo guardado'); return; }
+    if(await guardarConDialogo(blob, nombreXlsx)){
+      avisar('Archivo guardado');
+      await ofrecerCompartir(blob, nombreXlsx, tipoMime);
+      return;
+    }
   }
   const a = document.createElement('a');
   const url = URL.createObjectURL(blob);
@@ -4236,6 +4257,7 @@ async function descargarLibro(wb, nombre, usarDialogo){
   a.click();
   setTimeout(()=>{ a.remove(); URL.revokeObjectURL(url); }, 4000);
   avisar('Archivo Excel descargado');
+  await ofrecerCompartir(blob, nombreXlsx, tipoMime);
 }
 
 function periodo(grupos){
@@ -4745,7 +4767,9 @@ async function exportarInformeDiarioPdf(){
       pdf.addImage(INFORME_DIARIO_FOOTER_PNG, 'PNG', margenX, pageH - footerH - 16, anchoUtil, footerH);
     }
 
-    pdf.save(`INFORME DIARIO QA-QC ${fechaHoyLegible.replace(/\//g,'-')}.pdf`);
+    const nombrePdf = `INFORME DIARIO QA-QC ${fechaHoyLegible.replace(/\//g,'-')}.pdf`;
+    pdf.save(nombrePdf);
+    await ofrecerCompartir(pdf.output('blob'), nombrePdf, 'application/pdf');
   } catch(e){
     avisar('No se pudo generar el informe');
   }
