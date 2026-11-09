@@ -732,6 +732,11 @@ const SUGERENCIAS_PILA_ALIMENT = {
   'MINA COLOMBIA':   ['Skip ', 'Rampa '],
   'PEQUEÑA MINERIA': ['Arrime mezcla ', 'Arenas ', 'Primario ']
 };
+// mismas sugerencias, para el campo Pila del formulario de Patio (clave por id de procedencia)
+const SUGERENCIAS_PILA_PATIO = {
+  mina_colombia:   ['Skip ', 'Rampa '],
+  pequena_mineria: ['Arrime mezcla ', 'Primario ', 'Arenas ']
+};
 
 // columnas de la tabla/exportación de Alimentación: mismos títulos y mismo orden que el Excel de
 // referencia (ALIMENTACION OCTUBRE 2026). "linea" y "turnos" no son campos del formulario — se
@@ -2918,9 +2923,9 @@ function formularioPatio(indice, base){
     <div class="rejilla">
       <div class="campo"><label>Fecha de ingreso *</label><input type="date" name="fecha" value="${esc(g.fecha)}" min="2000-01-01" max="2099-12-31" required></div>
       <div class="campo"><label>Pila *</label><input type="text" name="pila" value="${esc(g.pila)}" autocomplete="off" required>
-        ${ESTADO.procedencia === 'mina_colombia' ? `<div style="display:flex; margin-top:6px; gap:6px">
-          <button type="button" class="mini sugerir-pila-patio" data-texto="Skip ">Skip</button>
-          <button type="button" class="mini sugerir-pila-patio" data-texto="Rampa ">Rampa</button>
+        ${SUGERENCIAS_PILA_PATIO[ESTADO.procedencia] ? `<div style="display:flex; margin-top:6px; gap:6px">
+          ${SUGERENCIAS_PILA_PATIO[ESTADO.procedencia].map(t=>
+            `<button type="button" class="mini sugerir-pila-patio" data-texto="${esc(t)}">${esc(t.trim())}</button>`).join('')}
         </div>` : ''}
       </div>
       <div class="campo"><label>Turno</label><input type="text" name="turno" value="${esc(g.turno)}"></div>
