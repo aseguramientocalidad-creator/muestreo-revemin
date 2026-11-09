@@ -2931,6 +2931,10 @@ function formularioPatio(indice, base){
       <div class="campo"><label>Fecha de ingreso *</label><input type="date" name="fecha" value="${esc(g.fecha)}" min="2000-01-01" max="2099-12-31" required></div>
       <div class="campo"><label>Pila *</label><input type="text" name="pila" value="${esc(g.pila)}" list="lista-pilas-patio" autocomplete="off" required>
         <datalist id="lista-pilas-patio">${listaPilasConocidas().map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
+        ${ESTADO.procedencia === 'mina_colombia' ? `<div style="display:flex; margin-top:6px; gap:6px">
+          <button type="button" class="mini sugerir-pila-patio" data-texto="Skip ">Skip</button>
+          <button type="button" class="mini sugerir-pila-patio" data-texto="Rampa ">Rampa</button>
+        </div>` : ''}
       </div>
       <div class="campo"><label>Turno</label><input type="text" name="turno" value="${esc(g.turno)}"></div>
       <div class="campo"><label>Orden — correlativo</label>
@@ -2978,6 +2982,12 @@ function formularioPatio(indice, base){
   refrescarOrden();
 
   const inTon = $('#form-cuerpo').querySelector('[name=toneladasHumedas]');
+  // sugerencias "Skip"/"Rampa" en Mina Colombia, igual que en Alimentación
+  $('#form-cuerpo').querySelectorAll('.sugerir-pila-patio').forEach(b => b.addEventListener('click', ()=>{
+    const inPila = $('#form-cuerpo').querySelector('[name=pila]');
+    inPila.value = b.dataset.texto;
+    inPila.focus();
+  }));
   $('#btn-agregar-codigo').addEventListener('click', ()=>{
     tbody.insertAdjacentHTML('beforeend', filaMuestra({}));
     engancharFilas(); calcularVivo();
