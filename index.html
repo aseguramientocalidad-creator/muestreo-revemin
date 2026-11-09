@@ -3196,9 +3196,9 @@ function formularioAlimentacionNuevo(base){
     input.value = boton.dataset.texto;
     input.focus();
   });
-  // flechas del teclado para moverse entre celdas de la tabla de lecturas: arriba/abajo siempre
-  // van a la misma columna de la fila anterior/siguiente; izquierda/derecha solo cuando el cursor
-  // ya está en el extremo del texto (para no interferir con mover el cursor dentro de lo escrito)
+  // flechas del teclado para moverse entre celdas de la tabla de lecturas: siempre van directo a
+  // la celda vecina (arriba/abajo a la misma columna, izquierda/derecha a la columna de al lado),
+  // sin recorrer los dígitos del número como hace el cursor normalmente dentro de un input
   $('#form-cuerpo').addEventListener('keydown', e=>{
     const input = e.target;
     if(!input.matches('.tabla-aliment-nueva input')) return;
@@ -3215,8 +3215,8 @@ function formularioAlimentacionNuevo(base){
     };
     if(e.key === 'ArrowDown'){ if(ir(fIdx+1, cIdx)) e.preventDefault(); }
     else if(e.key === 'ArrowUp'){ if(ir(fIdx-1, cIdx)) e.preventDefault(); }
-    else if(e.key === 'ArrowLeft' && input.selectionStart === 0 && input.selectionEnd === 0){ if(ir(fIdx, cIdx-1)) e.preventDefault(); }
-    else if(e.key === 'ArrowRight' && input.selectionStart === input.value.length && input.selectionEnd === input.value.length){ if(ir(fIdx, cIdx+1)) e.preventDefault(); }
+    else if(e.key === 'ArrowLeft'){ if(ir(fIdx, cIdx-1)) e.preventDefault(); }
+    else if(e.key === 'ArrowRight'){ if(ir(fIdx, cIdx+1)) e.preventDefault(); }
   });
 }
 // valida y extrae las filas con datos de un bloque de pila; devuelve [] si el bloque está
