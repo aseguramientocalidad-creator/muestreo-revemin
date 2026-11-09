@@ -4250,13 +4250,15 @@ $('#btn-no-compartir').addEventListener('click', ()=>{
   $('#telon-compartir-archivo').classList.remove('activo');
   ARCHIVO_PENDIENTE_COMPARTIR = null;
 });
-$('#btn-si-compartir').addEventListener('click', async ()=>{
-  $('#telon-compartir-archivo').classList.remove('activo');
+$('#btn-si-compartir').addEventListener('click', ()=>{
   const archivo = ARCHIVO_PENDIENTE_COMPARTIR;
   ARCHIVO_PENDIENTE_COMPARTIR = null;
   if(!archivo) return;
-  try{ await navigator.share({files:[archivo], title: archivo.name}); }
-  catch(e){} // el usuario canceló el panel de compartir, o el navegador lo rechazó: no es un error
+  // share() se llama ANTES de cerrar el cuadro (ningún cambio en la página de por medio): en
+  // algunos navegadores de celular, modificar el DOM justo antes invalida el permiso de compartir
+  navigator.share({files:[archivo], title: archivo.name})
+    .catch(e=>{ if(e && e.name !== 'AbortError') alert('No se pudo abrir "Compartir": ' + (e && (e.name+': '+e.message) || e)); })
+    .finally(()=> $('#telon-compartir-archivo').classList.remove('activo'));
 });
 
 async function descargarLibro(wb, nombre, usarDialogo){
