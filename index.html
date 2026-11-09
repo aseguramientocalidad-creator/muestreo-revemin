@@ -2106,6 +2106,7 @@ function pintarInicioPatio(){
   const stockHtml = `<div class="rotulo" style="margin-top:34px">${tituloStockPatio()}</div>${cuerpoStockPatio(lista)}`;
   zona.innerHTML = panelPatio() + stockHtml;
   enlazarAcciones(zona);
+  igualarAlturaTarjetas();
   ponerPie(`Resumen general · ${lista.length} pila${lista.length===1?'':'s'} en stock de patio`);
 }
 
