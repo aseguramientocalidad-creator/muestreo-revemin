@@ -3201,7 +3201,7 @@ function formularioAlimentacionNuevo(base){
   // sin recorrer los dígitos del número como hace el cursor normalmente dentro de un input
   $('#form-cuerpo').addEventListener('keydown', e=>{
     const input = e.target;
-    if(!input.matches('.tabla-aliment-nueva input')) return;
+    if(!input.matches('.tabla-aliment-nueva input, #tabla-muestras input')) return;
     const tr = input.closest('tr');
     const filas = [...input.closest('table').querySelectorAll('tbody tr')];
     const fIdx = filas.indexOf(tr);
