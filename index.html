@@ -4238,9 +4238,17 @@ async function guardarConDialogo(blob, nombreArch){
 // pide — si antes se usa confirm() (u otro await), varios navegadores (sobre todo en celular)
 // invalidan ese permiso y el share() falla en silencio, sin mostrar ninguna app. Por eso el aviso
 // usa un botón propio ("Compartir"), y navigator.share() se llama directo dentro de su clic.
+// Chrome (y otros) solo dejan compartir archivos de ciertas extensiones por este sistema;
+// uno como .xlsx no está permitido y share() siempre falla con "Permission denied" aunque
+// canShare() diga que sí. Por eso no se ofrece compartir en esos casos (igual queda guardado).
+const EXTENSIONES_COMPARTIBLES = new Set(['avif','bmp','css','csv','ehtml','flac','gif','htm','html',
+  'ico','jpeg','jpg','m4a','mp3','mp4','mpg','mpeg','oga','ogg','ogv','opus','pdf','png','shtm',
+  'shtml','svg','text','tif','tiff','txt','wav','webm','webp','xbm']);
 let ARCHIVO_PENDIENTE_COMPARTIR = null;
 function ofrecerCompartir(blob, nombre, tipoMime){
   if(!navigator.canShare || !navigator.share) return;
+  const ext = (nombre.split('.').pop() || '').toLowerCase();
+  if(!EXTENSIONES_COMPARTIBLES.has(ext)) return;
   const archivo = new File([blob], nombre, {type: tipoMime});
   if(!navigator.canShare({files:[archivo]})) return;
   ARCHIVO_PENDIENTE_COMPARTIR = archivo;
