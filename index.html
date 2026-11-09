@@ -3433,6 +3433,11 @@ $('#formulario').addEventListener('submit', async e=>{
         return;
       }
     }
+    if(g.pila && ESTADO.procedencia === 'mina_sosa' && !/^\d+$/.test(g.pila)){
+      // en Mina Sosa Méndez la pila es solo un número, sin texto
+      alert(`Escribió "${g.pila}".\n\nEn Mina Sosa Méndez la pila debe ser solo un número (ej. "182"), sin texto.`);
+      return;
+    }
     if(g.pila){
       // aviso de nombre parecido pero no idéntico (posible transcripción inconsistente de la misma pila)
       const claveExacta = normalizaPila(g.pila);
