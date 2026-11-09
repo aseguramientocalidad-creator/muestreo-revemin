@@ -366,7 +366,7 @@
   .vacio strong{display:block; color:#000; font-size:15px; margin-bottom:6px}
   .pie{padding:10px 20px; font-size:12px; color:var(--gris); border-top:1px solid var(--gris-suave)}
 
-  #telon-import,#telon-finalizar-aliment,#telon-guardar-aliment{z-index:60}
+  #telon-import,#telon-finalizar-aliment,#telon-guardar-aliment,#telon-compartir-archivo{z-index:60}
   .imp-tabla{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px}
   .imp-tabla th,.imp-tabla td{border:1px solid #999; padding:4px 7px; text-align:center}
   .imp-tabla th{background:#595959; color:#fff}
@@ -579,6 +579,18 @@
     <footer>
       <button type="button" class="btn" id="btn-revisar-aliment">REVISAR</button>
       <button type="button" class="btn btn-primario" id="btn-confirmar-guardar-aliment">GUARDAR</button>
+    </footer>
+  </div>
+</div>
+<div class="telon" id="telon-compartir-archivo">
+  <div class="panel" style="max-width:420px">
+    <header>Archivo exportado</header>
+    <div class="cuerpo" style="padding:20px; font-size:14px; line-height:1.5">
+      ¿Desea compartir este archivo (por ejemplo, por WhatsApp)?
+    </div>
+    <footer>
+      <button type="button" class="btn" id="btn-no-compartir">No</button>
+      <button type="button" class="btn btn-primario" id="btn-si-compartir">Compartir</button>
     </footer>
   </div>
 </div>
@@ -4222,15 +4234,30 @@ async function guardarConDialogo(blob, nombreArch){
 // las opciones (junto con correo, Drive, etc.), igual que al compartir desde cualquier app. Se
 // ofrece solo cuando el navegador lo soporta (celulares, sobre todo); en muchos de escritorio no
 // está disponible y simplemente no se pregunta.
-async function ofrecerCompartir(blob, nombre, tipoMime){
+// el panel de "Compartir" del sistema solo se puede abrir dentro del mismo clic del usuario que lo
+// pide — si antes se usa confirm() (u otro await), varios navegadores (sobre todo en celular)
+// invalidan ese permiso y el share() falla en silencio, sin mostrar ninguna app. Por eso el aviso
+// usa un botón propio ("Compartir"), y navigator.share() se llama directo dentro de su clic.
+let ARCHIVO_PENDIENTE_COMPARTIR = null;
+function ofrecerCompartir(blob, nombre, tipoMime){
   if(!navigator.canShare || !navigator.share) return;
-  try{
-    const archivo = new File([blob], nombre, {type: tipoMime});
-    if(!navigator.canShare({files:[archivo]})) return;
-    if(!confirm('¿Desea compartir este archivo (por ejemplo, por WhatsApp)?')) return;
-    await navigator.share({files:[archivo], title: nombre});
-  }catch(e){} // el usuario canceló el panel de compartir, o el navegador lo rechazó: no es un error
+  const archivo = new File([blob], nombre, {type: tipoMime});
+  if(!navigator.canShare({files:[archivo]})) return;
+  ARCHIVO_PENDIENTE_COMPARTIR = archivo;
+  $('#telon-compartir-archivo').classList.add('activo');
 }
+$('#btn-no-compartir').addEventListener('click', ()=>{
+  $('#telon-compartir-archivo').classList.remove('activo');
+  ARCHIVO_PENDIENTE_COMPARTIR = null;
+});
+$('#btn-si-compartir').addEventListener('click', async ()=>{
+  $('#telon-compartir-archivo').classList.remove('activo');
+  const archivo = ARCHIVO_PENDIENTE_COMPARTIR;
+  ARCHIVO_PENDIENTE_COMPARTIR = null;
+  if(!archivo) return;
+  try{ await navigator.share({files:[archivo], title: archivo.name}); }
+  catch(e){} // el usuario canceló el panel de compartir, o el navegador lo rechazó: no es un error
+});
 
 async function descargarLibro(wb, nombre, usarDialogo){
   nombre = nombreArchivo(nombre);
