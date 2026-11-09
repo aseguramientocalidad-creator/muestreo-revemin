@@ -975,9 +975,12 @@ function normalizarPilaRampaSkip(pila){
 // Las reglas de Arrime-mezcla y Rampa/Skip son específicas de Pequeña Minería y Mina Colombia
 // respectivamente (igual que en Patio): con cualquier otra procedencia no aplican, así que un
 // número suelto como "182" en Mina Sosa Méndez no debe pedir que se aclare si es Rampa o Skip.
-function validarCodigoPila(t, procedencia){
+function validarCodigoPila(t, procedencia, silencioso){
   t = String(t ?? '').trim();
   if(!t) return t;
+  // al cerrar a la fuerza (botón "Cerrar" del aviso de Finalizar) no se valida ni se pregunta
+  // nada: se guarda el texto tal cual, para no bloquear el cierre con un alert() o confirm()
+  if(silencioso) return t;
   const procLimpia = String(procedencia ?? '').trim().toUpperCase();
   const esPequenaMineria = procLimpia === 'PEQUEÑA MINERIA';
   const esMinaColombia = procLimpia === 'MINA COLOMBIA';
@@ -3218,7 +3221,7 @@ function formularioAlimentacionNuevo(base){
 }
 // valida y extrae las filas con datos de un bloque de pila; devuelve [] si el bloque está
 // completamente vacío (se ignora sin avisar), o null si hay un error (ya se mostró con alert)
-function extraerFilasBloque(bloque, fecha){
+function extraerFilasBloque(bloque, fecha, silencioso){
   const selProc = bloque.querySelector('[name=procedencia]');
   const procedencia = (selProc.value === '__otro__'
     ? bloque.querySelector('[name=procedenciaOtro]').value
@@ -3229,14 +3232,14 @@ function extraerFilasBloque(bloque, fecha){
   const filasLlenas = filas.filter(tr => camposFilaAliment.some(n => val(tr,n) !== ''));
   if(!procedencia && !codigoPatio && !filasLlenas.length) return [];
   if(!procedencia || !codigoPatio){
-    alert('Complete Procedencia y Número de pila.');
+    if(!silencioso) alert('Complete Procedencia y Número de pila.');
     return null;
   }
-  const validado = validarCodigoPila(codigoPatio, procedencia);
+  const validado = validarCodigoPila(codigoPatio, procedencia, silencioso);
   if(validado === null) return null;
   codigoPatio = validado;
   if(!filasLlenas.length){
-    alert(`Agregue al menos una lectura para la pila "${codigoPatio}", o quítela si no corresponde.`);
+    if(!silencioso) alert(`Agregue al menos una lectura para la pila "${codigoPatio}", o quítela si no corresponde.`);
     return null;
   }
   return filasLlenas.map((tr,i)=> ({
@@ -3297,11 +3300,13 @@ $('#btn-seguir-registrando-aliment').addEventListener('click', ()=>
   $('#telon-finalizar-aliment').classList.remove('activo'));
 $('#btn-confirmar-finalizar-aliment').addEventListener('click', async ()=>{
   $('#telon-finalizar-aliment').classList.remove('activo');
+  // "Cerrar" cierra siempre, aunque la pila en pantalla haya quedado incompleta: si tiene lo
+  // mínimo para guardarse (sin preguntar ni avisar nada) se guarda; si no, esa pila sin terminar
+  // simplemente se descarta, pero el formulario se cierra de todos modos
   const fecha = $('[name=fecha]').value;
   const bloque = $('#aliment-bloques .aliment-bloque');
-  const filas = bloque ? extraerFilasBloque(bloque, fecha) : [];
-  if(filas === null) return; // ya se avisó el motivo; no cierra para que pueda corregir
-  if(filas.length) await escribirFilasAlimentacion(filas);
+  const filas = (bloque && fecha) ? extraerFilasBloque(bloque, fecha, true) : [];
+  if(filas && filas.length) await escribirFilasAlimentacion(filas);
   cerrarFormulario(); pintar();
 });
 
