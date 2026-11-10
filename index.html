@@ -967,6 +967,71 @@ function formatearAlianza(texto){
   return String(texto ?? '').replace(/\s+/g, ' ').trim()
     .replace(/\p{L}+/gu, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
+// nombres "oficiales" de las alianzas de Pequeña Minería (sin el prefijo Arenas/Primario ni
+// anotaciones de comercialización) — contra esta lista se valida/corrige cada nombre escrito,
+// para que la misma alianza no quede registrada varias veces con el nombre mal escrito
+// (ej. "Baster" -> "Barters", "Rocio Sur" -> "Roscio Sur")
+const ALIANZAS_CANON = ['Ajupemin', 'Ruiz Ferrer', 'El Esfuerzo', 'Barters', 'Iuseca', 'Los Primos',
+  'Metal Fenix', 'Nuevo Renacer', 'Planta Ecologica Pequeña Mineria',
+  'Producción Analisis Las Claritas', 'Rio Pison', 'Roscio Sur', 'Super Cherry', 'Mama Pancha', 'Kira'];
+function normalizarComparacionAlianza(t){
+  return String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+// distancia de edición (Levenshtein) entre dos cadenas, para detectar nombres parecidos a una
+// alianza conocida pero con una o dos letras distintas (probable error de transcripción)
+function distanciaEdicion(a, b){
+  const m = a.length, n = b.length;
+  const fila = Array.from({length: n + 1}, (_, j) => j);
+  for(let i = 1; i <= m; i++){
+    let anterior = fila[0];
+    fila[0] = i;
+    for(let j = 1; j <= n; j++){
+      const temp = fila[j];
+      fila[j] = a[i - 1] === b[j - 1] ? anterior : 1 + Math.min(anterior, fila[j], fila[j - 1]);
+      anterior = temp;
+    }
+  }
+  return fila[n];
+}
+// valida/corrige el nombre de una alianza de Pequeña Minería (ya se sabe que no es Arrime/Mezcla)
+// contra ALIANZAS_CANON: conserva el prefijo Arenas/Primario y cualquier anotación entre
+// paréntesis tal como se escribieron, y compara solo el nombre "núcleo" contra la lista. Si el
+// núcleo coincide con una alianza conocida (ignorando mayúsculas/acentos) usa su ortografía
+// oficial; si se parece mucho pero no es igual, pregunta si es esa alianza (si confirma, se corrige
+// solo; si dice que no, se guarda tal como lo escribió, por si es una alianza nueva parecida); si no
+// se parece a ninguna alianza conocida, se asume directamente que es una alianza nueva.
+function validarAlianza(texto){
+  const t = String(texto ?? '').trim();
+  if(!t) return t;
+  const mPrefijo = t.match(/^(arenas|primario)\s+/i);
+  const prefijo = mPrefijo ? mPrefijo[0] : '';
+  const resto = t.slice(prefijo.length);
+  const mSufijo = resto.match(/\s*\([^)]*\)\s*$/);
+  const sufijo = mSufijo ? mSufijo[0] : '';
+  let nucleo = mSufijo ? resto.slice(0, resto.length - sufijo.length) : resto;
+  nucleo = nucleo.replace(/\bcomercializaci[oó]n\b\s*$/i, '').trim();
+  if(!nucleo) return formatearAlianza(t);
+
+  const nucleoNorm = normalizarComparacionAlianza(nucleo);
+  let mejor = null, mejorDist = Infinity;
+  ALIANZAS_CANON.forEach(c=>{
+    const d = distanciaEdicion(nucleoNorm, normalizarComparacionAlianza(c));
+    if(d < mejorDist){ mejorDist = d; mejor = c; }
+  });
+  if(mejor === null) return formatearAlianza(t);
+  if(mejorDist === 0) return formatearAlianza(prefijo + mejor + sufijo);
+  const largoCanon = normalizarComparacionAlianza(mejor).length;
+  const tolerancia = Math.max(2, Math.ceil(largoCanon * 0.3));
+  if(mejorDist <= tolerancia){
+    const sugerido = formatearAlianza(prefijo + mejor + sufijo);
+    const esEsa = confirm(`Escribió "${t}".\n\n¿Es esto la alianza "${mejor}"?\n\n`+
+      `Presione "Aceptar" para corregirlo a "${sugerido}", o "Cancelar" si es una alianza distinta `+
+      `(se guardará el nombre tal como lo escribió).`);
+    if(esEsa) return sugerido;
+  }
+  return formatearAlianza(t);
+}
 function normalizarPilaArrime(pila){
   const t = String(pila ?? '').trim();
   if(!/mezcla/i.test(t)) return pila;
@@ -1024,8 +1089,8 @@ function validarCodigoPila(t, procedencia, silencioso){
     }
     return t;
   }
-  // nombre de alianza (no es Arrime/Mezcla): se formatea solo con mayúscula inicial por palabra
-  if(esPequenaMineria) return formatearAlianza(t);
+  // nombre de alianza (no es Arrime/Mezcla): se valida/corrige contra ALIANZAS_CANON
+  if(esPequenaMineria) return validarAlianza(t);
   if(!esMinaColombia) return t;
   const tieneRampa = /rampa/i.test(t);
   const tieneSkip = /skip/i.test(t);
@@ -3464,8 +3529,10 @@ $('#formulario').addEventListener('submit', async e=>{
           }
         }
       }else{
-        // nombre de alianza (no es Arrime/Mezcla): mayúscula inicial por palabra, el resto en minúscula
-        g.pila = formatearAlianza(t);
+        // nombre de alianza (no es Arrime/Mezcla): se valida/corrige contra ALIANZAS_CANON
+        const validado = validarAlianza(t);
+        if(validado === null) return; // ya se avisó el motivo
+        g.pila = validado;
       }
     }
     if(g.pila && ESTADO.procedencia === 'mina_colombia'){
