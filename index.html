@@ -553,7 +553,7 @@
             <rect x="13.7" y="16.4" width="2.1" height="2.1"/><rect x="16.4" y="16.4" width="2.1" height="2.1"/>
           </g>
         </svg>
-        Exportar
+        <span id="btn-csv-texto">Exportar</span>
       </button>
       <button class="btn btn-pdf" id="btn-informe-diario" style="display:none">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
@@ -1735,6 +1735,9 @@ function pintar(){
   // donde están las pilas pendientes por tenor que resume el informe); en cualquier otra pantalla
   // se oculta
   $('#btn-informe-diario').style.display = (ESTADO.modulo === 'patio' && ESTADO.patioInicio) ? '' : 'none';
+  // el botón "Exportar" exporta cosas distintas según la pantalla: en el resumen de Inicio de
+  // Patio exporta el stock, así que ahí se aclara en el propio texto del botón
+  $('#btn-csv-texto').textContent = (ESTADO.modulo === 'patio' && ESTADO.patioInicio) ? 'Exportar Stock De Patio' : 'Exportar';
   if(ESTADO.modulo === 'patio') return pintarPatio();
   if(ESTADO.modulo === 'proceso') return pintarProceso();
   if(ESTADO.modulo === 'carbon') return pintarCarbon();
