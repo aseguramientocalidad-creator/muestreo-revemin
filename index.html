@@ -496,10 +496,14 @@
     .tabla-stock{min-width:640px}
     .carpeta,.link-patio{min-height:40px; display:inline-flex; align-items:center; justify-content:center}
   }
+  /* antes era un cajetín con texto ("datos en la nube" / "sin señal..."); ahora es solo una luz:
+     verde si hay conexión con la nube, roja si no. El detalle en texto queda como title (al pasar
+     el mouse o mantener presionado), para seguir pudiendo diagnosticar sin ocupar espacio */
   .estado-nube{
-    margin-left:auto; font-size:12px; border:1px solid var(--t-acento);
-    background:#fff; padding:4px 9px; white-space:nowrap;
+    margin-left:auto; width:13px; height:13px; border-radius:50%; flex:0 0 auto;
+    background:#c0392b; border:1px solid rgba(0,0,0,.15); cursor:help;
   }
+  .estado-nube.ok{background:#2e9e3f}
   @media (max-width:900px){
     .rejilla-4{grid-template-columns:repeat(2,1fr)}
   }
@@ -534,7 +538,7 @@
       <div class="sub" id="mod-sub"></div>
     </div>
     <span class="provisional" id="mod-provisional">estructura provisional</span>
-    <span class="estado-nube" id="estado-nube">conectando…</span>
+    <span class="estado-nube" id="estado-nube" title="conectando…"></span>
   </div>
 
   <div class="herramientas">
@@ -685,9 +689,13 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
 const COLECCION = 'muestreo';
 let DB = null, escuchaActiva = null;
 
+// luz verde = hay conexión con la nube ahora mismo ("datos en la nube"); roja = cualquier otro
+// caso (sin señal, sin conectar, todavía conectando). El texto queda como title para diagnosticar
 function marcarEstado(texto){
   const e = document.getElementById('estado-nube');
-  if(e) e.textContent = texto;
+  if(!e) return;
+  e.title = texto;
+  e.classList.toggle('ok', texto === 'datos en la nube');
 }
 async function iniciarNube(){
   const cfg = window.FIREBASE_CONFIG;
