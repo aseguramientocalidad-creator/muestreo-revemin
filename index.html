@@ -128,6 +128,10 @@
   .flecha-tabla-der{right:8px}
   @media (max-width:900px){ .flecha-tabla{width:34px; height:34px; font-size:18px} }
   .rotulo{text-align:center; font-weight:bold; font-size:clamp(15px,2vw,19px); line-height:1.3; margin:22px 0 4px}
+  /* fila del título de Stock de Patio, con el botón "Exportar Stock De Patio" a la derecha, a la
+     misma altura — el título se centra en el espacio que le queda, igual que antes */
+  .rotulo-fila{display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:34px}
+  .rotulo-fila .rotulo{margin:0; flex:1}
   .resumen-patio{max-width:100%}
   .rotulo-graf small{font-size:inherit; margin-top:2px}
   .graf-ancho{overflow-x:auto; padding:10px}
@@ -543,7 +547,7 @@
 
   <div class="herramientas">
     <div class="fila-proc" id="procedencias"></div>
-    <div class="fila-acciones">
+    <div class="fila-acciones" id="fila-acciones">
       <button class="btn btn-primario" id="btn-nuevo">Registrar</button>
       <button class="btn btn-excel" id="btn-csv">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
@@ -1749,6 +1753,9 @@ function pintar(){
   // el botón "Exportar" exporta cosas distintas según la pantalla: en el resumen de Inicio de
   // Patio exporta el stock, así que ahí se aclara en el propio texto del botón
   $('#btn-csv-texto').textContent = (ESTADO.modulo === 'patio' && ESTADO.patioInicio) ? 'Exportar Stock De Patio' : 'Exportar';
+  // el botón "Exportar" vuelve a su lugar de siempre en la barra de herramientas; en el resumen de
+  // Inicio de Patio, pintarInicioPatio() lo muda junto al título de la tabla de Stock
+  $('#fila-acciones').insertBefore($('#btn-csv'), $('#btn-informe-diario'));
   if(ESTADO.modulo === 'patio') return pintarPatio();
   if(ESTADO.modulo === 'proceso') return pintarProceso();
   if(ESTADO.modulo === 'carbon') return pintarCarbon();
@@ -2194,8 +2201,12 @@ function pintarInicioPatio(){
   // y el stock de patio actual, tal cual está ahora mismo
   ESTADO.mesPatio = '';
   const lista = (ESTADO.stock || []).slice();
-  const stockHtml = `<div class="rotulo" style="margin-top:34px">${tituloStockPatio()}</div>${cuerpoStockPatio(lista)}`;
+  const stockHtml = `<div class="rotulo-fila"><div class="rotulo">${tituloStockPatio()}</div>`+
+    `<span id="hueco-exportar-stock"></span></div>${cuerpoStockPatio(lista)}`;
   zona.innerHTML = panelPatio() + stockHtml;
+  // el botón "Exportar Stock De Patio" se muda aquí, justo al lado del título (lo devuelve pintar()
+  // a la barra de herramientas de arriba al salir de esta pantalla)
+  $('#hueco-exportar-stock').appendChild($('#btn-csv'));
   enlazarAcciones(zona);
   igualarAlturaTarjetas();
   ponerPie(`Resumen general · ${lista.length} pila${lista.length===1?'':'s'} en stock de patio`);
