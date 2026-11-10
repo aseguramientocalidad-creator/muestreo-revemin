@@ -2044,11 +2044,9 @@ function tarjetasProcedencia(mes, listaPendientes){
     pendPorProc.get(x.procId).push(x);
   });
 
-  // todas las tarjetas miden igual por defecto; solo se ensancha (.dash-card-ancha, el doble de
-  // columnas) la que realmente lo necesita, cuando alguna de sus pilas pendientes trae un nombre
-  // largo (ej. "Arenas el Esfuerzo P-01") que no entraría en el ancho normal — en vez de ensanchar
-  // siempre la misma procedencia (Pequeña Minería), aunque ese mes no tenga pilas pendientes
-  const PILA_LARGA = 14;
+  // todas las tarjetas miden siempre igual; un nombre de pila largo en la tabla de pendientes
+  // se desplaza de lado (la tabla ya tiene su propio scroll horizontal) en vez de ensanchar la
+  // tarjeta completa
   const tarjetas = PROCEDENCIAS.map((p, i)=>{
     const d = porMes && porMes[p.id];
     const pend = pendPorProc.get(p.id) || [];
@@ -2067,9 +2065,7 @@ function tarjetasProcedencia(mes, listaPendientes){
         }</tbody></table></div>`
       : `<div class="dc-ok">✓ Todas con tenor</div>`;
 
-    const necesitaAncha = pend.some(x => String(x.pila||'').length > PILA_LARGA);
-    const claseAncha = necesitaAncha ? ' dash-card-ancha' : '';
-    return `<div class="dash-card${claseAncha}" style="--dc-color:${color}">
+    return `<div class="dash-card" style="--dc-color:${color}">
         <div class="dash-card-head">${esc(p.nombre)}</div>
         <table class="dc-tenor"><tbody>${filasTenor}</tbody></table>
         <div class="dash-card-pend-head"><span>ÓRDENES PENDIENTES</span>${pend.length ? `<span class="dc-badge">${pend.length}</span>` : ''}</div>
