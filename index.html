@@ -994,23 +994,31 @@ function distanciaEdicion(a, b){
   }
   return fila[n];
 }
+// quita cualquier mención de "comercialización" (sola o entre paréntesis) del nombre de la pila —
+// ya no se guarda esa palabra, solo el nombre de la alianza
+function quitarComercializacion(texto){
+  return String(texto ?? '')
+    .replace(/\(\s*comercializaci[oó]n\s*\)/gi, '')
+    .replace(/\bcomercializaci[oó]n\b/gi, '')
+    .replace(/\s+/g, ' ').trim();
+}
 // valida/corrige el nombre de una alianza de Pequeña Minería (ya se sabe que no es Arrime/Mezcla)
 // contra ALIANZAS_CANON: conserva el prefijo Arenas/Primario y cualquier anotación entre
-// paréntesis tal como se escribieron, y compara solo el nombre "núcleo" contra la lista. Si el
-// núcleo coincide con una alianza conocida (ignorando mayúsculas/acentos) usa su ortografía
-// oficial; si se parece mucho pero no es igual, pregunta si es esa alianza (si confirma, se corrige
-// solo; si dice que no, se guarda tal como lo escribió, por si es una alianza nueva parecida); si no
-// se parece a ninguna alianza conocida, se asume directamente que es una alianza nueva.
+// paréntesis tal como se escribieron (salvo "comercialización", que se quita), y compara solo el
+// nombre "núcleo" contra la lista. Si el núcleo coincide con una alianza conocida (ignorando
+// mayúsculas/acentos) usa su ortografía oficial; si se parece mucho pero no es igual, pregunta si
+// es esa alianza (si confirma, se corrige solo; si dice que no, se guarda tal como lo escribió, por
+// si es una alianza nueva parecida); si no se parece a ninguna alianza conocida, se asume
+// directamente que es una alianza nueva.
 function validarAlianza(texto){
-  const t = String(texto ?? '').trim();
+  const t = quitarComercializacion(String(texto ?? '').trim());
   if(!t) return t;
   const mPrefijo = t.match(/^(arenas|primario)\s+/i);
   const prefijo = mPrefijo ? mPrefijo[0] : '';
   const resto = t.slice(prefijo.length);
   const mSufijo = resto.match(/\s*\([^)]*\)\s*$/);
   const sufijo = mSufijo ? mSufijo[0] : '';
-  let nucleo = mSufijo ? resto.slice(0, resto.length - sufijo.length) : resto;
-  nucleo = nucleo.replace(/\bcomercializaci[oó]n\b\s*$/i, '').trim();
+  const nucleo = (mSufijo ? resto.slice(0, resto.length - sufijo.length) : resto).trim();
   if(!nucleo) return formatearAlianza(t);
 
   const nucleoNorm = normalizarComparacionAlianza(nucleo);
