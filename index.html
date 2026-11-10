@@ -961,6 +961,12 @@ const SEED_PATIO = {"mina_colombia":[{"fecha":"2026-09-01","pila":"SKIP 102","tu
 
 // Normaliza los nombres de pila "Arrime" de Pequeña Minería al formato "Arrime mezcla <número>".
 // Toda pila "Mezcla N" de esta procedencia es un arrime, lleve o no la anotación "(Arrime)".
+// nombres de alianza (Pequeña Minería, salvo Arrime/Mezcla): cada palabra con mayúscula inicial y
+// el resto en minúscula — ej. "RIO PISON ( COMERCIALIZACION )" -> "Rio Pison ( Comercializacion )"
+function formatearAlianza(texto){
+  return String(texto ?? '').replace(/\s+/g, ' ').trim()
+    .replace(/\p{L}+/gu, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
 function normalizarPilaArrime(pila){
   const t = String(pila ?? '').trim();
   if(!/mezcla/i.test(t)) return pila;
@@ -1018,6 +1024,8 @@ function validarCodigoPila(t, procedencia, silencioso){
     }
     return t;
   }
+  // nombre de alianza (no es Arrime/Mezcla): se formatea solo con mayúscula inicial por palabra
+  if(esPequenaMineria) return formatearAlianza(t);
   if(!esMinaColombia) return t;
   const tieneRampa = /rampa/i.test(t);
   const tieneSkip = /skip/i.test(t);
@@ -3455,6 +3463,9 @@ $('#formulario').addEventListener('submit', async e=>{
             return;
           }
         }
+      }else{
+        // nombre de alianza (no es Arrime/Mezcla): mayúscula inicial por palabra, el resto en minúscula
+        g.pila = formatearAlianza(t);
       }
     }
     if(g.pila && ESTADO.procedencia === 'mina_colombia'){
