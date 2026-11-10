@@ -2285,9 +2285,9 @@ function pintarPatio(){
     return;
   }
 
-  // la tabla en pantalla agrega OBSERVACION (después de HUMEDAD MUESTRA) que la exportación a
+  // la tabla en pantalla agrega OBSERVACION (después de Au CONTENIDO) que la exportación a
   // Excel no tiene (COLS_PATIO se queda igual para no desalinear esa hoja)
-  const th = COLS_PATIO.map(c=>`<th>${esc(c.etiqueta)}</th>${c.id === 'humedad' ? '<th>OBSERVACION</th>' : ''}`).join('') + '<th></th>';
+  const th = COLS_PATIO.map(c=>`<th>${esc(c.etiqueta)}</th>${c.id === 'auContenido' ? '<th>OBSERVACION</th>' : ''}`).join('') + '<th></th>';
   let cuerpo = '';
   let totalHumedas = 0, totalSecas = 0, totalAu = 0;
   // la tabla principal de tenores agrupa SOLO por nombre de pila (igual que antes de la función de
@@ -2325,8 +2325,8 @@ function pintarPatio(){
         cuerpo += `<tr class="grupo">${cabecera}${fusionadas}
           <td>${esc(m.codigo)}</td>
           <td>${m.tenor === '' || m.tenor == null ? '' : esc(m.tenor)}</td>
-          <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>
-          <td>${esc(m.obs)}</td>${calculados}${acciones}</tr>`;
+          <td>${m.humedad === '' || m.humedad == null ? '' : esc(m.humedad)}</td>${calculados}
+          <td>${esc(m.obs)}</td>${acciones}</tr>`;
       });
       cuerpo += `<tr class="grupo promedio">
         <td class="etiqueta-centro">${rotuloCentro(g)}</td>
@@ -2339,14 +2339,16 @@ function pintarPatio(){
   cuerpo += `<tr class="grupo fila-total">
       <td colspan="4" class="izq"><b>TOTAL</b></td>
       <td><b>${fmt(totalHumedas || null, 2)}</b></td>
-      <td colspan="4"></td>
+      <td colspan="3"></td>
       <td><b>${fmt(totalSecas || null, 2)}</b></td>
       <td></td>
       <td><b>${fmt(totalAu || null, 2)}</b></td>
+      <td></td>
       <td></td></tr>
     <tr class="grupo fila-ponderado">
-      <td colspan="10" class="izq"><b>TENOR PONDERADO ${esc(nombreProc(ESTADO.procedencia))} (g/t)</b></td>
+      <td colspan="9" class="izq"><b>TENOR PONDERADO ${esc(nombreProc(ESTADO.procedencia))} (g/t)</b></td>
       <td><b>${fmt(tenorPonderado, 3)}</b></td>
+      <td></td>
       <td></td>
       <td></td></tr>`;
 
