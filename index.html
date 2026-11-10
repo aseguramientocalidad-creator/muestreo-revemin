@@ -1115,7 +1115,9 @@ function validarCodigoPila(t, procedencia, silencioso){
       `Por favor, especifique si es una pila de Rampa o Skip.`);
     return null;
   }
-  return t;
+  // nombre que no es Rampa/Skip (Ñuma, Espesador, Rechazos, etc.): tampoco se guarda todo en
+  // mayúsculas, se formatea igual que los nombres de alianza
+  return formatearAlianza(t);
 }
 
 async function leerPatioSinLimpiar(proc){
@@ -3566,6 +3568,10 @@ $('#formulario').addEventListener('submit', async e=>{
         alert(`Escribió "${t}" sin especificar si es una pila de RAMPA o de SKIP.\n\n`+
           `Por favor, especifique si es una pila de Rampa o Skip.`);
         return;
+      }else{
+        // nombre que no es Rampa/Skip (Ñuma, Espesador, Rechazos, etc.): tampoco se guarda todo
+        // en mayúsculas, se formatea igual que los nombres de alianza
+        g.pila = formatearAlianza(t);
       }
     }
     if(g.pila && ESTADO.procedencia === 'mina_sosa' && !/^\d+$/.test(g.pila)){
