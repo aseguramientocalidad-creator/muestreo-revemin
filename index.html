@@ -1076,7 +1076,8 @@ function validarCodigoPila(t, procedencia, silencioso){
   const procLimpia = String(procedencia ?? '').trim().toUpperCase();
   const esPequenaMineria = procLimpia === 'PEQUEÑA MINERIA';
   const esMinaColombia = procLimpia === 'MINA COLOMBIA';
-  if(!esPequenaMineria && !esMinaColombia) return t;
+  // cualquier otra procedencia: tampoco se guarda el nombre todo en mayúsculas
+  if(!esPequenaMineria && !esMinaColombia) return formatearAlianza(t);
   const tieneMezcla = /mezcla/i.test(t);
   const numMezcla = (t.match(/\d+/) || [])[0];
   if(esPequenaMineria && tieneMezcla && numMezcla){
@@ -3578,6 +3579,10 @@ $('#formulario').addEventListener('submit', async e=>{
       // en Mina Sosa Méndez la pila es solo un número, sin texto
       alert(`Escribió "${g.pila}".\n\nEn Mina Sosa Méndez la pila debe ser solo un número (ej. "182"), sin texto.`);
       return;
+    }
+    if(g.pila && ESTADO.procedencia !== 'pequena_mineria' && ESTADO.procedencia !== 'mina_colombia'){
+      // cualquier otra procedencia: tampoco se guarda el nombre todo en mayúsculas
+      g.pila = formatearAlianza(g.pila);
     }
     if(g.pila){
       // aviso de nombre parecido pero no idéntico (posible transcripción inconsistente de la misma pila)
