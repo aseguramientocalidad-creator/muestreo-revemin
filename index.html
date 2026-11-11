@@ -814,6 +814,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
 <script src="firebase-config.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -5155,91 +5156,116 @@ async function exportarInformeDiarioPdf(){
   resultado.pdf.save(resultado.nombrePdf);
 }
 
-// construye el Informe Diario como un documento Word (.doc) en formato MHTML: Word sí reconoce y
-// abre este formato bajo la extensión .doc, y a diferencia del HTML simple, permite incrustar las
-// imágenes del membrete como partes MIME referenciadas con "cid:" en vez de data URIs en el <img>,
-// que Word normalmente no renderiza (de ahí que el logo apareciera roto). Devuelve {blob, nombreDoc}
-// o {error}.
-function construirInformeDiarioWordHtml(pan){
+function base64ABytes(dataUri){
+  const base64 = dataUri.split(',')[1];
+  const binario = atob(base64);
+  const bytes = new Uint8Array(binario.length);
+  for(let i=0;i<binario.length;i++) bytes[i] = binario.charCodeAt(i);
+  return bytes;
+}
+
+// construye el Informe Diario como un documento Word nativo (.docx) con la librería docx.js: a
+// diferencia del truco anterior (HTML/MHTML guardado como .doc), esto genera un archivo OOXML real,
+// con encabezado/pie de página de Word de verdad (se repiten en todas las páginas sin desplazarse
+// ni descolocar el resto) y tablas con el mismo estilo del membrete institucional (encabezado celeste
+// con texto en negro). Devuelve {blob, nombreDoc} o {error}.
+async function construirInformeDiarioDocx(pan){
+  if(typeof docx === 'undefined'){ const error = 'No se pudo cargar el generador de Word. Revise la conexión.'; avisar(error); return {error}; }
   const datos = prepararDatosInformeDiario(pan);
   if(datos.error){ avisar(datos.error); return {error:datos.error}; }
   const { fechaHoyLegible, columnasPend, parrafoReciente, parrafoConsolidado, filasRecientes, filasConsolidado } = datos;
 
-  // cada celda lleva su propio borde explícito (en vez de depender de border-collapse, que Word
-  // no siempre respeta) y las filas impares llevan el mismo gris claro de fondo que usa el PDF,
-  // para que la tabla se vea igual en los dos formatos.
-  const estiloCeldaCab = 'border:1px solid #999; padding:4px; background:#595959; color:#fff; font-weight:bold';
-  const estiloCelda = 'border:1px solid #999; padding:4px';
-  const tabla = filas => `
-    <table cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; font-size:10pt; font-family:Arial, sans-serif">
-      <tr>
-        ${columnasPend.map(c=> `<td style="${estiloCeldaCab}">${c.titulo}</td>`).join('')}
-      </tr>
-      ${filas.length ? filas.map((f,idx) => `
-        <tr>${columnasPend.map(c=> `<td style="${estiloCelda}${idx % 2 === 1 ? '; background:#f7f7f7' : ''}">${f[c.clave] ?? '—'}</td>`).join('')}</tr>
-      `).join('') : `<tr><td style="${estiloCelda}" colspan="${columnasPend.length}"><i>Sin pilas que informar</i></td></tr>`}
-    </table>`;
+  const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, ImageRun, Header, Footer,
+          WidthType, BorderStyle } = docx;
 
-  // Word, al abrir este MHTML, no respetó el margen de página fijado por @page (seguía usando su
-  // margen normal de 1in por lado) y eso dejaba la imagen —dimensionada para un ancho útil de
-  // 7.5in— más ancha que el área real de texto (8.5in - 1in - 1in = 6.5in), por lo que se salía
-  // de la página. Ahora se asume ese margen de 1in de Word tal cual (no se intenta forzar uno
-  // propio) y la imagen se dimensiona a esos 6.5in reales, igual que el ancho:100% de las tablas.
-  const anchoMembreteIn = 6.5;
-  const altoCabeceraIn = (anchoMembreteIn * 172/1200).toFixed(2);
-  const altoPieIn = (anchoMembreteIn * 282/1200).toFixed(2);
+  // ancho en píxeles (a 96dpi) equivalente al área útil de una página carta con márgenes normales
+  // de Word (8.5in - 1in - 1in = 6.5in → 624px); el alto de cada imagen sale de su proporción real
+  // (1200x172 y 1200x282 px) para no deformarla.
+  const anchoImgPx = 624;
+  const altoCabeceraPx = Math.round(anchoImgPx * 172/1200);
+  const altoPiePx = Math.round(anchoImgPx * 282/1200);
 
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-  <meta charset="utf-8">
-  <title>Informe Diario QA/QC</title>
-  <!--[if gte mso 9]><xml>
-    <w:WordDocument>
-      <w:View>Print</w:View>
-      <w:Zoom>100</w:Zoom>
-      <w:DoNotOptimizeForBrowser/>
-    </w:WordDocument>
-  </xml><![endif]-->
-</head>
-<body style="font-family:Arial, sans-serif; font-size:11pt; margin:0">
-  <img src="cid:cabecera_informe_diario" width="${anchoMembreteIn}in" height="${altoCabeceraIn}in" style="display:block; margin:0 0 14px">
-  <p style="font-weight:bold; margin:0 0 2px">Planta Revemin, El Callao ${fechaHoyLegible}</p>
-  <p style="font-weight:bold; margin:0 0 16px">Departamento de Aseguramiento de la Calidad</p>
-  <p style="font-weight:bold; color:#1A4D7A; font-size:12pt">INFORME DIARIO QA/QC — ÓRDENES PENDIENTES POR TENOR</p>
-  <p>${parrafoReciente}</p>
-  ${tabla(filasRecientes)}
-  <p style="margin-top:18px">${parrafoConsolidado}</p>
-  ${tabla(filasConsolidado)}
-  <img src="cid:pie_informe_diario" width="${anchoMembreteIn}in" height="${altoPieIn}in" style="display:block; margin:18px 0 0">
-</body>
-</html>`;
+  const bordeCelda = {
+    top:{style:BorderStyle.SINGLE, size:4, color:'999999'},
+    bottom:{style:BorderStyle.SINGLE, size:4, color:'999999'},
+    left:{style:BorderStyle.SINGLE, size:4, color:'999999'},
+    right:{style:BorderStyle.SINGLE, size:4, color:'999999'}
+  };
 
-  // cada parte de imagen va con su propio Content-ID, referenciado desde el HTML como "cid:<id>"
-  function parteImagen(contentId, dataUri){
-    const base64 = dataUri.split(',')[1];
-    const lineas = base64.match(/.{1,76}/g).join('\r\n');
-    return `--${MHTML_BOUNDARY}\r\nContent-Type: image/png\r\nContent-Transfer-Encoding: base64\r\nContent-ID: <${contentId}>\r\n\r\n${lineas}\r\n`;
+  function filaEncabezadoTabla(){
+    return new TableRow({
+      tableHeader:true,
+      children: columnasPend.map(c => new TableCell({
+        borders: bordeCelda,
+        shading:{fill:'D9E2F3'},
+        children:[new Paragraph({children:[new TextRun({text:c.titulo, bold:true})]})]
+      }))
+    });
+  }
+  function filasDatosTabla(filas){
+    if(!filas.length){
+      return [new TableRow({children:[new TableCell({
+        borders:bordeCelda, columnSpan: columnasPend.length,
+        children:[new Paragraph({children:[new TextRun({text:'Sin pilas que informar', italics:true})]})]
+      })]})];
+    }
+    return filas.map(f => new TableRow({
+      children: columnasPend.map(c => new TableCell({
+        borders:bordeCelda,
+        children:[new Paragraph(String(f[c.clave] ?? '—'))]
+      }))
+    }));
+  }
+  function tabla(filas){
+    return new Table({
+      width:{size:100, type:WidthType.PERCENTAGE},
+      rows:[filaEncabezadoTabla(), ...filasDatosTabla(filas)]
+    });
   }
 
-  const MHTML_BOUNDARY = '----=_NextPart_InformeDiarioQAQC';
-  const mhtml =
-    `MIME-Version: 1.0\r\n` +
-    `Content-Type: multipart/related; boundary="${MHTML_BOUNDARY}"\r\n\r\n` +
-    `--${MHTML_BOUNDARY}\r\n` +
-    `Content-Type: text/html; charset="utf-8"\r\n\r\n` +
-    html + `\r\n` +
-    parteImagen('cabecera_informe_diario', INFORME_DIARIO_HEADER_PNG) +
-    parteImagen('pie_informe_diario', INFORME_DIARIO_FOOTER_PNG) +
-    `--${MHTML_BOUNDARY}--\r\n`;
+  const doc = new Document({
+    sections:[{
+      headers:{ default: new Header({ children:[
+        new Paragraph({children:[new ImageRun({
+          data: base64ABytes(INFORME_DIARIO_HEADER_PNG),
+          transformation:{width:anchoImgPx, height:altoCabeceraPx}
+        })]})
+      ]})},
+      footers:{ default: new Footer({ children:[
+        new Paragraph({children:[new ImageRun({
+          data: base64ABytes(INFORME_DIARIO_FOOTER_PNG),
+          transformation:{width:anchoImgPx, height:altoPiePx}
+        })]})
+      ]})},
+      children:[
+        new Paragraph({children:[new TextRun({text:`Planta Revemin, El Callao ${fechaHoyLegible}`, bold:true})]}),
+        new Paragraph({children:[new TextRun({text:'Departamento de Aseguramiento de la Calidad', bold:true})]}),
+        new Paragraph({text:''}),
+        new Paragraph({children:[new TextRun({text:'INFORME DIARIO QA/QC — ÓRDENES PENDIENTES POR TENOR', bold:true, color:'1A4D7A', size:26})]}),
+        new Paragraph({text:''}),
+        new Paragraph(parrafoReciente),
+        tabla(filasRecientes),
+        new Paragraph({text:''}),
+        new Paragraph(parrafoConsolidado),
+        tabla(filasConsolidado)
+      ]
+    }]
+  });
 
-  const blob = new Blob([mhtml], {type:'application/msword'});
-  const nombreDoc = `INFORME DIARIO QA-QC ${fechaHoyLegible.replace(/\//g,'-')}.doc`;
-  return {blob, nombreDoc};
+  try{
+    const blob = await Packer.toBlob(doc);
+    const nombreDoc = `INFORME DIARIO QA-QC ${fechaHoyLegible.replace(/\//g,'-')}.docx`;
+    return {blob, nombreDoc};
+  } catch(e){
+    const error = 'No se pudo generar el informe';
+    avisar(error);
+    return {error};
+  }
 }
 
-function exportarInformeDiarioWord(){
+async function exportarInformeDiarioWord(){
   avisar('Generando el informe…');
-  const resultado = construirInformeDiarioWordHtml(ESTADO.panel);
+  const resultado = await construirInformeDiarioDocx(ESTADO.panel);
   if(resultado.error) return;
   const url = URL.createObjectURL(resultado.blob);
   const a = document.createElement('a');
