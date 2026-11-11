@@ -50,14 +50,14 @@
     border:none; border-radius:22px; width:100%;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
     text-align:center; font-weight:bold; font-size:clamp(13px,1.6vw,16px); color:#fff;
-    min-height:clamp(140px,16vw,170px); padding:22px 16px; cursor:pointer;
+    min-height:clamp(170px,18vw,200px); padding:24px 16px; cursor:pointer;
     box-shadow:0 8px 16px rgba(0,0,0,.14);
     transition:filter .12s ease, box-shadow .12s ease, transform .12s ease;
   }
   .caja:hover{filter:brightness(1.05); transform:translateY(-2px)}
   .caja:active{box-shadow:inset 0 0 0 3px rgba(255,255,255,.5); transform:translateY(0)}
   .caja-icono{
-    width:56px; height:56px; border-radius:50%; background:#fff; flex:0 0 auto;
+    width:84px; height:84px; border-radius:50%; background:#fff; flex:0 0 auto;
     display:flex; align-items:center; justify-content:center; overflow:hidden;
     box-shadow:0 2px 4px rgba(0,0,0,.15), inset 0 0 0 2px rgba(255,255,255,.9);
   }
@@ -487,7 +487,7 @@
     .banda{padding:12px 10px; margin-bottom:20px}
     .tablero{grid-template-columns:repeat(2,minmax(0,170px)); justify-content:center; column-gap:10px; row-gap:12px}
     .caja{min-height:120px; font-size:13px; padding:16px 10px}
-    .caja-icono{width:44px; height:44px}
+    .caja-icono{width:66px; height:66px}
     .barra{padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px; gap:10px}
     .herramientas{padding:10px 12px}
     .zona-tabla{padding:0 10px 30px}
