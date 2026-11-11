@@ -624,7 +624,6 @@
 
 <section class="modulo" id="modulo">
   <div class="barra">
-    <button class="volver" id="btn-volver">&larr; Menú principal</button>
     <div>
       <div class="titulo" id="mod-titulo"></div>
       <div class="sub" id="mod-sub"></div>
@@ -1654,11 +1653,11 @@ function ponerPie(texto){
 
 /* ---------- navegación ---------- */
 document.querySelectorAll('[data-abrir]').forEach(b => b.addEventListener('click', ()=> abrir(b.dataset.abrir)));
-$('#btn-volver').addEventListener('click', ()=>{
+function volverAlMenu(){
   $('#modulo').classList.remove('activo'); $('#menu').style.display=''; ESTADO.modulo=null; actualizarConteos();
   document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(b => b.classList.remove('activo'));
   $('#sidebar [data-sidebar-abrir="menu"]').classList.add('activo');
-});
+}
 
 async function abrir(nombre){
   ESTADO.modulo = nombre; ESTADO.filtro = '';
@@ -5479,7 +5478,7 @@ document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(boton=>{
     document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(b => b.classList.remove('activo'));
     boton.classList.add('activo');
     if(boton.dataset.sidebarAbrir === 'menu'){
-      $('#modulo').classList.remove('activo'); $('#menu').style.display=''; ESTADO.modulo=null; actualizarConteos();
+      volverAlMenu();
     }
   });
 });
