@@ -143,11 +143,12 @@
   .btn:hover{background:var(--t-hover)}
   .zona-informe-diario{padding:24px 20px; display:flex; flex-direction:column; align-items:center; gap:20px}
   .vista-previa-informe{
-    width:100%; max-width:600px; aspect-ratio:1/1.3; max-height:60vh; background:#fff;
+    width:100%; max-width:600px; aspect-ratio:1/1.3; max-height:70vh; background:#fff;
     border:1px solid var(--gris-suave); box-shadow:0 2px 10px rgba(0,0,0,.08);
-    display:flex; align-items:center; justify-content:center;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
   }
-  .vista-previa-marcador{color:var(--gris); font-size:14px}
+  .vista-previa-informe iframe{width:100%; height:100%; border:none}
+  .vista-previa-marcador{color:var(--gris); font-size:14px; padding:0 20px; text-align:center}
   .descargas-informe{display:flex; gap:12px; flex-wrap:wrap; justify-content:center}
   .btn-primario{background:var(--t-cons-bg); border:2px solid var(--t-acento); font-weight:bold}
   .btn-primario:hover{filter:brightness(1.06)}
@@ -5016,16 +5017,17 @@ function dibujarTablaInformeDiario(pdf, filas, columnas, opciones){
 // informe diario QA/QC en PDF: consolidado de las pilas pendientes por tenor en Patio y un resumen
 // de las órdenes de laboratorio más recientes, sobre el mismo membrete institucional (MEMORANDUM)
 // de Planta Revemin / CVM
-async function exportarInformeDiarioPdf(){
-  if(!window.jspdf){ avisar('No se pudo cargar el generador de PDF. Revise la conexión.'); return; }
-  const pan = ESTADO.panel;
-  if(!pan){ avisar('Aún no hay datos cargados'); return; }
+// construye el PDF del Informe Diario en memoria (sin descargarlo); lo usan tanto el botón
+// histórico de Patio (exportarInformeDiarioPdf) como la vista previa de la barra lateral.
+// Devuelve {pdf, nombrePdf} si pudo generarlo, o {error:'texto del motivo'} si no.
+function construirInformeDiarioPdf(pan){
+  if(!window.jspdf){ const error = 'No se pudo cargar el generador de PDF. Revise la conexión.'; avisar(error); return {error}; }
+  if(!pan){ const error = 'Aún no hay datos cargados'; avisar(error); return {error}; }
 
   // igual que en el panel de Patio, se informan todas las pendientes por tenor sin importar su
   // mes, para no dejar fuera pilas de meses anteriores que aún no recibieron tenor
   const lista = pan.pendientes.slice().sort((a,b)=> a.clave.localeCompare(b.clave));
-  if(!lista.length){ avisar('No hay pilas pendientes por tenor para informar'); return; }
-  avisar('Generando el informe…');
+  if(!lista.length){ const error = 'No hay pilas pendientes por tenor para informar'; avisar(error); return {error}; }
 
   const fechaHoyIso = new Date().toISOString().slice(0,10);
   const fechaHoyLegible = fechaLegible(fechaHoyIso);
@@ -5125,10 +5127,19 @@ async function exportarInformeDiarioPdf(){
     }
 
     const nombrePdf = `INFORME DIARIO QA-QC ${fechaHoyLegible.replace(/\//g,'-')}.pdf`;
-    pdf.save(nombrePdf);
+    return {pdf, nombrePdf};
   } catch(e){
-    avisar('No se pudo generar el informe');
+    const error = 'No se pudo generar el informe';
+    avisar(error);
+    return {error};
   }
+}
+
+async function exportarInformeDiarioPdf(){
+  avisar('Generando el informe…');
+  const resultado = construirInformeDiarioPdf(ESTADO.panel);
+  if(resultado.error) return;
+  resultado.pdf.save(resultado.nombrePdf);
 }
 
 async function exportarExcelStock(){
@@ -5533,8 +5544,29 @@ document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(boton=>{
     } else if(boton.dataset.sidebarAbrir === 'informe-diario'){
       cerrarPantallasSidebar();
       $('#modulo-informe-diario').classList.add('activo');
+      cargarVistaPreviaInformeDiario();
     }
   });
+});
+
+let INFORME_DIARIO_ACTUAL = null; // {pdf, nombrePdf} del último informe generado para la vista previa
+async function cargarVistaPreviaInformeDiario(){
+  const caja = $('#vista-previa-informe');
+  caja.innerHTML = '<div class="vista-previa-marcador">Generando vista previa…</div>';
+  INFORME_DIARIO_ACTUAL = null;
+  await calcularPanel();
+  const resultado = construirInformeDiarioPdf(ESTADO.panel);
+  if(resultado.error){
+    caja.innerHTML = `<div class="vista-previa-marcador">${resultado.error}</div>`;
+    return;
+  }
+  INFORME_DIARIO_ACTUAL = resultado;
+  const url = resultado.pdf.output('bloburl');
+  caja.innerHTML = `<iframe src="${url}" title="Vista previa del Informe Diario"></iframe>`;
+}
+$('#btn-informe-diario-pdf').addEventListener('click', ()=>{
+  if(!INFORME_DIARIO_ACTUAL){ avisar('Aún no hay informe generado'); return; }
+  INFORME_DIARIO_ACTUAL.pdf.save(INFORME_DIARIO_ACTUAL.nombrePdf);
 });
 
 /* ---------- conteos ---------- */
