@@ -5175,10 +5175,28 @@ function construirInformeDiarioWordHtml(pan){
       `).join('') : `<tr><td colspan="${columnasPend.length}"><i>Sin pilas que informar</i></td></tr>`}
     </table>`;
 
+  // ancho útil igual al del PDF (carta, 612pt - 40pt de margen a cada lado = 532pt), con el alto
+  // de cada imagen calculado a partir de su proporción real (1200x172 y 1200x282 px) para que no
+  // se deforme. Un ancho fijo en pt (en vez de 100%/max-width) evita que Word reubique la imagen
+  // como objeto flotante al pasar a Vista de diseño de impresión.
+  const anchoMembretePt = 532;
+  const altoCabeceraPt = (anchoMembretePt * 172/1200).toFixed(1);
+  const altoPiePt = (anchoMembretePt * 282/1200).toFixed(1);
+
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="utf-8"><title>Informe Diario QA/QC</title></head>
+<head>
+  <meta charset="utf-8">
+  <title>Informe Diario QA/QC</title>
+  <!--[if gte mso 9]><xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml><![endif]-->
+</head>
 <body style="font-family:Arial, sans-serif; font-size:11pt">
-  <img src="cid:cabecera_informe_diario" style="width:100%; max-width:720px">
+  <img src="cid:cabecera_informe_diario" width="${anchoMembretePt}" height="${altoCabeceraPt}" style="width:${anchoMembretePt}pt; height:${altoCabeceraPt}pt">
   <p style="font-weight:bold; margin:16px 0 2px">Planta Revemin, El Callao ${fechaHoyLegible}</p>
   <p style="font-weight:bold; margin:0 0 16px">Departamento de Aseguramiento de la Calidad</p>
   <p style="font-weight:bold; color:#1A4D7A; font-size:12pt">INFORME DIARIO QA/QC — ÓRDENES PENDIENTES POR TENOR</p>
@@ -5187,7 +5205,7 @@ function construirInformeDiarioWordHtml(pan){
   <p style="margin-top:18px">${parrafoConsolidado}</p>
   ${tabla(filasConsolidado)}
   <br>
-  <img src="cid:pie_informe_diario" style="width:100%; max-width:720px">
+  <img src="cid:pie_informe_diario" width="${anchoMembretePt}" height="${altoPiePt}" style="width:${anchoMembretePt}pt; height:${altoPiePt}pt">
 </body>
 </html>`;
 
