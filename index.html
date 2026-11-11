@@ -5175,13 +5175,15 @@ function construirInformeDiarioWordHtml(pan){
       `).join('') : `<tr><td colspan="${columnasPend.length}"><i>Sin pilas que informar</i></td></tr>`}
     </table>`;
 
-  // ancho útil igual al del PDF (carta, 612pt - 40pt de margen a cada lado = 532pt), con el alto
-  // de cada imagen calculado a partir de su proporción real (1200x172 y 1200x282 px) para que no
-  // se deforme. Un ancho fijo en pt (en vez de 100%/max-width) evita que Word reubique la imagen
-  // como objeto flotante al pasar a Vista de diseño de impresión.
-  const anchoMembretePt = 532;
-  const altoCabeceraPt = (anchoMembretePt * 172/1200).toFixed(1);
-  const altoPiePt = (anchoMembretePt * 282/1200).toFixed(1);
+  // ancho de página carta (8.5in) con márgenes de 0.5in a cada lado = 7.5in de ancho útil, y
+  // un margen superior angosto (0.3in) para que el membrete quede pegado al borde de arriba, tal
+  // como se pidió. El alto de cada imagen se calcula a partir de su proporción real (1200x172 y
+  // 1200x282 px) para que no se deforme. El ancho/alto se da SOLO como atributos en pulgadas
+  // (Word los respeta de forma fiable): mezclarlos con una unidad distinta en el style (pt vs. la
+  // unidad implícita en los atributos, px) fue lo que dejó el membrete chico la vez pasada.
+  const anchoMembreteIn = 7.5;
+  const altoCabeceraIn = (anchoMembreteIn * 172/1200).toFixed(2);
+  const altoPieIn = (anchoMembreteIn * 282/1200).toFixed(2);
 
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
@@ -5194,9 +5196,14 @@ function construirInformeDiarioWordHtml(pan){
       <w:DoNotOptimizeForBrowser/>
     </w:WordDocument>
   </xml><![endif]-->
+  <style>
+    @page Section1{ size:8.5in 11.0in; margin:0.3in 0.5in 0.5in 0.5in; }
+    div.Section1{ page:Section1; }
+  </style>
 </head>
-<body style="font-family:Arial, sans-serif; font-size:11pt">
-  <img src="cid:cabecera_informe_diario" width="${anchoMembretePt}" height="${altoCabeceraPt}" style="width:${anchoMembretePt}pt; height:${altoCabeceraPt}pt">
+<body style="font-family:Arial, sans-serif; font-size:11pt; margin:0">
+<div class="Section1">
+  <img src="cid:cabecera_informe_diario" width="${anchoMembreteIn}in" height="${altoCabeceraIn}in" style="display:block; margin:0">
   <p style="font-weight:bold; margin:16px 0 2px">Planta Revemin, El Callao ${fechaHoyLegible}</p>
   <p style="font-weight:bold; margin:0 0 16px">Departamento de Aseguramiento de la Calidad</p>
   <p style="font-weight:bold; color:#1A4D7A; font-size:12pt">INFORME DIARIO QA/QC — ÓRDENES PENDIENTES POR TENOR</p>
@@ -5205,7 +5212,8 @@ function construirInformeDiarioWordHtml(pan){
   <p style="margin-top:18px">${parrafoConsolidado}</p>
   ${tabla(filasConsolidado)}
   <br>
-  <img src="cid:pie_informe_diario" width="${anchoMembretePt}" height="${altoPiePt}" style="width:${anchoMembretePt}pt; height:${altoPiePt}pt">
+  <img src="cid:pie_informe_diario" width="${anchoMembreteIn}in" height="${altoPieIn}in" style="display:block; margin:0">
+</div>
 </body>
 </html>`;
 
