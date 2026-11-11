@@ -56,6 +56,7 @@
   .sidebar-item.activo{background:#fff; color:#201c4e}
   @media (min-width:761px){
     .menu{padding-left:136px}
+    .modulo.activo{padding-left:96px}
   }
   @media (max-width:760px){
     .sidebar{display:none}
@@ -567,38 +568,38 @@
   @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
 
-<main class="menu" id="menu">
-  <nav class="sidebar" id="sidebar">
-    <button class="sidebar-item activo" type="button" data-sidebar-item>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-      <span>Opción 1</span>
-    </button>
-    <button class="sidebar-item" type="button" data-sidebar-item>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1v-9"/></svg>
-      <span>Opción 2</span>
-    </button>
-    <button class="sidebar-item" type="button" data-sidebar-item>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 3v4M16 3v4"/></svg>
-      <span>Opción 3</span>
-    </button>
-    <button class="sidebar-item" type="button" data-sidebar-item>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4h4"/></svg>
-      <span>Opción 4</span>
-    </button>
-    <button class="sidebar-item" type="button" data-sidebar-item>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18" rx="1"/><rect x="14" y="8" width="6" height="13" rx="1"/><path d="M7 7h.01M7 10h.01M7 13h.01M7 16h.01M10.5 7h.01M10.5 10h.01M10.5 13h.01M10.5 16h.01"/></svg>
-      <span>Opción 5</span>
-    </button>
-    <button class="sidebar-item" type="button" data-sidebar-item>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 11l2 2 4-4"/></svg>
-      <span>Opción 6</span>
-    </button>
-    <button class="sidebar-item" type="button" data-sidebar-item>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7"/><path d="M12 17h.01"/></svg>
-      <span>Opción 7</span>
-    </button>
-  </nav>
+<nav class="sidebar" id="sidebar">
+  <button class="sidebar-item activo" type="button" data-sidebar-item data-sidebar-abrir="menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1v-9"/></svg>
+    <span>INICIO</span>
+  </button>
+  <button class="sidebar-item" type="button" data-sidebar-item>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <span>Opción 2</span>
+  </button>
+  <button class="sidebar-item" type="button" data-sidebar-item>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 3v4M16 3v4"/></svg>
+    <span>Opción 3</span>
+  </button>
+  <button class="sidebar-item" type="button" data-sidebar-item>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4h4"/></svg>
+    <span>Opción 4</span>
+  </button>
+  <button class="sidebar-item" type="button" data-sidebar-item>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18" rx="1"/><rect x="14" y="8" width="6" height="13" rx="1"/><path d="M7 7h.01M7 10h.01M7 13h.01M7 16h.01M10.5 7h.01M10.5 10h.01M10.5 13h.01M10.5 16h.01"/></svg>
+    <span>Opción 5</span>
+  </button>
+  <button class="sidebar-item" type="button" data-sidebar-item>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 11l2 2 4-4"/></svg>
+    <span>Opción 6</span>
+  </button>
+  <button class="sidebar-item" type="button" data-sidebar-item>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7"/><path d="M12 17h.01"/></svg>
+    <span>Opción 7</span>
+  </button>
+</nav>
 
+<main class="menu" id="menu">
   <div class="banda">
     <h1>ASEGURAMIENTO DE LA CALIDAD QA/QC</h1>
     <h2>PLANTA REVEMIN PIM II</h2>
@@ -1655,6 +1656,8 @@ function ponerPie(texto){
 document.querySelectorAll('[data-abrir]').forEach(b => b.addEventListener('click', ()=> abrir(b.dataset.abrir)));
 $('#btn-volver').addEventListener('click', ()=>{
   $('#modulo').classList.remove('activo'); $('#menu').style.display=''; ESTADO.modulo=null; actualizarConteos();
+  document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(b => b.classList.remove('activo'));
+  $('#sidebar [data-sidebar-abrir="menu"]').classList.add('activo');
 });
 
 async function abrir(nombre){
@@ -5475,6 +5478,9 @@ document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(boton=>{
   boton.addEventListener('click', ()=>{
     document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(b => b.classList.remove('activo'));
     boton.classList.add('activo');
+    if(boton.dataset.sidebarAbrir === 'menu'){
+      $('#modulo').classList.remove('activo'); $('#menu').style.display=''; ESTADO.modulo=null; actualizarConteos();
+    }
   });
 });
 
