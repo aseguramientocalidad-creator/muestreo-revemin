@@ -5165,27 +5165,30 @@ function construirInformeDiarioWordHtml(pan){
   if(datos.error){ avisar(datos.error); return {error:datos.error}; }
   const { fechaHoyLegible, columnasPend, parrafoReciente, parrafoConsolidado, filasRecientes, filasConsolidado } = datos;
 
+  // cada celda lleva su propio borde explícito (en vez de depender de border-collapse, que Word
+  // no siempre respeta) y las filas impares llevan el mismo gris claro de fondo que usa el PDF,
+  // para que la tabla se vea igual en los dos formatos.
+  const estiloCeldaCab = 'border:1px solid #999; padding:4px; background:#595959; color:#fff; font-weight:bold';
+  const estiloCelda = 'border:1px solid #999; padding:4px';
   const tabla = filas => `
-    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse; width:100%; font-size:10pt; font-family:Arial, sans-serif">
-      <tr style="background:#595959; color:#fff; font-weight:bold">
-        ${columnasPend.map(c=> `<td>${c.titulo}</td>`).join('')}
+    <table cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; font-size:10pt; font-family:Arial, sans-serif">
+      <tr>
+        ${columnasPend.map(c=> `<td style="${estiloCeldaCab}">${c.titulo}</td>`).join('')}
       </tr>
-      ${filas.length ? filas.map(f => `
-        <tr>${columnasPend.map(c=> `<td>${f[c.clave] ?? '—'}</td>`).join('')}</tr>
-      `).join('') : `<tr><td colspan="${columnasPend.length}"><i>Sin pilas que informar</i></td></tr>`}
+      ${filas.length ? filas.map((f,idx) => `
+        <tr>${columnasPend.map(c=> `<td style="${estiloCelda}${idx % 2 === 1 ? '; background:#f7f7f7' : ''}">${f[c.clave] ?? '—'}</td>`).join('')}</tr>
+      `).join('') : `<tr><td style="${estiloCelda}" colspan="${columnasPend.length}"><i>Sin pilas que informar</i></td></tr>`}
     </table>`;
 
-  // ancho de página carta (8.5in) con márgenes de 0.5in a los lados = 7.5in de ancho útil. El
-  // membrete (cabecera y pie) ya no va como contenido del cuerpo —ahí podía quedar "suelto" en
-  // una página aparte si no cabía— sino como encabezado y pie de página reales de Word
-  // (mso-element:header/footer), que Word repite fijo en el margen superior/inferior de TODAS
-  // las páginas del documento, igual que hace el PDF. Los márgenes de la página se agrandan lo
-  // necesario para dejarles espacio sin solapar el texto del cuerpo.
+  // ancho de página carta (8.5in) con márgenes normales de 0.5in en los cuatro lados = 7.5in de
+  // ancho útil. La cabecera y el pie van como contenido normal del documento (no como encabezado/
+  // pie de página de Word vía mso-element, que en pruebas reales desplazaba el membrete y
+  // afectaba el formato de las tablas): la última tabla y el pie se agrupan en un bloque con
+  // page-break-inside:avoid para que, si no caben en la misma página que el resto, Word los
+  // mueva juntos a la siguiente en vez de dejar el pie solo en una página aparte.
   const anchoMembreteIn = 7.5;
   const altoCabeceraIn = (anchoMembreteIn * 172/1200).toFixed(2);
   const altoPieIn = (anchoMembreteIn * 282/1200).toFixed(2);
-  const margenSupIn = (Number(altoCabeceraIn) + 0.3).toFixed(2);
-  const margenInfIn = (Number(altoPieIn) + 0.3).toFixed(2);
 
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
@@ -5199,29 +5202,23 @@ function construirInformeDiarioWordHtml(pan){
     </w:WordDocument>
   </xml><![endif]-->
   <style>
-    @page Section1{
-      size:8.5in 11.0in; margin:${margenSupIn}in 0.5in ${margenInfIn}in 0.5in;
-      mso-header-margin:0.2in; mso-footer-margin:0.2in;
-      mso-header:h1; mso-footer:f1;
-    }
+    @page Section1{ size:8.5in 11.0in; margin:0.5in 0.5in 0.5in 0.5in; }
     div.Section1{ page:Section1; }
   </style>
 </head>
 <body style="font-family:Arial, sans-serif; font-size:11pt; margin:0">
-<div style="mso-element:header" id="h1">
-  <p style="margin:0"><img src="cid:cabecera_informe_diario" width="${anchoMembreteIn}in" height="${altoCabeceraIn}in"></p>
-</div>
-<div style="mso-element:footer" id="f1">
-  <p style="margin:0"><img src="cid:pie_informe_diario" width="${anchoMembreteIn}in" height="${altoPieIn}in"></p>
-</div>
 <div class="Section1">
+  <img src="cid:cabecera_informe_diario" width="${anchoMembreteIn}in" height="${altoCabeceraIn}in" style="display:block; margin:0 0 14px">
   <p style="font-weight:bold; margin:0 0 2px">Planta Revemin, El Callao ${fechaHoyLegible}</p>
   <p style="font-weight:bold; margin:0 0 16px">Departamento de Aseguramiento de la Calidad</p>
   <p style="font-weight:bold; color:#1A4D7A; font-size:12pt">INFORME DIARIO QA/QC — ÓRDENES PENDIENTES POR TENOR</p>
   <p>${parrafoReciente}</p>
   ${tabla(filasRecientes)}
   <p style="margin-top:18px">${parrafoConsolidado}</p>
-  ${tabla(filasConsolidado)}
+  <div style="page-break-inside:avoid; mso-pagination:avoid">
+    ${tabla(filasConsolidado)}
+    <img src="cid:pie_informe_diario" width="${anchoMembreteIn}in" height="${altoPieIn}in" style="display:block; margin:18px 0 0">
+  </div>
 </div>
 </body>
 </html>`;
