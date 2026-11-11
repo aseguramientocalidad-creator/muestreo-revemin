@@ -3391,18 +3391,6 @@ function formularioAlimentacionNuevo(base){
     else if(e.key === 'ArrowRight'){ if(ir(fIdx, cIdx+1)) e.preventDefault(); }
   });
 }
-// comprueba la trazabilidad Patio→Alimentación: toda pila que se alimenta a planta debió haberse
-// muestreado antes en Patio con el mismo nombre. Procedencias sin dataset propio en Patio
-// (RECHAZO DE CORREA, etc., ver PROCEDENCIAS_ALIMENT_EXTRA) no tienen con qué comparar y se
-// devuelven como "encontradas" sin más. Devuelve true si la pila existe en Patio para esa
-// procedencia, o si no hay nada contra qué compararla.
-async function pilaExisteEnPatio(procedencia, codigoPatio){
-  const proc = PROCEDENCIAS.find(p => p.nombre.toUpperCase() === String(procedencia).trim().toUpperCase());
-  if(!proc) return true; // procedencia "extra" de Alimentación (sin Patio propio): nada que validar
-  const datosPatio = await leerPatio(proc.id);
-  const clave = normalizaPila(codigoPatio);
-  return datosPatio.some(g => normalizaPila(g.pila) === clave);
-}
 // agrupa las filas de la tabla continua en pilas: cada fila donde se eligió una Procedencia abre
 // un grupo nuevo; las filas sin Procedencia elegida (dejadas en blanco a propósito) se suman al
 // grupo anterior — así una misma pila puede ocupar varias filas sin tener que repetir Procedencia/
@@ -3450,12 +3438,6 @@ async function extraerFilasAliment(tabla, fecha, silencioso){
         return null;
       }
       continue;
-    }
-    if(!silencioso && !(await pilaExisteEnPatio(procedencia, codigoPatio))){
-      const sigue = confirm(`La pila "${codigoPatio}" no está registrada en Patio para ${procedencia}.\n\n`+
-        `Toda pila que se alimenta a planta debería haberse muestreado antes en Patio con el mismo `+
-        `nombre. Verifique que esté bien escrito.\n\n¿Desea guardarla de todas formas?`);
-      if(!sigue) return null;
     }
     filasLlenas.forEach(tr=>{
       resultado.push({
