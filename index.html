@@ -257,8 +257,6 @@
   .patio th,.patio td{border:1px solid #000; padding:8px 9px; text-align:center; vertical-align:middle}
   .patio thead th{background:#D3E3F7; color:#000; font-weight:bold; font-size:12px; text-align:center}
   .patio tbody tr:hover{background:transparent}
-  /* comparativa de tenores: resalta las pilas que aún no tienen tenor de Alimentación cargado */
-  .patio tr.fila-sin-aliment td{background:#FFF8E1}
   .patio .grupo:hover td{background:var(--t-hover)}
   .patio td.izq{text-align:left}
   .tabla-alimentacion thead th{background:#1F3864; color:#fff; font-weight:bold; text-align:center;
@@ -537,7 +535,6 @@
   <div class="tablero">
     <button class="caja" data-abrir="patio">PATIO<span class="conteo" id="c-patio"></span></button>
     <button class="caja" data-abrir="alimentacion">ALIMENTACION<span class="conteo" id="c-alimentacion"></span></button>
-    <button class="caja" data-abrir="trazabilidad">COMPARATIVA DE TENORES<span class="conteo" id="c-trazabilidad"></span></button>
   </div>
 
 </main>
@@ -1586,16 +1583,14 @@ async function abrir(nombre){
   const esCarbon = nombre === 'carbon';
   const esProc = nombre === 'proceso';
   const esCons = nombre === 'consolidado';
-  const esTraz = nombre === 'trazabilidad';
   $('#mod-titulo').textContent = esPatio ? 'MUESTREO EN PATIO'
     : esCarbon ? 'MUESTREO DE CARBON ACTIVADO'
     : esProc ? 'MUESTREO DE PROCESO DE PLANTA'
-    : esCons ? 'CONSOLIDADO'
-    : (esTraz ? 'COMPARATIVA DE TENORES — PATIO VS ALIMENTACION' : MODULOS[nombre].titulo);
+    : (esCons ? 'CONSOLIDADO' : MODULOS[nombre].titulo);
   $('#mod-sub').textContent = 'Planta Revemin PIM II — Aseguramiento de la calidad QA/QC';
-  $('#btn-nuevo').style.display = (esCons || esTraz || esPatio || nombre === 'alimentacion') ? 'none' : '';
+  $('#btn-nuevo').style.display = (esCons || esPatio || nombre === 'alimentacion') ? 'none' : '';
   $('#btn-nuevo').textContent = esCarbon ? 'Registrar orden' : 'Registrar muestra';
-  $('#mod-provisional').style.display = (!esPatio && !esProc && !esCarbon && !esCons && !esTraz && MODULOS[nombre].provisional) ? '' : 'none';
+  $('#mod-provisional').style.display = (!esPatio && !esProc && !esCarbon && !esCons && MODULOS[nombre].provisional) ? '' : 'none';
 
   const zonaProc = $('#procedencias');
   if(esPatio){
@@ -1696,8 +1691,6 @@ async function cargarDatos(){
       referencia: r.hora || '', codigo:'', tenor:r.aus || '', humedad:''
     }));
     ESTADO.datos = filas.sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||'')));
-  }else if(n === 'trazabilidad'){
-    ESTADO.datos = await cargarComparativaTenores();
   }else{
     ESTADO.datos = await leer(MODULOS[n].clave);
   }
@@ -1772,7 +1765,6 @@ function pintar(){
   if(ESTADO.modulo === 'proceso') return pintarProceso();
   if(ESTADO.modulo === 'carbon') return pintarCarbon();
   if(ESTADO.modulo === 'consolidado') return pintarConsolidado();
-  if(ESTADO.modulo === 'trazabilidad') return pintarTrazabilidad();
   return pintarGenerico();
 }
 
@@ -2894,61 +2886,6 @@ function pintarConsolidado(){
   ponerPie(`${filas.length} registro${filas.length===1?'':'s'}`);
 }
 
-// trazabilidad Patio→Alimentación: por cada pila ya muestreada en Patio, compara su tenor de Patio
-// (tenorPromedioDe, el mismo que se usa en toda la app) contra el tenor de Alimentación de esa
-// misma pila — promedio simple de todas las lecturas donde se haya escrito un tenor a mano en la
-// tabla de Alimentación (puede haber varias lecturas de hora/pesómetro para una sola pila)
-async function cargarComparativaTenores(){
-  const alimentacion = await leer(MODULOS.alimentacion.clave);
-  const porPila = new Map(); // "procedencia|||pila" (normalizados) -> {suma, n}
-  alimentacion.forEach(r=>{
-    const valor = Number(String(r.tenor ?? '').replace(',', '.'));
-    if(!r.tenor || !Number.isFinite(valor)) return;
-    const clave = normalizaPila(r.procedencia) + '|||' + normalizaPila(r.codigoPatio);
-    const e = porPila.get(clave) || {suma:0, n:0};
-    e.suma += valor; e.n++;
-    porPila.set(clave, e);
-  });
-
-  const filas = [];
-  for(const p of PROCEDENCIAS){
-    (await leerPatio(p.id)).forEach(g=>{
-      if(!g.pila) return;
-      const tenorPatio = tenorPromedioDe(g);
-      const e = porPila.get(normalizaPila(p.nombre) + '|||' + normalizaPila(g.pila));
-      const tenorAlimentacion = e ? e.suma / e.n : null;
-      filas.push({
-        procedencia: p.nombre, pila: g.pila, fecha: g.fecha, tenorPatio, tenorAlimentacion,
-        diferencia: (tenorPatio !== null && tenorAlimentacion !== null) ? (tenorAlimentacion - tenorPatio) : null
-      });
-    });
-  }
-  filas.sort((a,b)=> a.procedencia.localeCompare(b.procedencia) || normalizaPila(a.pila).localeCompare(normalizaPila(b.pila)));
-  return filas;
-}
-
-function pintarTrazabilidad(){
-  const filas = ESTADO.datos.filter(coincide);
-  const zona = $('#zona-tabla');
-  if(!filas.length){
-    zona.innerHTML = `<div class="vacio"><strong>Todavía no hay pilas registradas en Patio</strong>
-      Cargue muestras en Patio y, cuando corresponda, su tenor de Alimentación, y aparecerán aquí.</div>`;
-    ponerPie('0 pilas'); return;
-  }
-  const th = ['Procedencia','Pila','Tenor Patio (g/t)','Tenor Alimentación (g/t)','Diferencia (g/t)']
-    .map(t=>`<th>${t}</th>`).join('');
-  const sinAlimentacion = filas.filter(r => r.tenorAlimentacion === null).length;
-  const tb = filas.map(r=>{
-    const sinDato = r.tenorAlimentacion === null;
-    return `<tr${sinDato ? ' class="fila-sin-aliment"' : ''}>
-      <td>${esc(r.procedencia)}</td><td>${esc(r.pila)}</td>
-      <td>${fmt(r.tenorPatio,3)}</td><td>${fmt(r.tenorAlimentacion,3)}</td><td>${fmt(r.diferencia,3)}</td></tr>`;
-  }).join('');
-  zona.innerHTML = `<table class="patio"><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table>`;
-  ponerPie(`${filas.length} pila${filas.length===1?'':'s'}` +
-    (sinAlimentacion ? ` · ${sinAlimentacion} sin tenor de Alimentación todavía` : ''));
-}
-
 function enlazarAcciones(zona){
   zona.querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', ()=> abrirFormulario(Number(b.dataset.editar))));
   zona.querySelectorAll('[data-borrar]').forEach(b => b.addEventListener('click', ()=> borrar(Number(b.dataset.borrar))));
@@ -3900,11 +3837,6 @@ $('#btn-csv').addEventListener('click', async ()=>{
   if(ESTADO.modulo === 'consolidado'){
     filas.push(['Origen','Procedencia','Fecha','Referencia','Código','Tenor (g/Ton)','Humedad (%)']);
     ESTADO.datos.filter(coincide).forEach(r=> filas.push([r.origen,r.procedencia,fechaLegible(r.fecha),r.referencia,r.codigo,r.tenor,r.humedad]));
-  }else if(ESTADO.modulo === 'trazabilidad'){
-    filas.push(['Procedencia','Pila','Tenor Patio (g/t)','Tenor Alimentación (g/t)','Diferencia (g/t)']);
-    ESTADO.datos.filter(coincide).forEach(r=> filas.push([r.procedencia, r.pila,
-      r.tenorPatio===null?'':r.tenorPatio.toFixed(3), r.tenorAlimentacion===null?'':r.tenorAlimentacion.toFixed(3),
-      r.diferencia===null?'':r.diferencia.toFixed(3)]));
   }else{
     const cols = columnasLista();
     filas.push(cols.map(c=>c.etiqueta));
@@ -5465,7 +5397,6 @@ async function actualizarConteos(){
     const f = await leer(MODULOS[k].clave);
     document.getElementById('c-'+k).textContent = f.length ? `${f.length} registro${f.length===1?'':'s'}` : 'sin registros';
   }
-  $('#c-trazabilidad').textContent = 'Patio vs Alimentación';
 }
 (async ()=>{
   try{ await window.storage.set('revemin_prueba','1'); PERSISTE = true; }
