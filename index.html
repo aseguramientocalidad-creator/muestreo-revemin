@@ -410,18 +410,22 @@
   .rejilla-lineal{display:flex; flex-wrap:nowrap; gap:10px}
   .rejilla-lineal .campo{flex:1; min-width:0}
   .campos-alimentacion label{text-transform:uppercase; font-weight:bold}
-  .aliment-bloque{border-top:2px solid var(--gris-suave); padding-top:16px; margin-top:16px}
-  .aliment-bloque:first-child{border-top:none; margin-top:0; padding-top:0}
-  .aliment-cab{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:10px}
-  .aliment-cab .campo{flex:1; min-width:180px}
+  /* cada pila es un <tbody> dentro de UNA sola tabla continua (ver tablaAlimentNueva): la
+     primera fila de cada bloque trae los cajetines de Procedencia/Pila; las demás los dejan en
+     blanco, porque son la misma pila — no hace falta volver a elegirlos en cada intervalo de hora */
+  .aliment-bloque + .aliment-bloque > tr:first-child td{border-top:3px solid var(--t-acento)}
   .tabla-aliment-nueva{width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:6px}
   .tabla-aliment-nueva th,.tabla-aliment-nueva td{border:none; border-bottom:1px solid var(--gris-suave); padding:0}
   .tabla-aliment-nueva th{background:#fff; color:var(--t-acento); font-size:12px; font-weight:bold; text-align:left;
     padding:5px 6px 8px; white-space:normal; position:static; border-bottom:2px solid var(--t-acento)}
-  .tabla-aliment-nueva th.col-hora,.tabla-aliment-nueva th.col-peso{width:15%}
-  .tabla-aliment-nueva th.col-obs{width:40%}
-  .tabla-aliment-nueva td input{width:100%; height:100%; border:none; padding:7px 6px; font-size:13px; background:transparent}
-  .tabla-aliment-nueva td input:focus{outline:2px solid var(--t-acento); outline-offset:-2px}
+  .tabla-aliment-nueva th.col-proc{width:14%}
+  .tabla-aliment-nueva th.col-hora,.tabla-aliment-nueva th.col-peso{width:12.5%}
+  .tabla-aliment-nueva th.col-obs{width:22%}
+  .tabla-aliment-nueva td input,.tabla-aliment-nueva td select{width:100%; height:100%; border:none; padding:7px 6px; font-size:13px; background:transparent}
+  .tabla-aliment-nueva td input:focus,.tabla-aliment-nueva td select:focus{outline:2px solid var(--t-acento); outline-offset:-2px}
+  .tabla-aliment-nueva td.celda-proc{padding:6px; vertical-align:top}
+  .tabla-aliment-nueva td.celda-proc select,.tabla-aliment-nueva td.celda-proc input{padding:5px 4px}
+  .tabla-aliment-nueva td.celda-proc .sugerencias-pila{flex-wrap:wrap}
   .rejilla-lineal .campo label{min-height:36px; display:flex; align-items:flex-end}
   .grupo-orden{display:flex; gap:6px; align-items:center}
   .grupo-orden .prefijo{flex:0 0 74px; text-align:center; font-weight:bold; background:var(--t-hover)}
@@ -3301,8 +3305,21 @@ function formularioGenerico(indice, base){
 
 // cuántas filas de lectura trae cada bloque de pila por defecto en el formulario de registro nuevo
 const FILAS_ALIMENT_NUEVO = 14;
-function filaAlimentNueva(){
-  return `<tr>
+// solo la PRIMERA fila de cada bloque (pila) trae los cajetines de Procedencia y Número de pila;
+// las demás los dejan en blanco — es la misma pila, no hace falta volver a elegirla en cada
+// intervalo de hora. Procedencia/Pila quedan como dos columnas más de la misma fila, no aparte.
+function filaAlimentNueva(primera){
+  const celdasProc = primera
+    ? `<td class="celda-proc">
+        <select name="procedencia"><option value=""></option>${PROCEDENCIAS.map(p=>`<option>${esc(p.nombre)}</option>`).join('')}${PROCEDENCIAS_ALIMENT_EXTRA.map(n=>`<option>${esc(n)}</option>`).join('')}<option value="__otro__">Otro…</option></select>
+        <input name="procedenciaOtro" placeholder="Escriba la procedencia" style="display:none; margin-top:6px">
+      </td>
+      <td class="celda-proc">
+        <input name="codigoPatio">
+        <div class="sugerencias-pila" style="display:none; margin-top:6px; gap:6px"></div>
+      </td>`
+    : '<td></td><td></td>';
+  return `<tr>${celdasProc}
     <td><input name="horaInicial" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
     <td><input name="horaFinal" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
     <td><input name="pesometroInicial" inputmode="decimal"></td>
@@ -3311,20 +3328,24 @@ function filaAlimentNueva(){
   </tr>`;
 }
 function bloqueAlimentNuevo(){
-  return `<div class="aliment-bloque">
-    <div class="aliment-cab">
-      <div class="campo"><label>Procedencia *</label><select name="procedencia"><option value=""></option>${PROCEDENCIAS.map(p=>`<option>${esc(p.nombre)}</option>`).join('')}${PROCEDENCIAS_ALIMENT_EXTRA.map(n=>`<option>${esc(n)}</option>`).join('')}<option value="__otro__">Otro…</option></select>
-        <input name="procedenciaOtro" placeholder="Escriba la procedencia" style="display:none; margin-top:6px">
-      </div>
-      <div class="campo"><label>Número de pila *</label><input name="codigoPatio">
-        <div class="sugerencias-pila" style="display:none; margin-top:6px; gap:6px"></div>
-      </div>
-    </div>
-    <table class="tabla-aliment-nueva">
-      <thead><tr><th class="col-hora">Hora (desde)</th><th class="col-hora">Hora (hasta)</th><th class="col-peso">Lectura inicial pesómetro</th><th class="col-peso">Lectura final pesómetro</th><th class="col-obs">Observación</th></tr></thead>
-      <tbody>${Array.from({length:FILAS_ALIMENT_NUEVO}).map(filaAlimentNueva).join('')}</tbody>
+  return `<tbody class="aliment-bloque">${
+    Array.from({length:FILAS_ALIMENT_NUEVO}).map((_,i)=>filaAlimentNueva(i === 0)).join('')
+  }</tbody>`;
+}
+// una sola tabla continua para todas las pilas del turno (en vez de una tarjeta separada por
+// pila): el botón "+ Agregar pila" agrega otro bloque de filas debajo, con su propia Procedencia/
+// Pila en la primera fila — "Guardar registro" guarda TODAS las pilas de la tabla de una vez
+function tablaAlimentNueva(){
+  return `<table class="tabla-aliment-nueva">
+      <thead><tr>
+        <th class="col-proc">Procedencia</th><th class="col-proc">Pila</th>
+        <th class="col-hora">Hora (desde)</th><th class="col-hora">Hora (hasta)</th>
+        <th class="col-peso">Lectura inicial pesómetro</th><th class="col-peso">Lectura final pesómetro</th>
+        <th class="col-obs">Observación</th>
+      </tr></thead>
+      ${bloqueAlimentNuevo()}
     </table>
-  </div>`;
+    <button type="button" class="btn" id="btn-agregar-pila-aliment" style="margin-top:10px">+ Agregar pila</button>`;
 }
 const camposFilaAliment = ['horaInicial','pesometroInicial','horaFinal','pesometroFinal','obs'];
 // formulario para registrar lecturas nuevas en Alimentación: una fecha para todo el turno y un
@@ -3337,12 +3358,13 @@ const camposFilaAliment = ['horaInicial','pesometroInicial','horaFinal','pesomet
 function formularioAlimentacionNuevo(base){
   $('#form-titulo').textContent = 'Registrar pila — ' + nombreLinea(ESTADO.linea);
   $('#btn-guardar').textContent = 'Guardar registro';
-  $('#formulario').style.maxWidth = '820px';
+  // más ancho que antes: la tabla ahora trae también Procedencia y Pila como columnas propias
+  $('#formulario').style.maxWidth = '1300px';
   $('#form-cuerpo').innerHTML =
     '<div class="rejilla" style="grid-template-columns:240px; margin-bottom:14px">' +
       `<div class="campo"><label>Fecha *</label><input type="date" name="fecha" value="${esc((base&&base.fecha)||'')}" required></div>` +
     '</div>' +
-    '<div id="aliment-bloques">' + bloqueAlimentNuevo() + '</div>';
+    '<div id="aliment-bloques">' + tablaAlimentNueva() + '</div>';
   $('#form-cuerpo').addEventListener('input', e=>{
     if(e.target.matches('[name=horaInicial],[name=horaFinal]')) e.target.value = formatearHoraMilitar(e.target.value);
   });
@@ -3354,17 +3376,18 @@ function formularioAlimentacionNuevo(base){
   // "Otro…" en Procedencia: muestra el cajetín de texto para escribirla a mano
   $('#form-cuerpo').addEventListener('change', e=>{
     if(!e.target.matches('[name=procedencia]')) return;
-    const otro = e.target.closest('.campo').querySelector('[name=procedenciaOtro]');
+    const otro = e.target.closest('.celda-proc').querySelector('[name=procedenciaOtro]');
     const esOtro = e.target.value === '__otro__';
     otro.style.display = esOtro ? '' : 'none';
     if(esOtro) otro.focus(); else otro.value = '';
     // Rechazo de Correa no tiene número de pila: se completa solo con "S/N"
-    const inPila = e.target.closest('.aliment-cab').querySelector('[name=codigoPatio]');
+    const fila = e.target.closest('tr');
+    const inPila = fila.querySelector('[name=codigoPatio]');
     if(e.target.value === 'RECHAZO DE CORREA') inPila.value = 'S/N';
     else if(inPila.value === 'S/N') inPila.value = '';
     // botones de inicio de texto para Número de pila, según la procedencia elegida (ver
     // SUGERENCIAS_PILA_ALIMENT) — solo falta completar con el número o el nombre particular
-    const sugerencias = e.target.closest('.aliment-cab').querySelector('.sugerencias-pila');
+    const sugerencias = fila.querySelector('.sugerencias-pila');
     const textos = SUGERENCIAS_PILA_ALIMENT[e.target.value];
     if(textos){
       sugerencias.innerHTML = textos.map(t=>
@@ -3376,11 +3399,18 @@ function formularioAlimentacionNuevo(base){
     }
   });
   $('#form-cuerpo').addEventListener('click', e=>{
-    const boton = e.target.closest('.sugerir-pila');
-    if(!boton) return;
-    const input = boton.closest('.campo').querySelector('[name=codigoPatio]');
-    input.value = boton.dataset.texto;
-    input.focus();
+    const botonPila = e.target.closest('.sugerir-pila');
+    if(botonPila){
+      const input = botonPila.closest('.celda-proc').querySelector('[name=codigoPatio]');
+      input.value = botonPila.dataset.texto;
+      input.focus();
+      return;
+    }
+    // "+ Agregar pila": añade otro bloque de filas (con su propia Procedencia/Pila) al final de
+    // la misma tabla, para registrar otra pila sin tener que guardar la anterior primero
+    if(e.target.id === 'btn-agregar-pila-aliment'){
+      $('#aliment-bloques .tabla-aliment-nueva').insertAdjacentHTML('beforeend', bloqueAlimentNuevo());
+    }
   });
   // flechas del teclado para moverse entre celdas de la tabla de lecturas: siempre van directo a
   // la celda vecina (arriba/abajo a la misma columna, izquierda/derecha a la columna de al lado),
@@ -3426,7 +3456,7 @@ async function extraerFilasBloque(bloque, fecha, silencioso){
     : selProc.value).trim();
   let codigoPatio = bloque.querySelector('[name=codigoPatio]').value.trim();
   const val = (tr,n) => tr.querySelector('[name='+n+']').value.trim();
-  const filas = [...bloque.querySelectorAll('tbody tr')];
+  const filas = [...bloque.querySelectorAll('tr')];
   const filasLlenas = filas.filter(tr => camposFilaAliment.some(n => val(tr,n) !== ''));
   if(!procedencia && !codigoPatio && !filasLlenas.length) return [];
   if(!procedencia || !codigoPatio){
@@ -3479,11 +3509,17 @@ let FILAS_LISTAS_PARA_GUARDAR = null;
 async function guardarBloquesAlimentacion(){
   const fecha = $('[name=fecha]').value;
   if(!fecha){ alert('Seleccione la fecha.'); return; }
-  const bloque = $('#aliment-bloques .aliment-bloque');
-  const filas = await extraerFilasBloque(bloque, fecha);
-  if(filas === null) return; // ya se avisó el motivo
-  if(!filas.length){ avisar('Complete los datos de esta pila (Procedencia, Número de pila y al menos una lectura) antes de guardar'); return; }
-  FILAS_LISTAS_PARA_GUARDAR = filas;
+  // la tabla puede traer varias pilas (varios <tbody class="aliment-bloque">) cargadas a la vez;
+  // "Guardar registro" las valida y guarda TODAS de una sola vez, en vez de una por una
+  const bloques = [...$('#aliment-bloques').querySelectorAll('.aliment-bloque')];
+  const todasLasFilas = [];
+  for(const bloque of bloques){
+    const filas = await extraerFilasBloque(bloque, fecha);
+    if(filas === null) return; // ya se avisó el motivo; no se guarda nada hasta que se corrija
+    todasLasFilas.push(...filas);
+  }
+  if(!todasLasFilas.length){ avisar('Complete los datos de al menos una pila (Procedencia, Número de pila y una lectura) antes de guardar'); return; }
+  FILAS_LISTAS_PARA_GUARDAR = todasLasFilas;
   $('#telon-guardar-aliment').classList.add('activo');
 }
 $('#btn-revisar-aliment').addEventListener('click', ()=>
@@ -3494,11 +3530,12 @@ $('#btn-confirmar-guardar-aliment').addEventListener('click', async ()=>{
   FILAS_LISTAS_PARA_GUARDAR = null;
   if(!filas || !filas.length) return;
   await escribirFilasAlimentacion(filas);
-  $('#aliment-bloques').innerHTML = bloqueAlimentNuevo();
+  $('#aliment-bloques').innerHTML = tablaAlimentNueva();
   pintar();
 });
-// "Finalizar": guarda lo que haya quedado sin guardar en el bloque actual (si lo hay) y cierra el
-// formulario, sin preguntar nada más (esa confirmación ya quedó en "Guardar registro")
+// "Finalizar": guarda lo que haya quedado sin guardar en todas las pilas de la tabla (las que
+// tengan algo) y cierra el formulario, sin preguntar nada más (esa confirmación ya quedó en
+// "Guardar registro")
 // "Finalizar" abre un diálogo propio (en vez del confirm() nativo, que no permite personalizar el
 // texto de los botones) para que un clic accidental no cierre el formulario a medias
 function finalizarAlimentacion(){
@@ -3508,13 +3545,17 @@ $('#btn-seguir-registrando-aliment').addEventListener('click', ()=>
   $('#telon-finalizar-aliment').classList.remove('activo'));
 $('#btn-confirmar-finalizar-aliment').addEventListener('click', async ()=>{
   $('#telon-finalizar-aliment').classList.remove('activo');
-  // "Cerrar" cierra siempre, aunque la pila en pantalla haya quedado incompleta: si tiene lo
+  // "Cerrar" cierra siempre, aunque alguna pila en pantalla haya quedado incompleta: si tiene lo
   // mínimo para guardarse (sin preguntar ni avisar nada) se guarda; si no, esa pila sin terminar
   // simplemente se descarta, pero el formulario se cierra de todos modos
   const fecha = $('[name=fecha]').value;
-  const bloque = $('#aliment-bloques .aliment-bloque');
-  const filas = (bloque && fecha) ? await extraerFilasBloque(bloque, fecha, true) : [];
-  if(filas && filas.length) await escribirFilasAlimentacion(filas);
+  const bloques = fecha ? [...$('#aliment-bloques').querySelectorAll('.aliment-bloque')] : [];
+  const todasLasFilas = [];
+  for(const bloque of bloques){
+    const filas = await extraerFilasBloque(bloque, fecha, true);
+    if(filas && filas.length) todasLasFilas.push(...filas);
+  }
+  if(todasLasFilas.length) await escribirFilasAlimentacion(todasLasFilas);
   cerrarFormulario(); pintar();
 });
 
