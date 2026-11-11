@@ -814,7 +814,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
 <script src="firebase-config.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -5164,96 +5163,202 @@ function base64ABytes(dataUri){
   return bytes;
 }
 
-// construye el Informe Diario como un documento Word nativo (.docx) con la librería docx.js: a
-// diferencia del truco anterior (HTML/MHTML guardado como .doc), esto genera un archivo OOXML real,
-// con encabezado/pie de página de Word de verdad (se repiten en todas las páginas sin desplazarse
-// ni descolocar el resto) y tablas con el mismo estilo del membrete institucional (encabezado celeste
-// con texto en negro). Devuelve {blob, nombreDoc} o {error}.
+/* ---------- generador de .docx sin dependencias externas ---------- */
+// un .docx es un .zip con XML adentro (paquete OOXML); como depender de una librería externa
+// (docx.js) falló en la red de la planta, se arma el zip a mano aquí mismo, sin comprimir las
+// entradas (método "stored" del formato zip, válido y que Word abre sin problema).
+function construirTablaCRC32(){
+  const tabla = new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c = n;
+    for(let k=0;k<8;k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    tabla[n] = c >>> 0;
+  }
+  return tabla;
+}
+const TABLA_CRC32 = construirTablaCRC32();
+function crc32(bytes){
+  let crc = 0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++) crc = TABLA_CRC32[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function u16(n){ return new Uint8Array([n & 0xFF, (n>>>8) & 0xFF]); }
+function u32(n){ return new Uint8Array([n & 0xFF, (n>>>8) & 0xFF, (n>>>16) & 0xFF, (n>>>24) & 0xFF]); }
+function concatBytes(arrays){
+  let total = 0; arrays.forEach(a=> total += a.length);
+  const resultado = new Uint8Array(total);
+  let pos = 0; arrays.forEach(a=>{ resultado.set(a, pos); pos += a.length; });
+  return resultado;
+}
+function construirZipSinComprimir(archivos){
+  const partes = [], centrales = [];
+  let offset = 0;
+  const FECHA_DOS = 0x21; // 1/1/1980, fecha mínima válida; la hora (0) no importa aquí
+  archivos.forEach(({nombre, bytes})=>{
+    const nombreBytes = new TextEncoder().encode(nombre);
+    const crc = crc32(bytes);
+    const offsetLocal = offset;
+    const encabezadoLocal = concatBytes([
+      u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(FECHA_DOS),
+      u32(crc), u32(bytes.length), u32(bytes.length),
+      u16(nombreBytes.length), u16(0), nombreBytes
+    ]);
+    partes.push(encabezadoLocal, bytes);
+    offset += encabezadoLocal.length + bytes.length;
+    centrales.push(concatBytes([
+      u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(FECHA_DOS),
+      u32(crc), u32(bytes.length), u32(bytes.length),
+      u16(nombreBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0),
+      u32(offsetLocal), nombreBytes
+    ]));
+  });
+  const inicioCentral = offset;
+  let tamCentral = 0; centrales.forEach(c=> tamCentral += c.length);
+  const finCentral = concatBytes([
+    u32(0x06054b50), u16(0), u16(0), u16(archivos.length), u16(archivos.length),
+    u32(tamCentral), u32(inicioCentral), u16(0)
+  ]);
+  return concatBytes([...partes, ...centrales, finCentral]);
+}
+
+function escaparXml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+const NS_WORD = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+function parrafoXml(texto, {bold=false, color=null, size=null} = {}){
+  const rPr = [];
+  if(bold) rPr.push('<w:b/>');
+  if(color) rPr.push(`<w:color w:val="${color}"/>`);
+  if(size) rPr.push(`<w:sz w:val="${size}"/>`);
+  const rPrXml = rPr.length ? `<w:rPr>${rPr.join('')}</w:rPr>` : '';
+  return `<w:p><w:r>${rPrXml}<w:t xml:space="preserve">${escaparXml(texto)}</w:t></w:r></w:p>`;
+}
+const BORDES_CELDA_XML = `<w:tcBorders><w:top w:val="single" w:sz="4" w:color="999999"/><w:left w:val="single" w:sz="4" w:color="999999"/><w:bottom w:val="single" w:sz="4" w:color="999999"/><w:right w:val="single" w:sz="4" w:color="999999"/></w:tcBorders>`;
+function celdaXml(texto, {bold=false, shadeFill=null, colspan=null, italic=false} = {}){
+  const tcPr = [BORDES_CELDA_XML];
+  if(shadeFill) tcPr.push(`<w:shd w:val="clear" w:fill="${shadeFill}"/>`);
+  if(colspan) tcPr.push(`<w:gridSpan w:val="${colspan}"/>`);
+  const rPr = [];
+  if(bold) rPr.push('<w:b/>');
+  if(italic) rPr.push('<w:i/>');
+  const rPrXml = rPr.length ? `<w:rPr>${rPr.join('')}</w:rPr>` : '';
+  return `<w:tc><w:tcPr>${tcPr.join('')}</w:tcPr><w:p><w:r>${rPrXml}<w:t xml:space="preserve">${escaparXml(texto)}</w:t></w:r></w:p></w:tc>`;
+}
+function tablaXml(columnas, filas){
+  const encabezado = `<w:tr>${columnas.map(c=> celdaXml(c.titulo, {bold:true, shadeFill:'D9E2F3'})).join('')}</w:tr>`;
+  const cuerpo = filas.length
+    ? filas.map(f => `<w:tr>${columnas.map(c=> celdaXml(String(f[c.clave] ?? '—'))).join('')}</w:tr>`).join('')
+    : `<w:tr>${celdaXml('Sin pilas que informar', {colspan:columnas.length, italic:true})}</w:tr>`;
+  return `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>
+    <w:top w:val="single" w:sz="4" w:color="999999"/><w:left w:val="single" w:sz="4" w:color="999999"/>
+    <w:bottom w:val="single" w:sz="4" w:color="999999"/><w:right w:val="single" w:sz="4" w:color="999999"/>
+    <w:insideH w:val="single" w:sz="4" w:color="999999"/><w:insideV w:val="single" w:sz="4" w:color="999999"/>
+  </w:tblBorders></w:tblPr>${encabezado}${cuerpo}</w:tbl>`;
+}
+function imagenXml(relId, anchoIn, altoIn){
+  const cx = Math.round(anchoIn * 914400), cy = Math.round(altoIn * 914400);
+  return `<w:p><w:r><w:drawing>
+    <wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0">
+      <wp:extent cx="${cx}" cy="${cy}"/>
+      <wp:effectExtent l="0" t="0" r="0" b="0"/>
+      <wp:docPr id="1" name="Picture"/>
+      <wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>
+      <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+        <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+          <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+            <pic:nvPicPr><pic:cNvPr id="0" name="Picture"/><pic:cNvPicPr/></pic:nvPicPr>
+            <pic:blipFill><a:blip r:embed="${relId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+            <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+          </pic:pic>
+        </a:graphicData>
+      </a:graphic>
+    </wp:inline>
+  </w:drawing></w:r></w:p>`;
+}
+
+// construye el Informe Diario como un documento Word nativo (.docx): tiene encabezado/pie de
+// página de Word de verdad (se repiten en todas las páginas sin desplazarse ni descolocar el
+// resto) y tablas con encabezado celeste, igual al estilo del membrete institucional. Devuelve
+// {blob, nombreDoc} o {error}.
 async function construirInformeDiarioDocx(pan){
-  if(typeof docx === 'undefined'){ const error = 'No se pudo cargar el generador de Word. Revise la conexión.'; avisar(error); return {error}; }
   const datos = prepararDatosInformeDiario(pan);
   if(datos.error){ avisar(datos.error); return {error:datos.error}; }
   const { fechaHoyLegible, columnasPend, parrafoReciente, parrafoConsolidado, filasRecientes, filasConsolidado } = datos;
 
-  const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, ImageRun, Header, Footer,
-          WidthType, BorderStyle } = docx;
+  // ancho útil de una página carta con márgenes normales de Word (8.5in - 1in - 1in = 6.5in); el
+  // alto de cada imagen sale de su proporción real (1200x172 y 1200x282 px) para no deformarla.
+  const anchoImgIn = 6.5;
+  const altoCabeceraIn = anchoImgIn * 172/1200;
+  const altoPieIn = anchoImgIn * 282/1200;
 
-  // ancho en píxeles (a 96dpi) equivalente al área útil de una página carta con márgenes normales
-  // de Word (8.5in - 1in - 1in = 6.5in → 624px); el alto de cada imagen sale de su proporción real
-  // (1200x172 y 1200x282 px) para no deformarla.
-  const anchoImgPx = 624;
-  const altoCabeceraPx = Math.round(anchoImgPx * 172/1200);
-  const altoPiePx = Math.round(anchoImgPx * 282/1200);
+  const cuerpoXml = [
+    parrafoXml(`Planta Revemin, El Callao ${fechaHoyLegible}`, {bold:true}),
+    parrafoXml('Departamento de Aseguramiento de la Calidad', {bold:true}),
+    parrafoXml(''),
+    parrafoXml('INFORME DIARIO QA/QC — ÓRDENES PENDIENTES POR TENOR', {bold:true, color:'1A4D7A', size:26}),
+    parrafoXml(''),
+    parrafoXml(parrafoReciente),
+    tablaXml(columnasPend, filasRecientes),
+    parrafoXml(''),
+    parrafoXml(parrafoConsolidado),
+    tablaXml(columnasPend, filasConsolidado)
+  ].join('');
 
-  const bordeCelda = {
-    top:{style:BorderStyle.SINGLE, size:4, color:'999999'},
-    bottom:{style:BorderStyle.SINGLE, size:4, color:'999999'},
-    left:{style:BorderStyle.SINGLE, size:4, color:'999999'},
-    right:{style:BorderStyle.SINGLE, size:4, color:'999999'}
-  };
+  const documentoXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document ${NS_WORD}><w:body>${cuerpoXml}<w:sectPr>
+  <w:headerReference w:type="default" r:id="rIdHeader1"/>
+  <w:footerReference w:type="default" r:id="rIdFooter1"/>
+  <w:pgSz w:w="12240" w:h="15840"/>
+  <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
+</w:sectPr></w:body></w:document>`;
 
-  function filaEncabezadoTabla(){
-    return new TableRow({
-      tableHeader:true,
-      children: columnasPend.map(c => new TableCell({
-        borders: bordeCelda,
-        shading:{fill:'D9E2F3'},
-        children:[new Paragraph({children:[new TextRun({text:c.titulo, bold:true})]})]
-      }))
-    });
-  }
-  function filasDatosTabla(filas){
-    if(!filas.length){
-      return [new TableRow({children:[new TableCell({
-        borders:bordeCelda, columnSpan: columnasPend.length,
-        children:[new Paragraph({children:[new TextRun({text:'Sin pilas que informar', italics:true})]})]
-      })]})];
-    }
-    return filas.map(f => new TableRow({
-      children: columnasPend.map(c => new TableCell({
-        borders:bordeCelda,
-        children:[new Paragraph(String(f[c.clave] ?? '—'))]
-      }))
-    }));
-  }
-  function tabla(filas){
-    return new Table({
-      width:{size:100, type:WidthType.PERCENTAGE},
-      rows:[filaEncabezadoTabla(), ...filasDatosTabla(filas)]
-    });
-  }
+  const headerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr ${NS_WORD}>${imagenXml('rIdHeaderImg', anchoImgIn, altoCabeceraIn)}</w:hdr>`;
+  const footerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr ${NS_WORD}>${imagenXml('rIdFooterImg', anchoImgIn, altoPieIn)}</w:ftr>`;
 
-  const doc = new Document({
-    sections:[{
-      headers:{ default: new Header({ children:[
-        new Paragraph({children:[new ImageRun({
-          data: base64ABytes(INFORME_DIARIO_HEADER_PNG),
-          transformation:{width:anchoImgPx, height:altoCabeceraPx}
-        })]})
-      ]})},
-      footers:{ default: new Footer({ children:[
-        new Paragraph({children:[new ImageRun({
-          data: base64ABytes(INFORME_DIARIO_FOOTER_PNG),
-          transformation:{width:anchoImgPx, height:altoPiePx}
-        })]})
-      ]})},
-      children:[
-        new Paragraph({children:[new TextRun({text:`Planta Revemin, El Callao ${fechaHoyLegible}`, bold:true})]}),
-        new Paragraph({children:[new TextRun({text:'Departamento de Aseguramiento de la Calidad', bold:true})]}),
-        new Paragraph({text:''}),
-        new Paragraph({children:[new TextRun({text:'INFORME DIARIO QA/QC — ÓRDENES PENDIENTES POR TENOR', bold:true, color:'1A4D7A', size:26})]}),
-        new Paragraph({text:''}),
-        new Paragraph(parrafoReciente),
-        tabla(filasRecientes),
-        new Paragraph({text:''}),
-        new Paragraph(parrafoConsolidado),
-        tabla(filasConsolidado)
-      ]
-    }]
-  });
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>`;
+  const relsRootXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+  const docRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdHeader1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
+  <Relationship Id="rIdFooter1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+</Relationships>`;
+  const headerRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdHeaderImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/>
+</Relationships>`;
+  const footerRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdFooterImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image2.png"/>
+</Relationships>`;
 
   try{
-    const blob = await Packer.toBlob(doc);
+    const enc = new TextEncoder();
+    const archivos = [
+      {nombre:'[Content_Types].xml', bytes: enc.encode(contentTypesXml)},
+      {nombre:'_rels/.rels', bytes: enc.encode(relsRootXml)},
+      {nombre:'word/document.xml', bytes: enc.encode(documentoXml)},
+      {nombre:'word/_rels/document.xml.rels', bytes: enc.encode(docRelsXml)},
+      {nombre:'word/header1.xml', bytes: enc.encode(headerXml)},
+      {nombre:'word/footer1.xml', bytes: enc.encode(footerXml)},
+      {nombre:'word/_rels/header1.xml.rels', bytes: enc.encode(headerRelsXml)},
+      {nombre:'word/_rels/footer1.xml.rels', bytes: enc.encode(footerRelsXml)},
+      {nombre:'word/media/image1.png', bytes: base64ABytes(INFORME_DIARIO_HEADER_PNG)},
+      {nombre:'word/media/image2.png', bytes: base64ABytes(INFORME_DIARIO_FOOTER_PNG)}
+    ];
+    const zipBytes = construirZipSinComprimir(archivos);
+    const blob = new Blob([zipBytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
     const nombreDoc = `INFORME DIARIO QA-QC ${fechaHoyLegible.replace(/\//g,'-')}.docx`;
     return {blob, nombreDoc};
   } catch(e){
