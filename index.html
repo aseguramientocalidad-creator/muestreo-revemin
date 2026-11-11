@@ -558,14 +558,12 @@
         <img src="img/patio.png" alt="">
       </span>
       <span class="caja-texto">PATIO</span>
-      <span class="conteo" id="c-patio"></span>
     </button>
     <button class="caja caja-alimentacion" data-abrir="alimentacion">
       <span class="caja-icono" aria-hidden="true">
         <img src="img/alimentacion.png" alt="">
       </span>
       <span class="caja-texto">ALIMENTACION</span>
-      <span class="conteo" id="c-alimentacion"></span>
     </button>
   </div>
 
@@ -5427,10 +5425,11 @@ async function actualizarConteos(){
     const g = await leerPatio(p.id);
     pilas += g.length;
   }
-  $('#c-patio').textContent = pilas ? `${pilas} pila${pilas===1?'':'s'}` : 'sin registros';
+  $('#c-patio') && ($('#c-patio').textContent = pilas ? `${pilas} pila${pilas===1?'':'s'}` : 'sin registros');
   for(const k of Object.keys(MODULOS)){
     const f = await leer(MODULOS[k].clave);
-    document.getElementById('c-'+k).textContent = f.length ? `${f.length} registro${f.length===1?'':'s'}` : 'sin registros';
+    const el = document.getElementById('c-'+k);
+    if(el) el.textContent = f.length ? `${f.length} registro${f.length===1?'':'s'}` : 'sin registros';
   }
 }
 (async ()=>{
