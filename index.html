@@ -138,8 +138,17 @@
   .proc-btn[aria-pressed="true"]{transform:translateY(3px); box-shadow:0 0 0 rgba(0,0,0,.35), 0 2px 3px rgba(0,0,0,.2)}
   .btn-excel{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
   .btn-pdf{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
+  .btn-word{display:inline-flex; align-items:center; gap:8px; font-weight:bold}
   .btn{border:1px solid var(--t-acento); background:#fff; color:#000; padding:8px 14px; font-size:13px; cursor:pointer}
   .btn:hover{background:var(--t-hover)}
+  .zona-informe-diario{padding:24px 20px; display:flex; flex-direction:column; align-items:center; gap:20px}
+  .vista-previa-informe{
+    width:100%; max-width:600px; aspect-ratio:1/1.3; max-height:60vh; background:#fff;
+    border:1px solid var(--gris-suave); box-shadow:0 2px 10px rgba(0,0,0,.08);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .vista-previa-marcador{color:var(--gris); font-size:14px}
+  .descargas-informe{display:flex; gap:12px; flex-wrap:wrap; justify-content:center}
   .btn-primario{background:var(--t-cons-bg); border:2px solid var(--t-acento); font-weight:bold}
   .btn-primario:hover{filter:brightness(1.06)}
   .zona-tabla{flex:1; overflow:auto; padding:0 20px 40px}
@@ -573,9 +582,9 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1v-9"/></svg>
     <span>INICIO</span>
   </button>
-  <button class="sidebar-item" type="button" data-sidebar-item>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-    <span>Opción 2</span>
+  <button class="sidebar-item" type="button" data-sidebar-item data-sidebar-abrir="informe-diario">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4h4"/><path d="M8 13h8M8 16.5h8M8 9.5h3"/></svg>
+    <span>Informe Diario</span>
   </button>
   <button class="sidebar-item" type="button" data-sidebar-item>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 3v4M16 3v4"/></svg>
@@ -666,6 +675,41 @@
   <button type="button" class="flecha-tabla flecha-tabla-izq" id="flecha-tabla-izq" aria-label="Desplazar tabla a la izquierda">&#8249;</button>
   <button type="button" class="flecha-tabla flecha-tabla-der" id="flecha-tabla-der" aria-label="Desplazar tabla a la derecha">&#8250;</button>
   <div class="pie" id="pie"></div>
+</section>
+
+<section class="modulo" id="modulo-informe-diario">
+  <div class="barra">
+    <div>
+      <div class="titulo">INFORME DIARIO</div>
+      <div class="sub">Vista previa</div>
+    </div>
+  </div>
+
+  <div class="zona-informe-diario">
+    <div class="vista-previa-informe" id="vista-previa-informe">
+      <div class="vista-previa-marcador">Vista previa del informe</div>
+    </div>
+    <div class="descargas-informe">
+      <button class="btn btn-pdf" id="btn-informe-diario-pdf" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14 2H6.5A1.5 1.5 0 0 0 5 3.5v17A1.5 1.5 0 0 0 6.5 22h11a1.5 1.5 0 0 0 1.5-1.5V7z" fill="#fff" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M14 2v5h5" fill="#E2E2DE" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
+          <rect x="6" y="10.4" width="10.4" height="8.2" rx="0.8" fill="#C0392B"/>
+          <text x="11.2" y="16.6" text-anchor="middle" font-size="5.6" font-weight="bold" fill="#fff" font-family="Arial">PDF</text>
+        </svg>
+        Descargar PDF
+      </button>
+      <button class="btn btn-word" id="btn-informe-diario-word" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14 2H6.5A1.5 1.5 0 0 0 5 3.5v17A1.5 1.5 0 0 0 6.5 22h11a1.5 1.5 0 0 0 1.5-1.5V7z" fill="#fff" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M14 2v5h5" fill="#E2E2DE" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
+          <rect x="6" y="10.4" width="10.4" height="8.2" rx="0.8" fill="#2B579C"/>
+          <text x="11.2" y="16.6" text-anchor="middle" font-size="5.6" font-weight="bold" fill="#fff" font-family="Arial">DOC</text>
+        </svg>
+        Descargar Word
+      </button>
+    </div>
+  </div>
 </section>
 
 <div class="telon" id="telon-finalizar-aliment">
@@ -1654,7 +1698,9 @@ function ponerPie(texto){
 /* ---------- navegación ---------- */
 document.querySelectorAll('[data-abrir]').forEach(b => b.addEventListener('click', ()=> abrir(b.dataset.abrir)));
 function volverAlMenu(){
-  $('#modulo').classList.remove('activo'); $('#menu').style.display=''; ESTADO.modulo=null; actualizarConteos();
+  $('#modulo').classList.remove('activo');
+  $('#modulo-informe-diario')?.classList.remove('activo');
+  $('#menu').style.display=''; ESTADO.modulo=null; actualizarConteos();
   document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(b => b.classList.remove('activo'));
   $('#sidebar [data-sidebar-abrir="menu"]').classList.add('activo');
 }
@@ -5473,12 +5519,20 @@ async function exportarExcelCarbon(){
 document.body.dataset.tema = 'azul';
 
 /* ---------- barra lateral (provisional, pendiente de nombres definitivos) ---------- */
+function cerrarPantallasSidebar(){
+  $('#menu').style.display = 'none';
+  $('#modulo').classList.remove('activo');
+  $('#modulo-informe-diario').classList.remove('activo');
+}
 document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(boton=>{
   boton.addEventListener('click', ()=>{
     document.querySelectorAll('#sidebar [data-sidebar-item]').forEach(b => b.classList.remove('activo'));
     boton.classList.add('activo');
     if(boton.dataset.sidebarAbrir === 'menu'){
       volverAlMenu();
+    } else if(boton.dataset.sidebarAbrir === 'informe-diario'){
+      cerrarPantallasSidebar();
+      $('#modulo-informe-diario').classList.add('activo');
     }
   });
 });
