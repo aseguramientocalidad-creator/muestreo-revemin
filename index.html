@@ -5155,9 +5155,11 @@ async function exportarInformeDiarioPdf(){
   resultado.pdf.save(resultado.nombrePdf);
 }
 
-// construye el Informe Diario como un documento Word (.doc): es HTML con los espacios de nombres
-// que Word reconoce para abrirlo como documento nativo, con las mismas tablas y membrete que el
-// PDF. Devuelve {blob, nombreDoc} o {error}.
+// construye el Informe Diario como un documento Word (.doc) en formato MHTML: Word sí reconoce y
+// abre este formato bajo la extensión .doc, y a diferencia del HTML simple, permite incrustar las
+// imágenes del membrete como partes MIME referenciadas con "cid:" en vez de data URIs en el <img>,
+// que Word normalmente no renderiza (de ahí que el logo apareciera roto). Devuelve {blob, nombreDoc}
+// o {error}.
 function construirInformeDiarioWordHtml(pan){
   const datos = prepararDatosInformeDiario(pan);
   if(datos.error){ avisar(datos.error); return {error:datos.error}; }
@@ -5173,24 +5175,41 @@ function construirInformeDiarioWordHtml(pan){
       `).join('') : `<tr><td colspan="${columnasPend.length}"><i>Sin pilas que informar</i></td></tr>`}
     </table>`;
 
-  const html = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-    <head><meta charset="utf-8"><title>Informe Diario QA/QC</title></head>
-    <body style="font-family:Arial, sans-serif; font-size:11pt">
-      <img src="${INFORME_DIARIO_HEADER_PNG}" style="width:100%; max-width:720px">
-      <p style="font-weight:bold; margin:16px 0 2px">Planta Revemin, El Callao ${fechaHoyLegible}</p>
-      <p style="font-weight:bold; margin:0 0 16px">Departamento de Aseguramiento de la Calidad</p>
-      <p style="font-weight:bold; color:#1A4D7A; font-size:12pt">INFORME DIARIO QA/QC — ÓRDENES PENDIENTES POR TENOR</p>
-      <p>${parrafoReciente}</p>
-      ${tabla(filasRecientes)}
-      <p style="margin-top:18px">${parrafoConsolidado}</p>
-      ${tabla(filasConsolidado)}
-      <br>
-      <img src="${INFORME_DIARIO_FOOTER_PNG}" style="width:100%; max-width:720px">
-    </body>
-    </html>`;
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Informe Diario QA/QC</title></head>
+<body style="font-family:Arial, sans-serif; font-size:11pt">
+  <img src="cid:cabecera_informe_diario" style="width:100%; max-width:720px">
+  <p style="font-weight:bold; margin:16px 0 2px">Planta Revemin, El Callao ${fechaHoyLegible}</p>
+  <p style="font-weight:bold; margin:0 0 16px">Departamento de Aseguramiento de la Calidad</p>
+  <p style="font-weight:bold; color:#1A4D7A; font-size:12pt">INFORME DIARIO QA/QC — ÓRDENES PENDIENTES POR TENOR</p>
+  <p>${parrafoReciente}</p>
+  ${tabla(filasRecientes)}
+  <p style="margin-top:18px">${parrafoConsolidado}</p>
+  ${tabla(filasConsolidado)}
+  <br>
+  <img src="cid:pie_informe_diario" style="width:100%; max-width:720px">
+</body>
+</html>`;
 
-  const blob = new Blob(['﻿', html], {type:'application/msword'});
+  // cada parte de imagen va con su propio Content-ID, referenciado desde el HTML como "cid:<id>"
+  function parteImagen(contentId, dataUri){
+    const base64 = dataUri.split(',')[1];
+    const lineas = base64.match(/.{1,76}/g).join('\r\n');
+    return `--${MHTML_BOUNDARY}\r\nContent-Type: image/png\r\nContent-Transfer-Encoding: base64\r\nContent-ID: <${contentId}>\r\n\r\n${lineas}\r\n`;
+  }
+
+  const MHTML_BOUNDARY = '----=_NextPart_InformeDiarioQAQC';
+  const mhtml =
+    `MIME-Version: 1.0\r\n` +
+    `Content-Type: multipart/related; boundary="${MHTML_BOUNDARY}"\r\n\r\n` +
+    `--${MHTML_BOUNDARY}\r\n` +
+    `Content-Type: text/html; charset="utf-8"\r\n\r\n` +
+    html + `\r\n` +
+    parteImagen('cabecera_informe_diario', INFORME_DIARIO_HEADER_PNG) +
+    parteImagen('pie_informe_diario', INFORME_DIARIO_FOOTER_PNG) +
+    `--${MHTML_BOUNDARY}--\r\n`;
+
+  const blob = new Blob([mhtml], {type:'application/msword'});
   const nombreDoc = `INFORME DIARIO QA-QC ${fechaHoyLegible.replace(/\//g,'-')}.doc`;
   return {blob, nombreDoc};
 }
