@@ -418,19 +418,22 @@
   .tabla-aliment-nueva th{background:#fff; color:var(--t-acento); font-size:12px; font-weight:bold; text-align:left;
     padding:5px 6px 8px; white-space:normal; position:static; border-bottom:2px solid var(--t-acento)}
   .tabla-aliment-nueva th.col-proc{width:10%}
-  .tabla-aliment-nueva th.col-pila{width:22%}
-  .tabla-aliment-nueva th.col-hora,.tabla-aliment-nueva th.col-peso{width:11.5%}
-  .tabla-aliment-nueva th.col-obs{width:21%}
+  .tabla-aliment-nueva th.col-pila{width:27%}
+  .tabla-aliment-nueva th.col-hora{width:11%}
+  .tabla-aliment-nueva th.col-peso{width:8.5%}
+  .tabla-aliment-nueva th.col-obs{width:17%}
   .tabla-aliment-nueva td input,.tabla-aliment-nueva td select{width:100%; height:100%; border:none; padding:7px 6px; font-size:13px; background:transparent}
   .tabla-aliment-nueva td input:focus,.tabla-aliment-nueva td select:focus{outline:2px solid var(--t-acento); outline-offset:-2px}
   .tabla-aliment-nueva td.celda-proc{padding:6px; vertical-align:middle}
   .tabla-aliment-nueva td.celda-proc select,.tabla-aliment-nueva td.celda-proc input{padding:5px 4px}
-  /* "todo lineal": el cajetín de Pila y los botones de sugerencia (Rampa/Skip/Arrime/...) van en
-     la misma fila horizontal, uno al lado del otro, en vez de los botones debajo del cajetín */
-  .tabla-aliment-nueva td.celda-pila{display:flex; align-items:center; gap:6px; flex-wrap:nowrap}
+  /* "todo lineal": el cajetín de Pila y los botones de sugerencia (Rampa/Skip/Arrime/Arenas/
+     Primario...) van en la misma fila, con los botones a la IZQUIERDA del cajetín (ver el orden en
+     filaAlimentNueva); si no caben todos en una sola línea (ej. Pequeña Minería, con 3 botones) se
+     acomodan en una segunda línea DENTRO de la misma celda, en vez de invadir la columna de al lado */
+  .tabla-aliment-nueva td.celda-pila{display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-top:7px; padding-bottom:7px}
   .tabla-aliment-nueva td.celda-pila input{flex:1 1 70px; min-width:60px; width:auto;
     border:1px solid var(--gris-suave) !important; border-radius:3px}
-  .tabla-aliment-nueva td.celda-pila .sugerencias-pila{flex:0 0 auto; flex-wrap:nowrap}
+  .tabla-aliment-nueva td.celda-pila .sugerencias-pila{flex:0 1 auto; flex-wrap:wrap}
   .rejilla-lineal .campo label{min-height:36px; display:flex; align-items:flex-end}
   .grupo-orden{display:flex; gap:6px; align-items:center}
   .grupo-orden .prefijo{flex:0 0 74px; text-align:center; font-weight:bold; background:var(--t-hover)}
@@ -3260,8 +3263,8 @@ function filaAlimentNueva(){
       <input name="procedenciaOtro" placeholder="Escriba la procedencia" style="display:none; margin-top:6px">
     </td>
     <td class="celda-proc celda-pila">
-      <input name="codigoPatio">
       <div class="sugerencias-pila" style="display:none; gap:6px"></div>
+      <input name="codigoPatio">
     </td>
     <td><input name="horaInicial" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
     <td><input name="horaFinal" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
