@@ -682,15 +682,6 @@
         </svg>
         <span id="btn-csv-texto">Exportar</span>
       </button>
-      <button class="btn btn-pdf" id="btn-informe-diario" style="display:none">
-        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M14 2H6.5A1.5 1.5 0 0 0 5 3.5v17A1.5 1.5 0 0 0 6.5 22h11a1.5 1.5 0 0 0 1.5-1.5V7z" fill="#fff" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
-          <path d="M14 2v5h5" fill="#E2E2DE" stroke="#9A9A95" stroke-width="1.4" stroke-linejoin="round"/>
-          <rect x="6" y="10.4" width="10.4" height="8.2" rx="0.8" fill="#C0392B"/>
-          <text x="11.2" y="16.6" text-anchor="middle" font-size="5.6" font-weight="bold" fill="#fff" font-family="Arial">PDF</text>
-        </svg>
-        Informe Diario (PDF)
-      </button>
     </div>
   </div>
 
@@ -1895,16 +1886,12 @@ function coincide(obj){
   return JSON.stringify(obj).toLowerCase().includes(f);
 }
 function pintar(){
-  // el botón de Informe Diario (PDF) solo tiene sentido en el resumen de Inicio de Patio (ahí es
-  // donde están las pilas pendientes por tenor que resume el informe); en cualquier otra pantalla
-  // se oculta
-  $('#btn-informe-diario').style.display = (ESTADO.modulo === 'patio' && ESTADO.patioInicio) ? '' : 'none';
   // el botón "Exportar" exporta cosas distintas según la pantalla: en el resumen de Inicio de
   // Patio exporta el stock, así que ahí se aclara en el propio texto del botón
   $('#btn-csv-texto').textContent = (ESTADO.modulo === 'patio' && ESTADO.patioInicio) ? 'Exportar Stock De Patio' : 'Exportar';
   // el botón "Exportar" vuelve a su lugar de siempre en la barra de herramientas; en el resumen de
   // Inicio de Patio, pintarInicioPatio() lo muda junto al título de la tabla de Stock
-  $('#fila-acciones').insertBefore($('#btn-csv'), $('#btn-informe-diario'));
+  $('#fila-acciones').appendChild($('#btn-csv'));
   if(ESTADO.modulo === 'patio') return pintarPatio();
   if(ESTADO.modulo === 'proceso') return pintarProceso();
   if(ESTADO.modulo === 'carbon') return pintarCarbon();
@@ -3962,12 +3949,6 @@ $('#export-aceptar').addEventListener('click', async ()=>{
   await exportarExcelPatio(una ? proc : null);
 });
 
-$('#btn-informe-diario').addEventListener('click', async ()=>{
-  // este botón solo se muestra en Inicio de Patio; exporta el Informe Diario QA/QC en PDF con el
-  // consolidado de pilas pendientes por tenor y las órdenes más recientes
-  if(ESTADO.modulo === 'patio' && ESTADO.patioInicio){ await exportarInformeDiarioPdf(); }
-});
-
 $('#btn-csv').addEventListener('click', async ()=>{
   if(ESTADO.modulo === 'patio'){
     // en Inicio, el Excel exporta el stock de patio
@@ -5073,8 +5054,8 @@ function prepararDatosInformeDiario(pan){
   };
 }
 
-// construye el PDF del Informe Diario en memoria (sin descargarlo); lo usan tanto el botón
-// histórico de Patio (exportarInformeDiarioPdf) como la vista previa de la barra lateral.
+// construye el PDF del Informe Diario en memoria (sin descargarlo); lo usa la vista previa y la
+// descarga de la pantalla "Informe Diario" de la barra lateral.
 // Devuelve {pdf, nombrePdf} si pudo generarlo, o {error:'texto del motivo'} si no.
 function construirInformeDiarioPdf(pan){
   if(!window.jspdf){ const error = 'No se pudo cargar el generador de PDF. Revise la conexión.'; avisar(error); return {error}; }
@@ -5159,13 +5140,6 @@ function construirInformeDiarioPdf(pan){
     avisar(error);
     return {error};
   }
-}
-
-async function exportarInformeDiarioPdf(){
-  avisar('Generando el informe…');
-  const resultado = construirInformeDiarioPdf(ESTADO.panel);
-  if(resultado.error) return;
-  resultado.pdf.save(resultado.nombrePdf);
 }
 
 async function exportarExcelStock(){
