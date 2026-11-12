@@ -166,6 +166,10 @@
     display:flex; align-items:center; justify-content:center; overflow:hidden; flex:1 1 auto;
   }
   .vista-previa-informe iframe{width:100%; height:100%; border:none}
+  .vista-previa-informe.vista-previa-informe-paginas{
+    aspect-ratio:auto; display:block; overflow-y:auto; padding:10px;
+  }
+  .vista-previa-informe-paginas canvas{display:block; margin:0 auto 10px; box-shadow:0 1px 4px rgba(0,0,0,.15)}
   .vista-previa-marcador{color:var(--gris); font-size:14px; padding:0 20px; text-align:center}
   .descargas-informe{display:flex; gap:12px; flex-wrap:wrap; justify-content:center}
   .btn-primario{background:var(--t-cons-bg); border:2px solid var(--t-acento); font-weight:bold}
@@ -5568,6 +5572,7 @@ $('#sidebar-backdrop').addEventListener('click', cerrarSidebarMovil);
 let INFORME_DIARIO_ACTUAL = null; // {pdf, nombrePdf} del último informe generado para la vista previa
 async function cargarVistaPreviaInformeDiario(){
   const caja = $('#vista-previa-informe');
+  caja.classList.remove('vista-previa-informe-paginas');
   caja.innerHTML = '<div class="vista-previa-marcador">Generando vista previa…</div>';
   INFORME_DIARIO_ACTUAL = null;
   await calcularPanel();
@@ -5577,8 +5582,31 @@ async function cargarVistaPreviaInformeDiario(){
     return;
   }
   INFORME_DIARIO_ACTUAL = resultado;
-  const url = resultado.pdf.output('bloburl');
-  caja.innerHTML = `<iframe src="${url}" title="Vista previa del Informe Diario"></iframe>`;
+
+  // un <iframe> con el PDF no se ve en el navegador del teléfono (no tiene el visor nativo de
+  // PDF que sí usa el de escritorio; en el teléfono solo muestra el ícono de "abrir/descargar"),
+  // así que la vista previa se dibuja página por página con pdf.js sobre un <canvas>, que
+  // funciona igual en cualquier dispositivo.
+  try{
+    const pdfjsLib = await cargarPdfJs();
+    const datosPdf = resultado.pdf.output('arraybuffer');
+    const documento = await pdfjsLib.getDocument({data: datosPdf}).promise;
+    caja.innerHTML = '';
+    caja.classList.add('vista-previa-informe-paginas');
+    for(let i=1; i<=documento.numPages; i++){
+      const pagina = await documento.getPage(i);
+      const escala = (caja.clientWidth || 600) / pagina.getViewport({scale:1}).width;
+      const viewport = pagina.getViewport({scale: escala * (window.devicePixelRatio || 1)});
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = '100%';
+      caja.appendChild(canvas);
+      await pagina.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+    }
+  } catch(e){
+    caja.innerHTML = '<div class="vista-previa-marcador">No se pudo generar la vista previa. Revise la conexión.</div>';
+  }
 }
 $('#btn-informe-diario-pdf').addEventListener('click', ()=>{
   if(!INFORME_DIARIO_ACTUAL){ avisar('Aún no hay informe generado'); return; }
