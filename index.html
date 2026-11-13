@@ -190,10 +190,6 @@
   .flecha-tabla-der{right:8px}
   @media (max-width:900px){ .flecha-tabla{width:34px; height:34px; font-size:18px} }
   .rotulo{text-align:center; font-weight:bold; font-size:clamp(15px,2vw,19px); line-height:1.3; margin:22px 0 4px}
-  /* fila del título de Stock de Patio, con el botón "Exportar Stock De Patio" a la derecha, a la
-     misma altura — el título se centra en el espacio que le queda, igual que antes */
-  .rotulo-fila{display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:34px}
-  .rotulo-fila .rotulo{margin:0; flex:1}
   .resumen-patio{max-width:100%}
   .rotulo-graf small{font-size:inherit; margin-top:2px}
   .graf-ancho{overflow-x:auto; padding:10px}
@@ -1926,11 +1922,7 @@ function pintar(){
   // abierto es la pantalla "Stock de Patio" de la barra lateral (no un módulo de ESTADO.modulo),
   // hay que refrescar esa pantalla en vez de la del módulo que haya quedado en ESTADO.modulo
   if($('#modulo-stock-patio')?.classList.contains('activo')) return pintarStockPatio();
-  // el botón "Exportar" exporta cosas distintas según la pantalla: en el resumen de Inicio de
-  // Patio exporta el stock, así que ahí se aclara en el propio texto del botón
-  $('#btn-csv-texto').textContent = (ESTADO.modulo === 'patio' && ESTADO.patioInicio) ? 'Exportar Stock De Patio' : 'Exportar';
-  // el botón "Exportar" vuelve a su lugar de siempre en la barra de herramientas; en el resumen de
-  // Inicio de Patio, pintarInicioPatio() lo muda junto al título de la tabla de Stock
+  $('#btn-csv-texto').textContent = 'Exportar';
   $('#fila-acciones').appendChild($('#btn-csv'));
   if(ESTADO.modulo === 'patio') return pintarPatio();
   if(ESTADO.modulo === 'proceso') return pintarProceso();
@@ -2374,18 +2366,12 @@ function panelPatio(){
 function pintarInicioPatio(){
   const zona = $('#zona-tabla');
   // Inicio siempre muestra lo más reciente (sin carpetas de AÑO/MES): el mes en curso de pendientes
-  // y el stock de patio actual, tal cual está ahora mismo
+  // por tenor. El stock de patio se ve y exporta aparte, en "Stock de Patio" de la barra lateral.
   ESTADO.mesPatio = '';
-  const lista = (ESTADO.stock || []).slice();
-  const stockHtml = `<div class="rotulo-fila"><div class="rotulo">${tituloStockPatio()}</div>`+
-    `<span id="hueco-exportar-stock"></span></div>${cuerpoStockPatio(lista)}`;
-  zona.innerHTML = panelPatio() + stockHtml;
-  // el botón "Exportar Stock De Patio" se muda aquí, justo al lado del título (lo devuelve pintar()
-  // a la barra de herramientas de arriba al salir de esta pantalla)
-  $('#hueco-exportar-stock').appendChild($('#btn-csv'));
+  zona.innerHTML = panelPatio();
   enlazarAcciones(zona);
   igualarAlturaTarjetas();
-  ponerPie(`Resumen general · ${lista.length} pila${lista.length===1?'':'s'} en stock de patio`);
+  ponerPie('Resumen general');
 }
 
 function pintarPatio(){
@@ -2598,10 +2584,6 @@ const COLS_STOCK = [
   {id:'tenorPromedio', etiqueta:'TENOR PROMEDIO (g/t)'},
   {id:'auContenido', etiqueta:'Au CONTENIDO (g)'}
 ];
-
-function tituloStockPatio(){
-  return `PILAS EN STOCK<small>PLANTA REVEMIN PIM II-${esc(nombreMes(mesCalendario()))}</small>`;
-}
 
 // arma las filas (HTML) de un bloque de Stock (una sola fecha de una pila, o varias pilas distintas
 // unidas en una mezcla manual) con las 9 columnas de COLS_STOCK. Cada registro (una fecha de una
@@ -3995,9 +3977,7 @@ $('#export-aceptar').addEventListener('click', async ()=>{
 
 $('#btn-csv').addEventListener('click', async ()=>{
   if(ESTADO.modulo === 'patio'){
-    // en Inicio, el Excel exporta el stock de patio
-    if(ESTADO.patioInicio){ await exportarExcelStock(); return; }
-    if(ESTADO.vistaPatio === 'mezclas'){ await exportarExcelMezclas(); return; }
+    if(!ESTADO.patioInicio && ESTADO.vistaPatio === 'mezclas'){ await exportarExcelMezclas(); return; }
     abrirDialogoExport(); return;
   }
   if(ESTADO.modulo === 'proceso'){ await exportarExcelProceso(); return; }
