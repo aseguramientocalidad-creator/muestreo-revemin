@@ -1923,7 +1923,7 @@ function pintar(){
   // abierto es la pantalla "Stock de Patio" de la barra lateral (no un módulo de ESTADO.modulo),
   // hay que refrescar esa pantalla en vez de la del módulo que haya quedado en ESTADO.modulo
   if($('#modulo-stock-patio')?.classList.contains('activo')) return pintarStockPatio();
-  $('#btn-csv-texto').textContent = 'Exportar';
+  $('#btn-csv-texto').textContent = ESTADO.modulo === 'alimentacion' ? 'Descargar Alimentacion' : 'Exportar';
   $('#fila-acciones').appendChild($('#btn-csv'));
   if(ESTADO.modulo === 'patio') return pintarPatio();
   if(ESTADO.modulo === 'proceso') return pintarProceso();
