@@ -3430,10 +3430,10 @@ function filaAlimentNueva(){
 function tablaAlimentNueva(){
   return `<table class="tabla-aliment-nueva">
       <thead><tr>
-        <th class="col-proc">Procedencia</th><th class="col-pila">Pila</th>
-        <th class="col-hora">Hora (desde)</th><th class="col-hora">Hora (hasta)</th>
-        <th class="col-peso">Lectura inicial pesómetro</th><th class="col-peso">Lectura final pesómetro</th>
-        <th class="col-obs">Observación</th><th class="col-acc"></th>
+        <th class="col-proc">PROCEDENCIA</th><th class="col-pila">PILA</th>
+        <th class="col-hora">HORA (DESDE)</th><th class="col-hora">HORA (HASTA)</th>
+        <th class="col-peso">LECTURA INICIAL PESÓMETRO</th><th class="col-peso">LECTURA FINAL PESÓMETRO</th>
+        <th class="col-obs">OBSERVACIÓN</th><th class="col-acc"></th>
       </tr></thead>
       <tbody>${Array.from({length:FILAS_ALIMENT_NUEVO}).map(filaAlimentNueva).join('')}</tbody>
     </table>`;
