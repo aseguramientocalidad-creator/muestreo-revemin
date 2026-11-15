@@ -953,7 +953,8 @@ function diferenciaHoraDe(r){
 // número, como "007") repiten el mismo Proveedor en Procedencia
 const PROVEEDORES_SIN_PREFIJO_PILA = [
   'ARENAS COLAS PLANTA CAMORRA', 'ARENAS COLAS PLANTA CARATAL',
-  'RECHAZO DE PATIO REVEMIN', 'RECHAZO DE CORREA'
+  'RECHAZO DE PATIO REVEMIN', 'RECHAZO DE CORREA',
+  'MINA SOSA MENDEZ', 'MINA ISIDORA', 'ARENAS LAGUNA DE COLA REVEMIN'
 ];
 function procedenciaDePila(r){
   if(PROVEEDORES_SIN_PREFIJO_PILA.includes(String(r.procedencia||'').trim().toUpperCase())) return r.procedencia || '';
