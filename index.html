@@ -1925,6 +1925,7 @@ function pintar(){
   if($('#modulo-stock-patio')?.classList.contains('activo')) return pintarStockPatio();
   $('#btn-csv-texto').textContent = ESTADO.modulo === 'alimentacion' ? 'Descargar Alimentacion' : 'Exportar';
   $('#fila-acciones').appendChild($('#btn-csv'));
+  $('#btn-csv').style.display = '';
   if(ESTADO.modulo === 'patio') return pintarPatio();
   if(ESTADO.modulo === 'proceso') return pintarProceso();
   if(ESTADO.modulo === 'carbon') return pintarCarbon();
@@ -2934,6 +2935,9 @@ function pintarGenerico(){
   const zona = $('#zona-tabla');
   if(esAliment){
     pintarTopAliment();
+    // "Descargar Alimentacion" exporta los registros del año/mes elegido; en Inicio (sin año
+    // elegido todavía) no hay nada que exportar, así que el botón se oculta ahí
+    $('#btn-csv').style.display = ESTADO.anioAliment ? '' : 'none';
     if(!ESTADO.anioAliment){
       // Inicio: el primer contacto para registrar — se elige la línea y se abre el formulario
       // directo; sea cual sea la fecha que se escriba ahí, luego se ubica sola en su año/mes/día
