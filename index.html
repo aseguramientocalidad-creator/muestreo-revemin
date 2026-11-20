@@ -1,4 +1,4 @@
-﻿<meta charset="utf-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#185FA5">
 <meta name="mobile-web-app-capable" content="yes">
@@ -5711,7 +5711,7 @@ $('#btn-stock-patio-exportar').addEventListener('click', (ev)=>{
   menuExportarStock.innerHTML =
     '<div class="menu-titulo">EXPORTAR STOCK</div>' +
     '<button type="button" data-exp="*">TODO (archivo completo)</button>' +
-    procs.map(p => `<button type="button" data-exp="${p.id}">Solo ${esc(p.nombre)}</button>`).join('');
+    procs.map(p => `<button type="button" data-exp="${p.id}">${esc(p.nombre)}</button>`).join('');
   menuExportarStock.hidden = !menuExportarStock.hidden;
   menuExportarStock.querySelectorAll('button').forEach(b=>{
     b.addEventListener('click', ()=>{
