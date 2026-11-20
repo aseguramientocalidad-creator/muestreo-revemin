@@ -1777,7 +1777,7 @@ async function abrir(nombre){
     // pilas pendientes por tenor y el dashboard de tenores ponderados, separado de la tabla de tenores
     // de cada procedencia, que queda detrás de su propia pestaña
     ESTADO.patioInicio = true;
-    zonaProc.innerHTML = `<button class="proc-btn" data-proc-inicio="1">🏠 Ordenes Pendientes</button>` +
+    zonaProc.innerHTML = `<button class="proc-btn" data-proc-inicio="1">Ordenes Pendientes</button>` +
       PROCEDENCIAS.map(p => `<button class="proc-btn" data-proc="${p.id}">${esc(p.nombre)}</button>`).join('');
     zonaProc.querySelectorAll('[data-proc]').forEach(b =>
       b.addEventListener('click', ()=> elegirProcedencia(b.dataset.proc)));
