@@ -935,12 +935,14 @@ const PROCEDENCIAS_ALIMENT_EXTRA = ['RECHAZO DE CORREA', 'RECHAZO DE PATIO REVEM
 // botones de inicio de texto que se sugieren en Número de pila, según la Procedencia elegida en
 // Alimentación, para que solo falte completar con lo que distingue a esa pila en particular
 const SUGERENCIAS_PILA_ALIMENT = {
-  'MINA COLOMBIA':   ['Skip ', 'Rampa '],
+  'MINA COLOMBIA':   ['Skip ', 'Rampa ', 'Rampa Mezcla P-'],
+  'MINA SOSA MENDEZ': ['Mezcla P-'],
   'PEQUEÑA MINERIA': ['Arrime mezcla ', 'Arenas ', 'Primario ']
 };
 // mismas sugerencias, para el campo Pila del formulario de Patio (clave por id de procedencia)
 const SUGERENCIAS_PILA_PATIO = {
-  mina_colombia:   ['Skip ', 'Rampa '],
+  mina_colombia:   ['Skip ', 'Rampa ', 'Rampa Mezcla P-'],
+  mina_sosa:       ['Mezcla P-'],
   pequena_mineria: ['Arrime mezcla ', 'Primario ', 'Arenas ']
 };
 
@@ -973,12 +975,24 @@ function procedenciaDePila(r){
   if(PROVEEDORES_SIN_PREFIJO_PILA.includes(String(r.procedencia||'').trim().toUpperCase())) return r.procedencia || '';
   const t = (r.codigoPatio || '').trim();
   if(!t) return '';
+  // mezcla de pilas ("Rampa Mezcla P-201, P-202"): la procedencia es el nombre sin la lista de
+  // códigos → "Rampa Mezcla"; si no, la regla normal le quitaría solo el último número y
+  // dejaría "Rampa Mezcla P-201, P-" (roto)
+  if(/mezcla/i.test(t)){
+    const sinCodigos = t.replace(/\s*P?\s*-?\s*\d+(\s*[,;]\s*P?\s*-?\s*\d+)*\s*$/i, '').trim();
+    return sinCodigos || t;
+  }
   return t.replace(/[\s#-]*\d+\s*$/, '').trim() || t;
 }
 // el código de patio de la tabla solo muestra el número, como "P-101" — la categoría (Skip, Rampa...)
 // ya va en la columna Procedencia y no debe repetirse aquí
 function codigoPatioFormateado(r){
   const t = (r.codigoPatio || '').trim();
+  // mezcla de pilas: se muestran TODOS los códigos, "P-201, P-202"
+  if(/mezcla/i.test(t)){
+    const codigos = (t.match(/\d+/g) || []).map(n => String(Number(n)));
+    if(codigos.length) return codigos.map(n => 'P-' + n).join(', ');
+  }
   const m = t.match(/(\d+)\s*$/);
   return m ? `P-${m[1]}` : t;
 }
@@ -1242,13 +1256,47 @@ function normalizarPilaArrime(pila){
 
 // Normaliza los nombres de pila "Rampa"/"Skip" de Mina Colombia al formato "Rampa <número>" / "Skip <número>".
 // Pilas con otros nombres (Ñuma, Espesador, Rechazos, etc.) quedan tal cual.
+// Las mezclas (Rampa Mezcla P-XXX, P-XXX...) NO se tocan aquí: las maneja normalizarPilaMezcla.
 function normalizarPilaRampaSkip(pila){
   const t = String(pila ?? '').trim();
+  if(/mezcla/i.test(t)) return pila;
   const m = t.match(/\d+/);
   if(!m) return pila;
   if(/rampa/i.test(t)) return 'Rampa ' + m[0];
   if(/skip/i.test(t)) return 'Skip ' + m[0];
   return pila;
+}
+
+// Mezclas de pilas (Mina Colombia y Mina Sosa Méndez): una pila nueva que combina varias pilas
+// del patio. Formatos canónicos:
+//   Mina Colombia:  "Rampa Mezcla P-201, P-202"  (o "Skip Mezcla P-201, P-202")
+//   Sosa Méndez:    "Mezcla P-201, P-202"
+// Devuelve el nombre canónico, o null si el texto no es una mezcla (el llamador sigue con las
+// reglas normales). Si es mezcla pero está mal escrita, avisa con alert y devuelve undefined
+// (el llamador debe abortar el guardado).
+function normalizarPilaMezcla(pila, procedencia){
+  const t = String(pila ?? '').trim();
+  if(!/mezcla/i.test(t)) return null;
+  const codigos = (t.match(/\d+/g) || []).map(n => String(Number(n)));
+  if(codigos.length < 2){
+    alert(`La mezcla "${t}" debe combinar al menos DOS pilas.\n\n`+
+      `Escríbala con los códigos de las pilas separados por coma, por ejemplo: "Mezcla P-201, P-202".`);
+    return undefined;
+  }
+  const lista = codigos.map(n => 'P-' + n).join(', ');
+  const procLimpia = String(procedencia ?? '').trim().toUpperCase().replace(/_/g, ' ');
+  const esSosa = /SOSA\s*M[EI]+NDEZ/.test(procLimpia);
+  const esColombia = procLimpia === 'MINA COLOMBIA';
+  if(esSosa) return 'Mezcla ' + lista;
+  if(esColombia){
+    if(/rampa/i.test(t)) return 'Rampa Mezcla ' + lista;
+    if(/skip/i.test(t)) return 'Skip Mezcla ' + lista;
+    alert(`Escribió la mezcla "${t}" sin especificar si es de RAMPA o de SKIP.\n\n`+
+      `Por favor, escríbala como "Rampa Mezcla ${lista}" o "Skip Mezcla ${lista}".`);
+    return undefined;
+  }
+  // otra procedencia: mezcla genérica, se respeta el texto solo con los códigos normalizados
+  return 'Mezcla ' + lista;
 }
 
 // valida/normaliza el nombre de pila escrito en Alimentación (misma regla que Patio): corrige
@@ -1267,6 +1315,19 @@ function validarCodigoPila(t, procedencia, silencioso){
   const procLimpia = String(procedencia ?? '').trim().toUpperCase();
   const esPequenaMineria = procLimpia === 'PEQUEÑA MINERIA';
   const esMinaColombia = procLimpia === 'MINA COLOMBIA';
+  // mezclas de pilas (Mina Colombia y Sosa Méndez): nombre compuesto "Rampa Mezcla P-201, P-202"
+  // (o "Skip Mezcla ..." / "Mezcla P-201, P-202" en Sosa). Se valida y normaliza su formato aquí;
+  // en Pequeña Minería "mezcla" sigue siendo lo de Arrime, que se valida más abajo (sin tocar).
+  if(!esPequenaMineria && /mezcla/i.test(t)){
+    const canonMz = normalizarPilaMezcla(t, procedencia);
+    if(canonMz === undefined) return null;
+    if(canonMz !== null){
+      if(t === canonMz) return t;
+      if(t.toLowerCase() === canonMz.toLowerCase()) return canonMz; // solo difiere en mayúsculas/minúsculas: se corrige solo
+      alert(`El nombre de la mezcla debe escribirse como "${canonMz}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+      return null;
+    }
+  }
   // cualquier otra procedencia: tampoco se guarda el nombre todo en mayúsculas
   if(!esPequenaMineria && !esMinaColombia) return formatearAlianza(t);
   const tieneMezcla = /mezcla/i.test(t);
@@ -3824,6 +3885,20 @@ $('#formulario').addEventListener('submit', async e=>{
       }
     }
     if(g.pila && ESTADO.procedencia === 'mina_colombia'){
+      // mezcla de pilas: "Rampa Mezcla P-201, P-202" (o "Skip Mezcla ..."). Se valida y
+      // normaliza su formato; el resto de las reglas de Rampa/Skip quedan intactas abajo
+      // (normalizarPilaRampaSkip no toca las mezclas, así que el flujo sigue sin choques).
+      if(/mezcla/i.test(g.pila)){
+        const canonMz = normalizarPilaMezcla(g.pila, 'MINA COLOMBIA');
+        if(canonMz === undefined) return;
+        if(canonMz !== null && g.pila !== canonMz){
+          if(g.pila.toLowerCase() === canonMz.toLowerCase()) g.pila = canonMz; // solo mayúsculas/minúsculas: se corrige solo
+          else{
+            alert(`El nombre de la mezcla debe escribirse como "${canonMz}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+            return;
+          }
+        }
+      }
       // en Mina Colombia, las pilas numéricas son "Rampa N" o "Skip N"; otros nombres
       // (Ñuma, Espesador, Rechazos, etc.) son excepciones y no entran en esta validación.
       const t = g.pila;
@@ -3850,9 +3925,23 @@ $('#formulario').addEventListener('submit', async e=>{
       }
     }
     if(g.pila && ESTADO.procedencia === 'mina_sosa' && !/^\d+$/.test(g.pila)){
-      // en Mina Sosa Méndez la pila es solo un número, sin texto
-      alert(`Escribió "${g.pila}".\n\nEn Mina Sosa Méndez la pila debe ser solo un número (ej. "182"), sin texto.`);
-      return;
+      // en Mina Sosa Méndez la pila es solo un número... salvo las mezclas de pilas:
+      // "Mezcla P-201, P-202"
+      if(/mezcla/i.test(g.pila)){
+        const canonMz = normalizarPilaMezcla(g.pila, 'MINA SOSA MENDEZ');
+        if(canonMz === undefined) return;
+        if(canonMz !== null && g.pila !== canonMz){
+          if(g.pila.toLowerCase() === canonMz.toLowerCase()) g.pila = canonMz;
+          else{
+            alert(`El nombre de la mezcla debe escribirse como "${canonMz}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
+            return;
+          }
+        }
+      }else{
+        alert(`Escribió "${g.pila}".\n\nEn Mina Sosa Méndez la pila debe ser solo un número (ej. "182"), sin texto.\n\n`+
+          `Si es una mezcla de varias pilas, escríbala como "Mezcla P-201, P-202".`);
+        return;
+      }
     }
     if(g.pila && ESTADO.procedencia !== 'pequena_mineria' && ESTADO.procedencia !== 'mina_colombia'){
       // cualquier otra procedencia: tampoco se guarda el nombre todo en mayúsculas
