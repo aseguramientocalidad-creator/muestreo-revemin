@@ -334,6 +334,9 @@
   .tabla-alimentacion th:nth-child(6), .tabla-alimentacion th:nth-child(11),
   .tabla-alimentacion th:nth-child(13), .tabla-alimentacion th:nth-child(14){
     padding:10px 14px 10px 4px}
+  .aviso-ultimos-datos{margin:0 0 10px; padding:6px 10px; background:#E8EEF9; border:1px solid var(--gris-suave);
+    border-left:4px solid #1F3864; border-radius:4px; color:#16294B; font-size:12px; font-weight:bold;
+    text-transform:uppercase}
   .btn-filtro{position:absolute; right:3px; top:50%; transform:translateY(-50%); border:none; background:transparent;
     color:#C9D6EC; font-size:10px; cursor:pointer; padding:4px 5px; line-height:1; border-radius:3px}
   .btn-filtro:hover{background:rgba(255,255,255,.15)}
@@ -3027,35 +3030,36 @@ function pintarGenerico(){
     // "Descargar Alimentacion" exporta los registros del año/mes elegido; en Inicio (sin año
     // elegido todavía) no hay nada que exportar, así que el botón se oculta ahí
     $('#btn-csv').style.display = ESTADO.anioAliment ? '' : 'none';
-    if(!ESTADO.anioAliment){
-      // Inicio: el primer contacto para registrar — se elige la línea y se abre el formulario
-      // directo; sea cual sea la fecha que se escriba ahí, luego se ubica sola en su año/mes/día
-      // al navegar por las carpetas de arriba
-      zona.innerHTML = `<div class="fila-proc fila-lineas" style="margin:24px 0">` +
-        `<button class="proc-btn linea-btn" data-linea-inicio="L1">${esc(nombreLinea('L1'))}</button>` +
-        `<button class="proc-btn linea-btn" data-linea-inicio="L2">${esc(nombreLinea('L2'))}</button>` +
-        `</div>`;
-      zona.querySelectorAll('[data-linea-inicio]').forEach(b => b.addEventListener('click', ()=>{
-        ESTADO.linea = b.dataset.lineaInicio;
-        abrirFormulario(null);
-      }));
-      ponerPie('0 registros'); return;
-    }
-    if(!ESTADO.mesAliment){
+    if(ESTADO.anioAliment && !ESTADO.mesAliment){
       zona.innerHTML = filaMesesAliment() + `<div class="vacio"><strong>Elija un mes</strong> arriba para ver sus registros.</div>`;
       enlazarCarpetasAliment(zona);
       ponerPie('0 registros'); return;
     }
   }
-  const carpetas = esAliment ? filaMesesAliment() + filaDiasYLineaAliment() : '';
-  const filas = ESTADO.datos.filter(coincide)
-    .filter(r => !esAliment || (r.fecha||'').slice(0,7) === ESTADO.mesAliment);
+  // Inicio (botón HORAS): la tabla muestra los últimos datos ingresados — el día más reciente que
+  // tenga registros de la línea elegida — para ver de un vistazo hasta dónde se llegó con la última
+  // carga de datos; los botones Línea 1/2 solo cambian la línea que se está viendo
+  let filas, rotulo;
+  if(esAliment && !ESTADO.anioAliment){
+    const deLinea = ESTADO.datos.filter(r => r.linea === ESTADO.linea && r.fecha);
+    const ultimaFecha = deLinea.map(r => r.fecha).sort().pop() || '';
+    filas = deLinea.filter(r => r.fecha === ultimaFecha);
+    rotulo = `<div class="fila-proc fila-lineas" style="margin:18px 0 8px">` +
+      `<button class="proc-btn linea-btn" data-linea="L1" aria-pressed="${ESTADO.linea==='L1'}">${esc(nombreLinea('L1'))}</button>` +
+      `<button class="proc-btn linea-btn" data-linea="L2" aria-pressed="${ESTADO.linea==='L2'}">${esc(nombreLinea('L2'))}</button></div>` +
+      `<div class="aviso-ultimos-datos">${ultimaFecha
+        ? `Últimos datos ingresados — ${esc(fechaLegible(ultimaFecha))} · ${esc(nombreLinea(ESTADO.linea))}`
+        : `Sin registros todavía en ${esc(nombreLinea(ESTADO.linea))}`}</div>`;
+  } else {
+    rotulo = esAliment ? filaMesesAliment() + filaDiasYLineaAliment() : '';
+    filas = ESTADO.datos.filter(coincide)
+      .filter(r => !esAliment || (r.fecha||'').slice(0,7) === ESTADO.mesAliment);
+  }
   // en Alimentación las muestras deben verse en orden cronológico (día y hora), no en el orden en
   // que se fueron guardando — ordena una copia filtrada, sin tocar ESTADO.datos (edición/borrado
   // siguen ubicando la fila por su índice real con indexOf)
   if(esAliment) filas.sort((a,b)=>
     (a.fecha||'').localeCompare(b.fecha||'') || (a.horaInicial||'').localeCompare(b.horaInicial||'') || (a.horaFinal||'').localeCompare(b.horaFinal||''));
-  const rotulo = carpetas;
   const hayFiltroCol = esAliment && hayFiltroColumnaActivo();
   // en Alimentación la tabla (con sus columnas) se ve siempre, aunque no haya filas que mostrar —
   // así queda lista para recibir los datos del turno en curso, o para buscar uno anterior con el
