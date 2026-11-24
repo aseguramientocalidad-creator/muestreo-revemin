@@ -1028,15 +1028,15 @@ const COLS_ALIMENTACION = [
   {id:'turnos', etiqueta:'TURNOS', calc:turnosDe},
   {id:'horaInicial', etiqueta:'HORA INICIAL', calc: r => horaAmPm(r.horaInicial) || r.horaInicial || ''},
   {id:'horaFinal', etiqueta:'HORA FINAL', calc: r => horaAmPm(r.horaFinal) || r.horaFinal || ''},
-  {id:'diferenciaHora', etiqueta:'DIFERENCIA DE HORA', calc:diferenciaHoraDe},
+  {id:'diferenciaHora', etiqueta:'DIFERENCIA DE HORA', etiquetaHtml:'DIFERENCIA DE<br>HORA', calc:diferenciaHoraDe},
   {id:'proveedor', etiqueta:'PROVEEDOR', calc: r => r.procedencia || ''},
   {id:'procedencia', etiqueta:'PROCEDENCIA', calc: procedenciaDePila},
   {id:'codigoPatio', etiqueta:'CODIGO DE PATIO', calc: codigoPatioFormateado},
   {id:'tipoMineral', etiqueta:'TIPO DE MINERAL', calc: tipoMineralDe},
-  {id:'humedad', etiqueta:'PORCENTAJE DE HUMEDAD (%)'},
+  {id:'humedad', etiqueta:'PORCENTAJE DE HUMEDAD (%)', etiquetaHtml:'PORCENTAJE DE<br>HUMEDAD (%)'},
   {id:'tenor', etiqueta:'TENOR M1S (g/t)'},
-  {id:'pesometroInicial', etiqueta:'LECTURA PESOMETRO INICIAL'},
-  {id:'pesometroFinal', etiqueta:'LECTURA PESOMETRO FINAL'},
+  {id:'pesometroInicial', etiqueta:'LECTURA PESOMETRO INICIAL', etiquetaHtml:'LECTURA<br>PESOMETRO<br>INICIAL'},
+  {id:'pesometroFinal', etiqueta:'LECTURA PESOMETRO FINAL', etiquetaHtml:'LECTURA<br>PESOMETRO<br>FINAL'},
   {id:'obs', etiqueta:'OBSERVACIÓN'}
 ];
 function columnasLista(){
@@ -3060,7 +3060,7 @@ function pintarGenerico(){
   const th = cols.map(c=>{
     if(!esAliment) return `<th>${esc(c.etiqueta)}</th>`;
     const activo = ESTADO.filtrosAliment[c.id] ? 'activo' : '';
-    return `<th>${esc(c.etiqueta)}<button type="button" class="btn-filtro ${activo}" data-filtro-col="${c.id}" aria-label="Filtrar ${esc(c.etiqueta)}">▾</button></th>`;
+    return `<th>${c.etiquetaHtml || esc(c.etiqueta)}<button type="button" class="btn-filtro ${activo}" data-filtro-col="${c.id}" aria-label="Filtrar ${esc(c.etiqueta)}">▾</button></th>`;
   }).join('');
   const edItableAliment = esAliment && (c => c.id === 'humedad' || c.id === 'tenor');
   const tb = filas.map(r=>{
