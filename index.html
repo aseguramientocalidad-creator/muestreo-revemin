@@ -334,15 +334,6 @@
   .tabla-alimentacion th:nth-child(6), .tabla-alimentacion th:nth-child(11),
   .tabla-alimentacion th:nth-child(13), .tabla-alimentacion th:nth-child(14){
     padding:10px 14px 10px 4px}
-  /* extracto compacto debajo de LÍNEA 1/2: últimas entradas de la línea, vistazo rápido */
-  .extracto-aliment{margin:8px 0 10px; border:1px solid var(--gris-suave); border-radius:6px; overflow:hidden}
-  .extracto-aliment .extracto-titulo{background:#1F3864; color:#fff; font-size:11px; font-weight:bold;
-    padding:5px 8px; text-transform:uppercase}
-  .extracto-aliment .extracto-titulo span{font-weight:normal; opacity:.8; text-transform:none}
-  .extracto-aliment table{width:100%; border-collapse:collapse; font-size:11px}
-  .extracto-aliment th{background:#E8EEF9; color:#16294B; font-size:10px; padding:4px 6px;
-    border:1px solid var(--gris-suave); text-align:center}
-  .extracto-aliment td{padding:4px 6px; border:1px solid var(--gris-suave); text-align:center; text-transform:uppercase}
   .btn-filtro{position:absolute; right:3px; top:50%; transform:translateY(-50%); border:none; background:transparent;
     color:#C9D6EC; font-size:10px; cursor:pointer; padding:4px 5px; line-height:1; border-radius:3px}
   .btn-filtro:hover{background:rgba(255,255,255,.15)}
@@ -2126,21 +2117,6 @@ function filaDiasYLineaAliment(){
     `<div class="carpetas carpetas-dias" style="margin:0">${dias}</div>` +
   `</div>`;
 }
-// extracto compacto debajo de LÍNEA 1/2: las últimas entradas de la línea elegida (sin importar
-// el filtro de día), para ver de un vistazo hasta dónde se llegó con la última carga de datos
-function extractoUltimasAliment(){
-  const regs = ESTADO.datos.filter(r => r.linea === ESTADO.linea)
-    .sort((a,b)=> (a.fecha||'').localeCompare(b.fecha||'') || (a.horaInicial||'').localeCompare(b.horaInicial||''));
-  const ultimas = regs.slice(-5);
-  if(!ultimas.length) return '';
-  const fila = r => `<tr><td>${esc(fechaLegible(r.fecha))}</td><td>${esc(turnosDe(r))}</td>`+
-    `<td>${esc(horaAmPm(r.horaInicial)||r.horaInicial||'')} - ${esc(horaAmPm(r.horaFinal)||r.horaFinal||'')}</td>`+
-    `<td>${esc(procedenciaDePila(r))}</td><td>${esc(codigoPatioFormateado(r))}</td>`+
-    `<td>${esc(r.tenor||'')}</td><td>${esc(r.humedad||'')}</td></tr>`;
-  return `<div class="extracto-aliment"><div class="extracto-titulo">ÚLTIMAS ENTRADAS — ${esc(nombreLinea(ESTADO.linea))} <span>(hasta dónde se llegó)</span></div>`+
-    `<table><thead><tr><th>DÍAS</th><th>TURNOS</th><th>HORA</th><th>PROCEDENCIA</th><th>CÓDIGO DE PATIO</th><th>TENOR</th><th>% HUM.</th></tr></thead>`+
-    `<tbody>${ultimas.map(fila).join('')}</tbody></table></div>`;
-}
 function enlazarCarpetasAliment(zona){
   zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
     ESTADO.mesAliment = b.dataset.mesAliment;
@@ -3071,7 +3047,7 @@ function pintarGenerico(){
       ponerPie('0 registros'); return;
     }
   }
-  const carpetas = esAliment ? filaMesesAliment() + filaDiasYLineaAliment() + extractoUltimasAliment() : '';
+  const carpetas = esAliment ? filaMesesAliment() + filaDiasYLineaAliment() : '';
   const filas = ESTADO.datos.filter(coincide)
     .filter(r => !esAliment || (r.fecha||'').slice(0,7) === ESTADO.mesAliment);
   // en Alimentación las muestras deben verse en orden cronológico (día y hora), no en el orden en
