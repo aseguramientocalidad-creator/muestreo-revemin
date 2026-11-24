@@ -434,6 +434,9 @@
   .mini{display:inline-block; border:2px solid var(--t-acento); background:var(--t-cons-bg); color:#000;
     cursor:pointer; font-size:11px; font-weight:bold; text-decoration:none; padding:4px 10px; margin:2px 0}
   .mini:hover{background:var(--t-hover)}
+  /* botones de sugerencia de pila (Skip / Rampa / Rampa Mezcla P- / Skip Mezcla P- / Mezcla P-):
+     van todos en UNA sola fila, sin salto de línea ni ensanchar la fila */
+  .mini.sugerir-pila, .mini.sugerir-pila-patio{white-space:nowrap; padding:4px 6px; font-size:10px}
   /* "Eliminar": ovalado, en rojo claro con el texto "Eliminar" también en rojo (mismo botón en
      Stock y en las tablas de TENORES) */
   .mini.borrar{display:inline-block; border:1px solid rgba(0,0,0,.28); border-radius:14px;
@@ -503,7 +506,7 @@
   .tabla-aliment-nueva td.celda-pila{display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-top:7px; padding-bottom:7px}
   .tabla-aliment-nueva td.celda-pila input{flex:1 1 70px; min-width:60px; width:auto;
     border:1px solid var(--gris-suave) !important; border-radius:3px}
-  .tabla-aliment-nueva td.celda-pila .sugerencias-pila{flex:0 1 auto; flex-wrap:wrap}
+  .tabla-aliment-nueva td.celda-pila .sugerencias-pila{flex:0 1 auto; flex-wrap:nowrap}
   .rejilla-lineal .campo label{min-height:36px; display:flex; align-items:flex-end}
   .grupo-orden{display:flex; gap:6px; align-items:center}
   .grupo-orden .prefijo{flex:0 0 74px; text-align:center; font-weight:bold; background:var(--t-hover)}
@@ -3320,7 +3323,7 @@ function formularioPatio(indice, base){
     <div class="rejilla">
       <div class="campo"><label>Fecha de ingreso *</label><input type="date" name="fecha" value="${esc(g.fecha)}" min="2000-01-01" max="2099-12-31" required></div>
       <div class="campo"><label>Pila *</label><input type="text" name="pila" value="${esc(g.pila)}" autocomplete="off" required>
-        ${SUGERENCIAS_PILA_PATIO[ESTADO.procedencia] ? `<div style="display:flex; margin-top:6px; gap:6px">
+        ${SUGERENCIAS_PILA_PATIO[ESTADO.procedencia] ? `<div style="display:flex; margin-top:6px; gap:6px; flex-wrap:nowrap">
           ${SUGERENCIAS_PILA_PATIO[ESTADO.procedencia].map(t=>
             `<button type="button" class="mini sugerir-pila-patio" data-texto="${esc(t)}">${esc(t.trim())}</button>`).join('')}
         </div>` : ''}
