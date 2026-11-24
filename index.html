@@ -1996,15 +1996,22 @@ function irInicioPatio(){
 }
 
 /* ---------- pintado ---------- */
+// filtros de columna de Alimentación (los del popover ▾); excFecha salta el filtro de DIAS, que en
+// la vista de Inicio (botón HORAS) no aplica porque ahí la fecha ya la fija el propio resumen
+function pasaFiltrosAliment(obj, excFecha){
+  for(const colId in ESTADO.filtrosAliment){
+    if(excFecha && colId === 'fecha') continue;
+    const permitidos = ESTADO.filtrosAliment[colId];
+    if(!permitidos) continue;
+    const val = valorColumna(colAliment(colId), obj) || '';
+    if(!permitidos.has(val)) return false;
+  }
+  return true;
+}
 function coincide(obj){
   if(ESTADO.modulo === 'alimentacion'){
     if(obj.linea !== ESTADO.linea) return false;
-    for(const colId in ESTADO.filtrosAliment){
-      const permitidos = ESTADO.filtrosAliment[colId];
-      if(!permitidos) continue;
-      const val = valorColumna(colAliment(colId), obj) || '';
-      if(!permitidos.has(val)) return false;
-    }
+    if(!pasaFiltrosAliment(obj)) return false;
   }
   const f = ESTADO.filtro.trim().toLowerCase();
   if(!f) return true;
@@ -3049,7 +3056,7 @@ function pintarGenerico(){
   if(esAliment && !ESTADO.anioAliment){
     const conFecha = ESTADO.datos.filter(r => r.fecha);
     const ultimaFecha = conFecha.map(r => r.fecha).sort().pop() || '';
-    filas = conFecha.filter(r => r.fecha === ultimaFecha);
+    filas = conFecha.filter(r => r.fecha === ultimaFecha && pasaFiltrosAliment(r, true));
     rotulo = `<div class="fila-proc fila-lineas" style="margin:18px 0 8px">` +
       `<button class="proc-btn linea-btn" data-linea-inicio="L1">${esc(nombreLinea('L1'))}</button>` +
       `<button class="proc-btn linea-btn" data-linea-inicio="L2">${esc(nombreLinea('L2'))}</button></div>` +
