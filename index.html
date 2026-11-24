@@ -1324,12 +1324,9 @@ function validarCodigoPila(t, procedencia, silencioso){
   if(!esPequenaMineria && /mezcla/i.test(t)){
     const canonMz = normalizarPilaMezcla(t, procedencia);
     if(canonMz === undefined) return null;
-    if(canonMz !== null){
-      if(t === canonMz) return t;
-      if(t.toLowerCase() === canonMz.toLowerCase()) return canonMz; // solo difiere en mayúsculas/minúsculas: se corrige solo
-      alert(`El nombre de la mezcla debe escribirse como "${canonMz}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-      return null;
-    }
+    // se normaliza SIEMPRE al formato canónico, sin avisar: da igual si se escribió con comas,
+    // espacios, o sin las "P-" — "Rampa Mezcla P-187 188 189" queda "Rampa Mezcla P-187, P-188, P-189"
+    if(canonMz !== null) return canonMz;
   }
   // cualquier otra procedencia: tampoco se guarda el nombre todo en mayúsculas
   if(!esPequenaMineria && !esMinaColombia) return formatearAlianza(t);
@@ -3894,13 +3891,8 @@ $('#formulario').addEventListener('submit', async e=>{
       if(/mezcla/i.test(g.pila)){
         const canonMz = normalizarPilaMezcla(g.pila, 'MINA COLOMBIA');
         if(canonMz === undefined) return;
-        if(canonMz !== null && g.pila !== canonMz){
-          if(g.pila.toLowerCase() === canonMz.toLowerCase()) g.pila = canonMz; // solo mayúsculas/minúsculas: se corrige solo
-          else{
-            alert(`El nombre de la mezcla debe escribirse como "${canonMz}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-            return;
-          }
-        }
+        // se normaliza SIEMPRE al formato canónico, sin avisar (comas y "P-" se agregan solas)
+        if(canonMz !== null) g.pila = canonMz;
       }
       // en Mina Colombia, las pilas numéricas son "Rampa N" o "Skip N"; otros nombres
       // (Ñuma, Espesador, Rechazos, etc.) son excepciones y no entran en esta validación.
@@ -3933,13 +3925,8 @@ $('#formulario').addEventListener('submit', async e=>{
       if(/mezcla/i.test(g.pila)){
         const canonMz = normalizarPilaMezcla(g.pila, 'MINA SOSA MENDEZ');
         if(canonMz === undefined) return;
-        if(canonMz !== null && g.pila !== canonMz){
-          if(g.pila.toLowerCase() === canonMz.toLowerCase()) g.pila = canonMz;
-          else{
-            alert(`El nombre de la mezcla debe escribirse como "${canonMz}".\n\nPor favor corrija el nombre e intente guardar de nuevo.`);
-            return;
-          }
-        }
+        // se normaliza SIEMPRE al formato canónico, sin avisar (comas y "P-" se agregan solas)
+        if(canonMz !== null) g.pila = canonMz;
       }else{
         alert(`Escribió "${g.pila}".\n\nEn Mina Sosa Méndez la pila debe ser solo un número (ej. "182"), sin texto.\n\n`+
           `Si es una mezcla de varias pilas, escríbala como "Mezcla P-201, P-202".`);
