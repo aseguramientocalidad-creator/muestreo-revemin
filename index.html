@@ -325,12 +325,15 @@
   .tabla-alimentacion th:nth-child(7), .tabla-alimentacion td:nth-child(7),
   .tabla-alimentacion th:nth-child(8), .tabla-alimentacion td:nth-child(8){min-width:140px}
   /* columnas angostas: DIFERENCIA DE HORA (6), % HUMEDAD (11) y LECTURAS PESÓMETRO (13, 14) —
-     ancho fijo y el texto del encabezado se ajusta en varias líneas en vez de ensanchar la columna */
+     ancho fijo, sin corte a mitad de palabra: el encabezado se parte solo en los <br> definidos */
   .tabla-alimentacion th:nth-child(6), .tabla-alimentacion td:nth-child(6),
   .tabla-alimentacion th:nth-child(11), .tabla-alimentacion td:nth-child(11),
   .tabla-alimentacion th:nth-child(13), .tabla-alimentacion td:nth-child(13),
   .tabla-alimentacion th:nth-child(14), .tabla-alimentacion td:nth-child(14){
-    width:78px; max-width:78px; min-width:60px; white-space:normal; overflow-wrap:break-word}
+    width:86px; max-width:86px; min-width:60px; white-space:normal; overflow-wrap:normal; hyphens:none}
+  .tabla-alimentacion th:nth-child(6), .tabla-alimentacion th:nth-child(11),
+  .tabla-alimentacion th:nth-child(13), .tabla-alimentacion th:nth-child(14){
+    padding:10px 14px 10px 4px}
   .btn-filtro{position:absolute; right:3px; top:50%; transform:translateY(-50%); border:none; background:transparent;
     color:#C9D6EC; font-size:10px; cursor:pointer; padding:4px 5px; line-height:1; border-radius:3px}
   .btn-filtro:hover{background:rgba(255,255,255,.15)}
