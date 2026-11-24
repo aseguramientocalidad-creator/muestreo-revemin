@@ -2121,6 +2121,12 @@ function filaDiasYLineaAliment(){
   `</div>`;
 }
 function enlazarCarpetasAliment(zona){
+  // en el Inicio (botón HORAS) Línea 1/2 conservan su función de siempre: abrir el formulario
+  // de registro con esa línea elegida
+  zona.querySelectorAll('[data-linea-inicio]').forEach(b => b.addEventListener('click', ()=>{
+    ESTADO.linea = b.dataset.lineaInicio;
+    abrirFormulario(null);
+  }));
   zona.querySelectorAll('[data-mes-aliment]').forEach(b => b.addEventListener('click', ()=>{
     ESTADO.mesAliment = b.dataset.mesAliment;
     ESTADO.diaAliment = `${ESTADO.mesAliment}-01`; // al elegir el mes se ve de una vez el día 1
@@ -3036,20 +3042,20 @@ function pintarGenerico(){
       ponerPie('0 registros'); return;
     }
   }
-  // Inicio (botón HORAS): la tabla muestra los últimos datos ingresados — el día más reciente que
-  // tenga registros de la línea elegida — para ver de un vistazo hasta dónde se llegó con la última
-  // carga de datos; los botones Línea 1/2 solo cambian la línea que se está viendo
+  // Inicio (botón HORAS): la tabla muestra los últimos datos ingresados — el día más reciente con
+  // registros, de las dos líneas — solo para visualizar hasta dónde se llegó con la última carga;
+  // los botones Línea 1/2 conservan su función original: abrir el formulario de registro
   let filas, rotulo;
   if(esAliment && !ESTADO.anioAliment){
-    const deLinea = ESTADO.datos.filter(r => r.linea === ESTADO.linea && r.fecha);
-    const ultimaFecha = deLinea.map(r => r.fecha).sort().pop() || '';
-    filas = deLinea.filter(r => r.fecha === ultimaFecha);
+    const conFecha = ESTADO.datos.filter(r => r.fecha);
+    const ultimaFecha = conFecha.map(r => r.fecha).sort().pop() || '';
+    filas = conFecha.filter(r => r.fecha === ultimaFecha);
     rotulo = `<div class="fila-proc fila-lineas" style="margin:18px 0 8px">` +
-      `<button class="proc-btn linea-btn" data-linea="L1" aria-pressed="${ESTADO.linea==='L1'}">${esc(nombreLinea('L1'))}</button>` +
-      `<button class="proc-btn linea-btn" data-linea="L2" aria-pressed="${ESTADO.linea==='L2'}">${esc(nombreLinea('L2'))}</button></div>` +
+      `<button class="proc-btn linea-btn" data-linea-inicio="L1">${esc(nombreLinea('L1'))}</button>` +
+      `<button class="proc-btn linea-btn" data-linea-inicio="L2">${esc(nombreLinea('L2'))}</button></div>` +
       `<div class="aviso-ultimos-datos">${ultimaFecha
-        ? `Últimos datos ingresados — ${esc(fechaLegible(ultimaFecha))} · ${esc(nombreLinea(ESTADO.linea))}`
-        : `Sin registros todavía en ${esc(nombreLinea(ESTADO.linea))}`}</div>`;
+        ? `Últimos datos ingresados — ${esc(fechaLegible(ultimaFecha))}`
+        : 'Sin registros todavía'}</div>`;
   } else {
     rotulo = esAliment ? filaMesesAliment() + filaDiasYLineaAliment() : '';
     filas = ESTADO.datos.filter(coincide)
