@@ -2990,10 +2990,18 @@ function abrirPopoverFiltro(colId, btnEl){
   cerrarPopoverFiltro();
   if(yaAbierto) return;
   const col = colAliment(colId);
-  // opciones a partir de todas las filas de la línea actual (sin aplicar los demás filtros de
-  // columna activos), para que marcar un filtro no haga desaparecer las opciones de los otros
-  const todasLaLinea = ESTADO.datos.filter(r => r.linea === ESTADO.linea);
-  const crudos = [...new Set(todasLaLinea.map(r => valorColumna(col, r) || ''))].sort((a,b)=> String(a).localeCompare(String(b),'es'));
+  // opciones según lo que se está viendo: en el Inicio (botón HORAS) la tabla muestra las dos
+  // líneas del último día con datos, así que el filtro LÍNEA debe listar L1 y L2; en el resto de
+  // las vistas la tabla ya está acotada a la línea elegida
+  let base;
+  if(ESTADO.modulo === 'alimentacion' && !ESTADO.anioAliment){
+    const conFecha = ESTADO.datos.filter(r => r.fecha);
+    const ultimaFecha = conFecha.map(r => r.fecha).sort().pop() || '';
+    base = conFecha.filter(r => r.fecha === ultimaFecha);
+  } else {
+    base = ESTADO.datos.filter(r => r.linea === ESTADO.linea);
+  }
+  const crudos = [...new Set(base.map(r => valorColumna(col, r) || ''))].sort((a,b)=> String(a).localeCompare(String(b),'es'));
   const activos = ESTADO.filtrosAliment[colId];
   const panel = document.createElement('div');
   panel.className = 'panel-filtro';
