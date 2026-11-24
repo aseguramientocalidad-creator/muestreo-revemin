@@ -1003,11 +1003,12 @@ function codigoPatioFormateado(r){
   const t = (r.codigoPatio || '').trim();
   // mezcla de pilas: se muestran TODOS los códigos, "P-201, P-202"
   if(/mezcla/i.test(t)){
-    const codigos = (t.match(/\d+/g) || []).map(n => String(Number(n)));
+    const codigos = (t.match(/\d+/g) || []).map(n => String(Number(n)).padStart(3, '0'));
     if(codigos.length) return codigos.map(n => 'P-' + n).join(', ');
   }
+  // número de pila siempre con 3 dígitos: "1" o "01" -> "P-001", "12" -> "P-012", "185" -> "P-185"
   const m = t.match(/(\d+)\s*$/);
-  return m ? `P-${m[1]}` : t;
+  return m ? `P-${String(Number(m[1])).padStart(3, '0')}` : t;
 }
 // tipo de mineral: constante según la procedencia/proveedor — Mina Colombia (sea Rampa, Skip o
 // cualquier otra pila suya) y Sosa Méndez son SIEMPRE Primario; las Colas son SIEMPRE Relave,
@@ -1296,7 +1297,7 @@ function normalizarPilaMezcla(pila, procedencia){
       `Escríbala con los códigos de las pilas separados por coma, por ejemplo: "Mezcla P-201, P-202".`);
     return undefined;
   }
-  const lista = codigos.map(n => 'P-' + n).join(', ');
+  const lista = codigos.map(n => 'P-' + n.padStart(3, '0')).join(', ');
   const procLimpia = String(procedencia ?? '').trim().toUpperCase().replace(/_/g, ' ');
   const esSosa = /SOSA\s*M[EI]+NDEZ/.test(procLimpia);
   const esColombia = procLimpia === 'MINA COLOMBIA';
@@ -1338,8 +1339,12 @@ function validarCodigoPila(t, procedencia, silencioso){
     // espacios, o sin las "P-" — "Rampa Mezcla P-187 188 189" queda "Rampa Mezcla P-187, P-188, P-189"
     if(canonMz !== null) return canonMz;
   }
-  // cualquier otra procedencia: tampoco se guarda el nombre todo en mayúsculas
-  if(!esPequenaMineria && !esMinaColombia) return formatearAlianza(t);
+  // cualquier otra procedencia: tampoco se guarda el nombre todo en mayúsculas; si es un número
+  // de pila con menos de 3 dígitos ("7", "07"), se completa solo con ceros: "007"
+  if(!esPequenaMineria && !esMinaColombia){
+    const f = formatearAlianza(t);
+    return /^\d+$/.test(f) && f.length < 3 ? f.padStart(3, '0') : f;
+  }
   const tieneMezcla = /mezcla/i.test(t);
   const numMezcla = (t.match(/\d+/) || [])[0];
   if(esPequenaMineria && tieneMezcla && numMezcla){
@@ -3946,6 +3951,12 @@ $('#formulario').addEventListener('submit', async e=>{
     if(g.pila && ESTADO.procedencia !== 'pequena_mineria' && ESTADO.procedencia !== 'mina_colombia'){
       // cualquier otra procedencia: tampoco se guarda el nombre todo en mayúsculas
       g.pila = formatearAlianza(g.pila);
+    }
+    // número de pila con menos de 3 dígitos (ej. "7" o "07" en Camorra, "1" en Sosa): se completa
+    // solo con ceros a la izquierda al guardar -> "007", "001"
+    if(g.pila && /^\d+$/.test(g.pila.trim())){
+      const num = g.pila.trim();
+      if(num.length < 3) g.pila = num.padStart(3, '0');
     }
     if(g.pila){
       // aviso de nombre parecido pero no idéntico (posible transcripción inconsistente de la misma pila)
