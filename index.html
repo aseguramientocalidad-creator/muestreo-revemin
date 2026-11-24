@@ -3505,8 +3505,8 @@ function filaAlimentNueva(){
     </td>
     <td><input name="horaInicial" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
     <td><input name="horaFinal" placeholder="HH:MM" inputmode="numeric" maxlength="5"></td>
-    <td><input name="pesometroInicial" inputmode="decimal"></td>
-    <td><input name="pesometroFinal" inputmode="decimal"></td>
+    <td><input name="pesometroInicial" inputmode="decimal" pattern="[0-9.,]*" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')" placeholder="solo numeros"></td>
+    <td><input name="pesometroFinal" inputmode="decimal" pattern="[0-9.,]*" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')" placeholder="solo numeros"></td>
     <td><input name="obs"></td>
     <td class="celda-acc"><button type="button" class="mini borrar btn-limpiar-pila" style="display:none" title="Borra esta pila (Procedencia, Pila y todas sus lecturas) por si se equivocó al ingresarla">Limpiar</button></td>
   </tr>`;
